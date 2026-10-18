@@ -1,0 +1,14 @@
+{
+  "name": "brightvein",
+  "version": "0.3.0",
+  "private": true,
+  "description": "A town-builder and defence game set in Aethermoor: a sunstone claim on a plateau under the Thinning.",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "check": "node tools/build.mjs && python3 test/smoke.py"
+  },
+  "devDependencies": {
+    "three": "0.160.0"
+  }
+}

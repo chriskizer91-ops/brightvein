@@ -1,0 +1,100 @@
+<title>Brightvein Keep</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Fira+Sans:wght@400;500;600;700&display=swap">
+<style>/*__CSS__*/</style>
+<div id="app">
+  <canvas id="view" aria-label="Brightvein Keep: the claim on its plateau"></canvas>
+  <div id="labels" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="res" role="group" aria-label="Stores">
+      <div class="pill" id="r-ore" title="Raw sunstone, dug from the vein"><svg viewBox="0 0 20 20" class="ic"><path d="M4 12 7 5l6-1 4 6-3 6-7 1z" fill="#8a7a6c" stroke="#2a1c22" stroke-width="1.2"/><path d="M8 7l3 2-1 4-3-1z" fill="#e8a44a"/></svg><b>0</b><span>Ore</span></div>
+      <div class="pill" id="r-shards" title="Charged sunstone shards: the town's power and its money"><svg viewBox="0 0 20 20" class="ic"><path d="M10 1.5 15.5 9 10 18.5 4.5 9z" fill="#ffb347" stroke="#5a2a10" stroke-width="1.2"/><path d="M10 3.5 12.6 9 10 9z" fill="#fff0c4"/></svg><b>0</b><span>Shards</span></div>
+      <div class="pill" id="r-food" title="Food from the gardens"><svg viewBox="0 0 20 20" class="ic"><path d="M10 18c-4-3-6-7-4-11 3 0 5 3 4 11z" fill="#8cc06a" stroke="#24321a" stroke-width="1.2"/><path d="M10 18c4-3 6-7 4-11-3 0-5 3-4 11z" fill="#6ea44e" stroke="#24321a" stroke-width="1.2"/></svg><b>0</b><span>Food</span></div>
+      <div class="pill" id="r-pop" title="People and beds"><svg viewBox="0 0 20 20" class="ic"><circle cx="10" cy="6.5" r="3.5" fill="#f2d2b0" stroke="#2a1c22" stroke-width="1.2"/><path d="M4 18c0-4 2.5-6 6-6s6 2 6 6z" fill="#6b3a5e" stroke="#2a1c22" stroke-width="1.2"/></svg><b>0/0</b><span>People</span></div>
+    </div>
+    <div class="clock" id="clock">
+      <canvas id="dial" width="96" height="96" aria-hidden="true"></canvas>
+      <div class="clock-t"><b id="dayname">Day 1</b><span id="phase">Morning</span></div>
+    </div>
+  </header>
+
+  <div id="toasts" role="status" aria-live="polite"></div>
+
+  <section id="panel" class="panel" hidden aria-live="polite">
+    <button type="button" class="x" id="panel-x" aria-label="Close">×</button>
+    <div id="panel-body"></div>
+  </section>
+
+  <nav class="bottombar" aria-label="Controls">
+    <div class="seg" role="group" aria-label="View">
+      <button type="button" id="v-town" aria-pressed="true">Town</button>
+      <button type="button" id="v-keep" aria-pressed="false">Keep</button>
+      <button type="button" id="v-mine" aria-pressed="false">Mine</button>
+    </div>
+    <button type="button" class="btn" id="b-people" aria-label="People"><span class="lbl">People</span><svg class="pico" viewBox="0 0 20 20" aria-hidden="true"><circle cx="7" cy="6.5" r="3"/><circle cx="14" cy="7.5" r="2.4"/><path d="M1.5 17c0-3.6 2.4-5.6 5.5-5.6s5.5 2 5.5 5.6zM12.5 17c0-2.2-.6-3.8-1.6-4.9 3.5-.8 7.6.5 7.6 4.9z"/></svg><span class="badge" id="exp-badge" hidden></span></button>
+    <button type="button" class="btn" id="b-build">Build</button>
+    <div class="spacer"></div>
+    <button type="button" class="btn icon" id="b-pause" aria-label="Pause"><svg viewBox="0 0 16 16"><path class="ip" d="M4 3h3v10H4zM9 3h3v10H9z"/><path class="ir" d="M4 2.5v11l9-5.5z"/></svg></button>
+    <button type="button" class="btn" id="b-speed" aria-label="Game speed">1×</button>
+    <button type="button" class="btn icon" id="b-menu" aria-label="Settings"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+  </nav>
+
+  <div id="hint" class="hint" hidden></div>
+
+  <div id="buildbar" class="buildbar" hidden>
+    <div class="bb-head">
+      <div><b id="bb-title">Build</b><span id="bb-sub">Drag a building to move it. Tap a card to add one. Time stops while you plan.</span></div>
+      <button type="button" class="btn primary" id="bb-done">Done</button>
+    </div>
+    <div class="tray" id="tray" role="list" aria-label="Buildings you can add"></div>
+  </div>
+  <div id="placectl" class="placectl" hidden>
+    <button type="button" class="pc no" id="pc-no" aria-label="Cancel">✕</button>
+    <button type="button" class="pc ok" id="pc-ok" aria-label="Build it here">✓</button>
+    <span class="pc-cost" id="pc-cost"></span>
+  </div>
+
+  <div id="menu" class="overlay" hidden>
+    <div class="card menu-card" role="dialog" aria-labelledby="menu-h">
+      <h2 id="menu-h">Settings</h2>
+      <div class="row"><span>Visual detail</span><div class="seg" id="q-seg" role="group" aria-label="Visual detail"><button type="button" data-q="light">Light</button><button type="button" data-q="balanced">Balanced</button><button type="button" data-q="high">High</button></div></div>
+      <p class="small">Light turns off glow and softens shadows for smaller phones.</p>
+      <div class="row"><span>Game speed</span><div class="seg" id="spd-seg" role="group" aria-label="Game speed"><button type="button" data-s="1">1×</button><button type="button" data-s="2">2×</button><button type="button" data-s="4">4×</button></div></div>
+      <div class="row"><span>Sound</span><button type="button" class="btn" id="b-sound" aria-pressed="true">On</button></div>
+      <div class="row"><span>How to play</span><button type="button" class="btn" id="b-help">Show</button></div>
+      <div class="row"><span>New claim</span><button type="button" class="btn danger" id="b-reset">Start over</button></div>
+      <div class="confirm" id="reset-confirm" hidden><p>Start a new claim? Your town and people here will be lost.</p><div class="row"><button type="button" class="btn" id="reset-no">Keep my town</button><button type="button" class="btn danger" id="reset-yes">Start over</button></div></div>
+      <p class="small">Progress is saved in this browser, separately from Brightvein. Training and expeditions keep going while you're away (up to 8 hours).</p>
+      <button type="button" class="btn primary wide" id="menu-close">Back to the claim</button>
+    </div>
+  </div>
+
+  <div id="intro" class="overlay intro">
+    <div class="card intro-card">
+      <p class="eyebrow">A claim in Aethermoor</p>
+      <h1>Brightvein Keep</h1>
+      <p class="lede">A seam of raw sunstone has broken the surface on a high plateau under the Thinning. Your crew got here first. Dig the vein, charge the crystal in the sun, and keep the lights burning through the night, when the Wildlight wakes.</p>
+      <ul class="how">
+        <li><b>Lay out the claim.</b> Drag buildings around the grid. Where you put the yards and turrets is your defence.</li>
+        <li><b>By day</b> miners dig ore. Tenders lay it out in the sunning yards, where it charges into shards.</li>
+        <li><b>By night</b> shards light the town and power the turrets. Wildlight comes for the glow.</li>
+        <li><b>Inside the Keep</b> your people study: a room for each of Grit, Engineering, Agility, Rapport and Sowing. Time keeps counting while you're away.</li>
+        <li><b>Tap anyone</b> to give them a job, send them to study, kit them out, or send them down the cliff into the wilds.</li>
+      </ul>
+      <div class="intro-actions">
+        <button type="button" class="btn primary" id="b-start">Stake the claim</button>
+        <button type="button" class="btn" id="b-continue" hidden>Continue</button>
+      </div>
+      <p class="small" id="loading">Raising the town…</p>
+    </div>
+  </div>
+</div>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+/*__JS__*/
+</script>

@@ -1,0 +1,1 @@
+window.__cam = (tx,ty,tz,px,py,pz) => { const b=__bv; b.VIEW.tween=null; const c=b.controls; c.enableDamping=false; c.minDistance=2; c.maxDistance=400; c.minPolarAngle=0; c.maxPolarAngle=Math.PI; c.minAzimuthAngle=-Infinity; c.maxAzimuthAngle=Infinity; c.target.set(tx,ty,tz); b.camera.position.set(px,py,pz); c.update(); };

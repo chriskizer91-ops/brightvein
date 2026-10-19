@@ -57,12 +57,13 @@ const UI = {
   render() {
     const c = this.cur, body = $('#panel-body'), panel = $('#panel'), key = c && c.kind + (c.ref != null && typeof c.ref !== 'object' ? c.ref : c.ref && (c.ref.id || c.ref.d?.id || c.ref.v?.d?.id || c.ref.it?.uid || c.ref.room || ''));
     const keep = this.lastKey === key ? panel.scrollTop : 0;
-    panel.classList.toggle('wide', !!c && c.kind === 'villager');
+    panel.classList.toggle('wide', !!c && ['villager', 'bench', 'item'].includes(c.kind));
     this.lastKey = key;
     body.innerHTML = '';
     requestAnimationFrame(() => { panel.scrollTop = keep; });
     if (!c) return;
-    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock, haul: this.haul, journal: this.journal }[c.kind];
+    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock, haul: this.haul, journal: this.journal,
+      bench: this.bench, fit: this.fit, lark: this.lark, courier: this.courier }[c.kind];
     if (fn) fn.call(this, body, c.ref);
   },
   h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content; },
@@ -74,7 +75,7 @@ const UI = {
       <p class="sub">${esc(def.levels[lv - 1] || '')}</p><p>${esc(def.blurb)}</p>`));
     const chips = [];
     if (b.type === 'head') { const r = (GAME.rates && GAME.rates.ore) || 0; chips.push(`<span class="chip">${(r * 60).toFixed(1)} ore a minute</span>`); chips.push(`<span class="chip ${lv >= 2 ? 'warn' : ''}">${lv >= 2 ? 'Deep seam open' : 'Deep seam sealed'}</span>`); }
-    if (b.type === 'yard') { const t = workersOf(b.id).reduce((s, v) => s + v.eff(), 0) * RATES.charge * (lv >= 3 ? 1.5 : lv >= 2 ? 1.25 : 1); chips.push(`<span class="chip amber">Up to ${(t * 60).toFixed(1)} ore charged a minute, in full sun</span>`); if (TOD.sunlight < 0.05 && lv < 3) chips.push(`<span class="chip">Resting: no sun</span>`); }
+    if (b.type === 'yard') { chips.push(`<span class="chip amber">Up to ${yardRate(b).toFixed(1)} ore charged a minute, in full sun</span>`); if (TOD.sunlight < 0.05 && lv < 3) chips.push(`<span class="chip">Resting: no sun</span>`); }
     if (b.type === 'shop') chips.push(`<span class="chip amber">+${Math.round(22 * workersOf(b.id).reduce((s, v) => s + v.eff(), 0) * (lv >= 2 ? 1.3 : 1))}% shards from every tray</span>`);
     if (b.type === 'garden') { const net = (GAME.rates && GAME.rates.food || 0) * 60; chips.push(`<span class="chip ${net < 0 ? 'warn' : 'good'}">Claim food ${net >= 0 ? '+' : ''}${net.toFixed(1)} a minute</span>`); }
     if (b.type === 'keep') {
@@ -83,7 +84,7 @@ const UI = {
       chips.push(`<span class="chip ${free > 0 ? 'amber' : 'warn'}">${free > 0 ? `Next settler ${Math.round(GAME.recruit * 100)}% of the way` : 'No free beds: raise the Keep'}</span>`);
       chips.push(`<span class="chip">${expOut().length} of ${expLimit()} out in the wilds</span>`);
     }
-    if (b.type === 'lens') chips.push(`<span class="chip">Reach ${lv >= 2 ? 27 : 21} m · 1 shard a shot · needs a crew</span>`);
+    if (b.type === 'lens') chips.push(`<span class="chip">Reach ${Math.round(turretRange(b))} m · 1 shard a shot · needs a crew</span>`);
     if (b.type === 'ballista') chips.push(`<span class="chip">Reach ${lv >= 2 ? 17 : 14} m · ${lv >= 2 ? 14 : 10} a bolt · no crew, no shards</span>`);
     if (isWall) { const br = WALL.segs.filter(s => s.broken).length; chips.push(`<span class="chip ${br ? 'warn' : 'good'}">${br ? br + ' breaches, mended at dawn by the watch' : 'Sound all the way round'}</span>`); }
     if (b.type === 'mast') chips.push(`<span class="chip">${SHIP.state === 'docked' ? 'Moored' : 'On patrol'}</span>`);
@@ -108,6 +109,13 @@ const UI = {
       const rows = BUILD_ORDER.map(t => { const have = byType(t).length, cap = KEEP_LIMITS[t][lv], nxt = KEEP_LIMITS[t][Math.min(3, lv + 1)]; return `<span class="chip ${have < cap ? 'amber' : ''}">${esc(DEFS[t].name)} ${have}/${cap}${lv < 3 && nxt > cap ? ` <em style="font-style:normal;color:var(--good)">→ ${nxt}</em>` : ''}</span>`; });
       body.append(this.h(`<div class="stats-row">${rows.join('')}</div>`));
       if (lv < 3) body.append(this.h(`<p class="small">Level ${lv + 1} also gives ${DEFS.keep.beds[lv + 1]} beds and ${EXP_LIMIT[lv + 1]} expeditions at once.</p>`));
+    }
+    // Odile's bench, the module sockets, the Lark's fittings and the courier (bench.js, fittings.js)
+    if (b.type === 'shop' && lv > 0) this.benchLink(body, b);
+    this.socketBlock(body, b);
+    if (b.type === 'mast') {
+      const fl = (GAME.sockets.lark || []).filter(Boolean).length, r = this.h(`<div class="stats-row"><button type="button" class="btn">The Lark's fittings · ${fl} of ${LARK_SLOTS}</button><button type="button" class="btn">The courier's wares</button></div>`);
+      const [a, c] = r.querySelectorAll('button'); a.onclick = () => UI.open('lark'); c.onclick = () => UI.open('courier'); body.append(r);
     }
     // actions
     const acts = document.createElement('div'); acts.className = 'stats-row';
@@ -331,6 +339,7 @@ const UI = {
       }
       card.append(list);
     }
+    this.suggestBlock(card, v);   // the best kit in the stash for their job (finds.js)
     body.append(card);
   },
   gearBlock(body, v, back) {
@@ -360,7 +369,13 @@ const UI = {
     const opts = GAME.stash.filter(it => wearable(it) && it.slot === slot).sort((a, b) => LOOT.rankOf(b.rarity) - LOOT.rankOf(a.rarity) || (b.ilvl || 0) - (a.ilvl || 0));
     body.append(this.h(`<h3>In the stash · ${opts.length}</h3>`));
     const l2 = document.createElement('div'); l2.className = 'list';
-    for (const it of opts) l2.append(this.itemRow(it, 'Equip', () => { equip(v, it); AUDIO.play('tap'); toast(`<b>${esc(v.d.name.split(' ')[0])}</b> takes the <b style="color:${rarityOf(it).color}">${esc(it.name)}</b>.`); back ? back() : UI.open('villager', v); }));
+    // each with what it would do for them: at their job, or on the watch (finds.js)
+    const now = jobScore(v), wall = v.jobB === WALLB;
+    for (const it of opts) {
+      const d = now > 0 ? withItem(v, it, () => jobScore(v)) - now : 0, side = Math.abs(d) < now * 0.01 || !now ? 'Equip' : `Equip · <b class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${wall ? Math.abs(d).toFixed(1) + '/s' : Math.round(Math.abs(d) / now * 100) + '%'}</b>`;
+      const row = this.itemRow(it, '', () => { equip(v, it); AUDIO.play('tap'); toast(`<b>${esc(v.d.name.split(' ')[0])}</b> takes the <b style="color:${rarityOf(it).color}">${esc(it.name)}</b>.`); back ? back() : UI.open('villager', v); });
+      row.querySelector('.side').innerHTML = side; l2.append(row);
+    }
     if (!opts.length) l2.append(this.h(`<p class="small">Nothing for this slot yet. Wildlight drop gear, miners turn it up, and the wilds are full of it.</p>`));
     body.append(l2);
     this.back(body, 'Back', () => back ? back() : UI.open('villager', v));
@@ -369,31 +384,11 @@ const UI = {
     const el = document.createElement('button'); el.type = 'button'; el.className = 'irow';
     el.append(itemPicture(it, 40));
     const first = itemLines(it)[0] || D.ITEMS[it.base]?.text || '';
-    el.append(this.h(`<span><span class="nm" style="color:${rarityOf(it).color}">${esc(it.name)}</span><span class="jb">${esc(rarityOf(it).name)} · ${esc(first)}</span></span><span class="side">${esc(action || '')}</span>`));
+    el.append(this.h(`<span><span class="nm" style="color:${rarityOf(it).color}">${it.overhaul ? `<span class="ohn">+${it.overhaul}</span> ` : ''}${esc(it.name)}${it.unassayed ? ' <em class="ua">unassayed</em>' : ''}</span><span class="jb">${esc(rarityOf(it).name)} · ${esc(first)}</span></span><span class="side">${esc(action || '')}</span>`));
     el.onclick = onAct || (() => UI.open('item', { it }));
     return el;
   },
-  item(body, { it, back }) {
-    const R = rarityOf(it), { relic, base } = itemBase(it);
-    const top = document.createElement('div'); top.className = 'ihead'; top.style.setProperty('--rc', R.color); top.append(itemPicture(it, 88));
-    top.append(this.h(`<div><h2 style="color:${R.color}">${esc(it.name)}</h2><p class="sub">${esc(R.name)} ${esc(D.SLOTS[it.slot]?.name || '')}${it.ilvl ? ' · item level ' + it.ilvl : ''}</p></div>`));
-    body.append(top);
-    const lines = itemLines(it);
-    if (lines.length) body.append(this.h(`<ul class="traits">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>`));
-    const p = relic && relic.power || it.power;
-    if (p && !it.unassayed) body.append(this.h(`<div class="power"><b>${esc(p.name)}.</b> ${esc(p.text)}</div>`));
-    if (relic && relic.town) body.append(this.h(`<p class="small">${esc(relic.town.text)}</p>`));
-    if (it.unassayed) {
-      const a = this.h(`<div class="power">Unassayed. The maker's mark is there but nobody has read it. <button type="button" class="btn" style="margin-top:6px">Ask Absalom to assay it · ${SHARD} ${D.WORKSHOP.assay}</button></div>`);
-      a.querySelector('button').onclick = () => { if (GAME.shards < D.WORKSHOP.assay) return toast('Not enough shards.'); GAME.shards -= D.WORKSHOP.assay; delete it.unassayed; AUDIO.play('chime'); toast(`Absalom reads the mark: <b>${esc(it.power?.name || 'a maker he knows')}</b>.`); UI.refresh(); };
-      body.append(a);
-    }
-    if (it.logbook) body.append(this.h(`<p class="lore">${esc(it.logbook)}</p>`));
-    if (relic && relic.lore) body.append(this.h(`<p class="lore">${esc(relic.lore)}</p>`));
-    else if (base && base.text) body.append(this.h(`<p class="lore">${esc(base.text)}</p>`));
-    if (it.from) body.append(this.h(`<p class="small">From ${esc(it.from)}.</p>`));
-    this.back(body, 'Back', back || (() => UI.open('roster', null)));
-  },
+  // the item panel is UI.item in finds.js
   jobs(body, v) {
     body.append(this.h(`<h2>A job for ${esc(v.d.name.split(' ')[0])}</h2><p class="sub">Stars show how well their stats fit.</p>`));
     const list = document.createElement('div'); list.className = 'list';
@@ -441,12 +436,7 @@ const UI = {
         el.onclick = () => UI.open('exp', v); list.append(el);
       }
       if (!out.length) list.append(this.h(`<p class="small">Nobody is out. Tap anyone, kit them out, and send them.</p>`));
-    } else {
-      const m = GAME.mats, mats = Object.entries(D.MATERIALS).map(([k, x]) => `<span class="chip">${esc(x.name)} ${m[k] || 0}</span>`), cells = Object.entries(GAME.cells).filter(([, n]) => n).map(([k, n]) => `<span class="chip">${esc(D.CELLS[k].name)} ${n}</span>`);
-      body.append(this.h(`<p class="small">Everything not being worn. Tap a piece to read it; equip it from a person's Gear.</p><div class="mats">${mats.join('')}${cells.join('')}${GAME.blueprints.length ? `<span class="chip">${GAME.blueprints.length} blueprints</span>` : ''}</div>`));
-      for (const it of GAME.stash) list.append(this.itemRow(it, D.SLOTS[it.slot]?.name || '', () => UI.open('item', { it, back: () => UI.open('roster') })));
-      if (!GAME.stash.length) list.append(this.h(`<p class="small">The stash is empty.</p>`));
-    }
+    } else this.stashTab(body, list);   // sort, filter and the bench (finds.js)
     body.append(list);
   },
   prep(body, v) {

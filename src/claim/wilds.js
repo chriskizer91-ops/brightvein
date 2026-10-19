@@ -160,7 +160,7 @@ function deliverHaul(v) {
   const H = E.haul;
   GAME.ore += H.ore; GAME.shards += H.shards; GAME.food += H.food;
   for (const [k, n] of Object.entries(H.mats)) GAME.mats[k] = (GAME.mats[k] || 0) + n;
-  for (const it of H.items) GAME.stash.unshift(it);
+  for (const it of H.items) addToStash(it, true, { pos: TRAIL_TOP(), line: `${v.d.name.split(' ')[0]} brought it back from the wilds` });
   const bits = [];
   if (H.ore) bits.push(`${H.ore} ore`); if (H.shards) bits.push(`${H.shards} shards`); if (H.food) bits.push(`${H.food} food`);
   if (H.items.length) bits.push(`${H.items.length} find${H.items.length > 1 ? 's' : ''}`);

@@ -26,7 +26,7 @@ const roomPeople = i => GAME.villagers.filter(v => v.d.study && v.d.study.room =
 const roomStudents = i => roomPeople(i).filter(v => v.d.study.role === 'student');
 const roomTutor = i => roomPeople(i).find(v => v.d.study.role === 'tutor');
 function tutorMult(i) { const r = GAME.rooms[i], t = roomTutor(i); if (!t || !r.type) return 1; return 1 + Math.max(0, statOf(t, r.type) - 5) * 0.15 * (mastered(t, r.type) ? 1.15 : 1); }
-const studyRate = i => ROOM_SPEED[GAME.rooms[i].level] * tutorMult(i);
+const studyRate = i => ROOM_SPEED[GAME.rooms[i].level] * tutorMult(i) * studyBoost();   // studyBoost: the Keep's Book Lockers (fittings.js)
 const studyLeft = v => { const S = v.d.study, k = GAME.rooms[S.room].type; return (pointTime(v.d.stats[k]) - S.prog) / Math.max(0.01, studyRate(S.room)); };
 function canStudent(v, i) { const r = GAME.rooms[i]; return r.type && !v.d.exp && v.d.stats[r.type] < STAT_MAX && roomStudents(i).length < ROOM_SEATS[r.level] && !(v.d.study && v.d.study.room === i); }
 function canTutor(v, i) { const r = GAME.rooms[i]; return r.type && !v.d.exp && !roomTutor(i) && statOf(v, r.type) >= 7; }

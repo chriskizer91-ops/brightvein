@@ -52,7 +52,7 @@ class Jumper {
           const at = new THREE.Vector3(best.L.x + (Math.random() - 0.5) * 4, 0.6, best.L.z + (Math.random() - 0.5) * 3);
           for (let i = 0; i < 2; i++) fireBeam(P.clone().add(new THREE.Vector3(0, 0.5, 0)), at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2)), 0xff5a40, 0.8);
           FX.sparks(at, 14, 0xffb050, 3); AUDIO.play('volley', P);
-          const take = Math.min(Math.max(0, GAME.shards), best.type === 'yard' ? 7 : 3);
+          const take = larkShields() ? 0 : Math.min(Math.max(0, GAME.shards), best.type === 'yard' ? 7 : 3);   // the Lark's hull plates can take it (fittings.js)
           GAME.shards -= take; this.stolen += take;
         }
       }
@@ -76,10 +76,12 @@ class Jumper {
   gone() { this.dead = true; scene.remove(this.root); JUMP.list.splice(JUMP.list.indexOf(this), 1); return false; }
 }
 function jumperDowned(j) {
-  const haul = LOOT.raidCrates('camp'), item = haul.items[0];
-  GAME.shards += 25 + Math.round(j.stolen);
-  if (item) addToStash(item, true);
-  toast(`<b>A jumper ${j.kind} is going down!</b> She leaves ${SHARD} ${25 + Math.round(j.stolen)}${item ? ` and a crate: <b style="color:${rarityOf(item).color}">${esc(item.name)}</b>` : ''}.`);
+  const haul = LOOT.raidCrates('camp'), item = haul.items[0], at = j.root.position.clone().setY(0);
+  // with a Harpoon Winch on the Lark, the crew board her as she falls: a second crate (fittings.js)
+  const second = larkBoards() ? LOOT.raidCrates('camp').items[0] : null;
+  GAME.shards += 25 + Math.round(j.stolen); GAME.mats.brass = (GAME.mats.brass || 0) + 1;
+  for (const it of [item, second]) if (it) addToStash(it, true, { pos: at, line: 'From the jumper’s crate' });
+  toast(`<b>A jumper ${j.kind} is going down!</b> She leaves ${SHARD} ${25 + Math.round(j.stolen)}${item ? ` and a crate: <b style="color:${rarityOf(item).color}">${esc(item.name)}</b>` : ''}${second ? `, and the crew board her for another: <b style="color:${rarityOf(second).color}">${esc(second.name)}</b>` : ''}.`);
 }
 // the Captain's ship at the Sky Dock fires on any jumper that comes in reach
 const DOCK_GUN = { skiff: 16, cutter: 24, brig: 34, frigate: 46 };

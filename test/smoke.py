@@ -21,6 +21,26 @@ with sync_playwright() as p:
       return { day: B.GAME.day, people: B.GAME.villagers.length, shards: Math.round(B.GAME.shards), nights: B.GAME.nights, buildings: Object.keys(B.TOWN.b).length }; })()''')
     check('a day and a night on the claim', r['day'] >= 2 and r['nights'] >= 1, json.dumps(r))
 
+    # Odile's bench and the modules: salvage gives materials, an overhaul raises damage, a cell fits, and a module
+    # fitted to a sunning yard raises its charge rate (bench.js, fittings.js)
+    r = pg.evaluate('''(() => { const B = __bv, T = B.BENCH_T, G = B.GAME, out = {};
+      const mk = (base, rarity) => B.LOOT.makeGear({ base, rarity, ilvl: 3 });
+      const junk = [mk('pick', 'salvage'), mk('duster', 'tuned'), mk('spanner', 'calibrated')]; for (const it of junk) G.stash.unshift(it);
+      const m0 = G.mats.brass + G.mats.glass; out.salvage = T.benchSalvage(junk); B.simulate(10, 0.1); out.mats = G.mats.brass + G.mats.glass - m0;
+      const lance = mk('earthing-lance', 'tooled'); G.stash.unshift(lance); G.shards += 500;
+      out.dps = [T.dpsOf(lance, 7, 'flarehound')]; out.oh = T.benchOverhaul(lance); B.simulate(10, 0.1); out.dps.push(T.dpsOf(lance, 7, 'flarehound')); out.ohLevel = lance.overhaul;
+      const rifle = mk('wind-rifle', 'calibrated'); G.stash.unshift(rifle); G.cells.smoke = (G.cells.smoke || 0) + 1;
+      out.cell = T.benchCell(rifle, 0, 'smoke'); B.simulate(6, 0.1); out.cells = rifle.cells;
+      const yard = Object.values(B.TOWN.b).find(b => b.type === 'yard' && b.level > 0), mod = G.stash.find(it => it.base === 'parabolic');
+      out.rate = [T.yardRate(yard)]; out.boost = [T.yardBoost(yard)]; out.fit = T.fitModule(mod, yard, 0); out.rate.push(T.yardRate(yard)); out.boost.push(T.yardBoost(yard));
+      out.shown = !!yard.modProps && yard.modProps.children.length > 0;
+      B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1')); out.saved = !!s.workshop && s.workshop.sockets[yard.id][0].base === 'parabolic';
+      return out; })()''')
+    check('salvage at the bench gives materials', r['salvage'] and r['mats'] >= 4, json.dumps(r))
+    check('an overhaul raises damage', r['oh'] and r['ohLevel'] == 1 and r['dps'][1] > r['dps'][0])
+    check('a cell fits', r['cell'] and r['cells'] == ['smoke'])
+    check('a module fitted to a yard raises its charge rate, shows on the yard and is saved', r['fit'] and r['boost'][1] > r['boost'][0] * 1.05 and (r['rate'][1] > r['rate'][0] * 1.05 or r['rate'][0] == 0) and r['shown'] and r['saved'])
+
     # the story: the prologue opened when the claim started, and closes after the first night; the settlers came off
     # the roll, so each has a portrait to match their sprite
     pg.wait_for_timeout(1500)
@@ -100,18 +120,29 @@ with sync_playwright() as p:
     check("a minute of play doesn't pile up sounds", r['state'] == 'running' and r['voices'] < 72 and r['persist'] < 200, json.dumps(r))
     extra = os.environ.get('SMOKE_EXTRA')
     if extra: print(pg.evaluate(extra))
+    # a claim saved before Odile's bench and the module sockets: no workshop in it, and only gear in the stash
+    old = pg.evaluate('''(() => { __bv.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1')); delete s.workshop;
+      s.stash = s.stash.filter(it => it.type === 'gear' || it.type === 'relic');
+      s.stash.unshift({ uid: 'oldgear1', type: 'gear', base: 'pick', slot: 'hand', kind: 'pick', rarity: 'tuned', ilvl: 2, name: 'Tuned Prospector’s Pick', aspect: 'steam', traits: [], cells: [], overhaul: 0, retunes: 0, from: 'a module, before modules were fitted' });
+      for (const it of s.stash) { delete it.n; delete it.day; }
+      return JSON.stringify(s); })()''')
+    old_n = len(json.loads(old)['stash'])
     pg.evaluate('__bv.renderer.setAnimationLoop(null)'); pg.close()   # the next page loads faster on its own
     pg2 = b.new_page(viewport={'width': 480, 'height': 360})
     pg2.add_init_script('delete window.AudioContext; delete window.webkitAudioContext; delete window.OfflineAudioContext; delete window.webkitOfflineAudioContext;')
+    pg2.add_init_script('localStorage.setItem("brightvein-keep-v1", ' + json.dumps(old) + ');')
     quiet = []
     pg2.on('pageerror', lambda e: quiet.append(str(e)))
     pg2.route('**/fonts.g*/**', lambda r: r.fulfill(body='', content_type='text/css'))
     pg2.goto('file://' + ROOT + '/dist/test.html', timeout=300000)
     pg2.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=240000)
-    r = pg2.evaluate('''(async () => { const B = __bv, A = BV_AUDIO.AUDIO; B.begin(true); B.exitBuild(); B.simulate(30, 0.1);
+    r = pg2.evaluate('''(async () => { const B = __bv, A = BV_AUDIO.AUDIO; B.begin(false); B.exitBuild(); B.simulate(30, 0.1);
+      const old = { stash: B.GAME.stash.length, pick: B.GAME.stash.some(it => it.uid === 'oldgear1'), sockets: typeof B.GAME.sockets === 'object', bench: !B.GAME.bench.job };
+      B.UI.tab = 'stash'; B.UI.open('roster'); B.UI.open('bench', { tab: 'salvage' }); B.UI.close();
       for (const k of A.names()) A.play(k, { x: 0, y: 0, z: 0 }); A.loot('sunforged'); A.rain(0.5); A.ambience(); A.vol('music', 0.5);
       document.getElementById('b-menu').click(); document.querySelector('#mb-list .mb-play').click(); document.getElementById('menu-close').click();
-      return { missing: A.missing, status: A.status().state, render: await A.render({ theme: 'day', seconds: 1 }) }; })()''')
+      return { old, missing: A.missing, status: A.status().state, render: await A.render({ theme: 'day', seconds: 1 }) }; })()''')
+    check('a claim saved before the bench still loads, stash and all', r['old']['pick'] and r['old']['stash'] >= old_n and r['old']['sockets'] and not quiet, json.dumps(r['old']) + f' saved {old_n}')
     check('with no sound in the browser, nothing breaks', not quiet and r['missing'] and r['render'] is None, json.dumps(r) + ' ' + '; '.join(quiet))
     pg2.close()
     b.close()

@@ -12,32 +12,40 @@ function itemBase(it) {
 function itemWeapon(it) { const { relic, base } = itemBase(it); return relic && relic.weapon ? relic.weapon : base && base.weapon ? base.weapon : null; }
 // Hearthbrand has no base item: it is a sword in its own right
 D.RELICS['hearthbrand-refit'].weapon = { dmg: 16, cd: 0.8, range: 1.8, aspect: 'glare', stat: 'G' };
-// damage a second of one weapon, as the Armory works it, plus a relic's own damage bonus
+// Odile's overhauls: each step +1 … +10 adds 4% to the item's own numbers (its damage, guard, health, output)
+const ohK = it => 1 + (it.overhaul || 0) * D.WORKSHOP.overhaul.perLevel;
+const OH_KEYS = new Set(['guard', 'hp', 'out', 'repair', 'night', 'speed', 'vsWild', 'vsJumper', 'sight']);
+const isWeaponItem = it => it.slot === 'hand' && !!itemWeapon(it);
+// damage a second of one weapon, as the Armory works it, plus a relic's own damage bonus, its overhaul and its cells
 function dpsOf(it, statVal, foe) {
   const w = itemWeapon(it); if (!w) return 0;
   const { relic } = itemBase(it), R = rarityOf(it);
-  let dmg = w.dmg * R.statMult * (1 + (it.overhaul || 0) * D.WORKSHOP.overhaul.perLevel) * (1 + 0.08 * statVal), rate = 1 / w.cd;
+  let dmg = w.dmg * R.statMult * ohK(it) * (1 + 0.08 * statVal), rate = 1 / w.cd;
   if (relic && relic.stats && relic.stats.dmg) dmg *= 1 + relic.stats.dmg / 100;
   for (const t of it.traits || []) { const a = D.AFFIXES[t.id]; if (!a) continue; if (a.stat === 'dmg') dmg *= 1 + t.value / 100; if (a.stat === 'rate') rate *= 1 + t.value / 100; }
   const parts = [{ aspect: w.aspect, k: 1 }]; for (const t of it.traits || []) { const a = D.AFFIXES[t.id]; if (a && a.stat === 'extra') parts.push({ aspect: a.aspect, k: t.value / 100 }); }
+  for (const c of it.cells || []) { const C = D.CELLS[c]; if (C && C.hand.extra) for (const [a, k] of Object.entries(C.hand.extra)) parts.push({ aspect: a, k: k / 100 }); }
   const res = (D.FOES[foe] || {}).resist || {};
   return Math.round(dmg * rate * parts.reduce((s, p) => s + p.k * (1 - (res[p.aspect] || 0) / 100), 0) * 10) / 10;
 }
 const wearable = it => (it.type === 'gear' || it.type === 'relic') && GEAR_SLOTS.includes(it.slot);
-// flat effects of one item
+// flat effects of one item: its base, a relic's stats, its traits, the cells in its sockets and how it was attuned
 function itemStats(it) {
   const o = {}, add = (k, v) => { if (!v || typeof v !== 'number') return; if (k === 'allStats') { for (const s of 'GEARS') o[s] = (o[s] || 0) + v; return; } o[k] = (o[k] || 0) + v; };
-  const { relic, base } = itemBase(it), mult = rarityOf(it).statMult;
+  const { relic, base } = itemBase(it), mult = rarityOf(it).statMult, oh = ohK(it);
   if (base) {
-    if (base.armor) for (const [k, v] of Object.entries(base.armor)) add(k, Math.round(v * mult));
+    if (base.armor) for (const [k, v] of Object.entries(base.armor)) add(k, Math.round(v * mult * oh));
     for (const k of ['G', 'E', 'A', 'R', 'S', 'speed', 'night', 'nerve', 'findLuck', 'light', 'stealth', 'sight']) add(k, base[k]);
-    if (base.tool) { o.outJob = base.tool.job === 'hall' ? 'keep' : base.tool.job; add('out', Math.round(base.tool.out * mult)); }
+    if (base.tool) { o.outJob = base.tool.job === 'hall' ? 'keep' : base.tool.job; add('out', Math.round(base.tool.out * mult * oh)); }
   }
-  if (relic) for (const [k, v] of Object.entries(relic.stats || {})) if (k !== 'dmg') add(k, v);
+  if (relic) for (const [k, v] of Object.entries(relic.stats || {})) if (k !== 'dmg') add(k, typeof v === 'number' && OH_KEYS.has(k) && it.overhaul ? Math.round(v * oh) : v);
   for (const t of it.traits || []) { const a = D.AFFIXES[t.id]; if (a && a.stat !== 'extra' && a.stat !== 'resist') add(a.stat, t.value); }
+  const hand = isWeaponItem(it);
+  for (const c of it.cells || []) { const C = D.CELLS[c]; if (C) for (const [k, v] of Object.entries(hand ? C.hand : C.other)) add(k, v); }
+  if (it.attuned && D.ATTUNE[it.attuned]) for (const [k, v] of Object.entries(hand ? D.ATTUNE[it.attuned].hand : D.ATTUNE[it.attuned].other)) add(k, v);
   return o;
 }
-const GEAR_KEYS = ['G', 'E', 'A', 'R', 'S', 'guard', 'hp', 'night', 'speed', 'findLuck', 'upkeep', 'nerve', 'vsWild', 'stealth', 'light', 'repair'];
+const GEAR_KEYS = ['G', 'E', 'A', 'R', 'S', 'guard', 'hp', 'night', 'speed', 'findLuck', 'upkeep', 'nerve', 'vsWild', 'vsJumper', 'stealth', 'light', 'repair'];
 function gearOf(v) {
   if (v.gearCache) return v.gearCache;
   const g = { outByJob: {}, outAny: 0, weapon: null }; for (const k of GEAR_KEYS) g[k] = 0;
@@ -54,10 +62,13 @@ const outFor = (g, type) => g.outAny + (g.outByJob[type] || 0);
 // damage a second against a foe, and reach. Without a weapon the watch still carries a plain crystal lance.
 // the cast's gifts in a fight: Brisa drills the watch, Torvald sharpens every blade
 const castEdge = v => (castPerk('sol') && v.d.job && v.d.job.bid === 'wall' ? 1.25 : 1) * (castPerk('brann') ? 1.1 : 1);
+// gear "against Wildlight" counts only against Wildlight, and "against claim-jumpers" only against them
+const WILD_FOES = new Set(['glimmer', 'flarehound', 'lodestar', 'brightmaw']), JUMPER_FOES = new Set(['jumper', 'enforcer', 'baron']);
 function fightOf(v, foe = 'glimmer') {
-  const g = gearOf(v), mk = mastered(v, 'G') ? 1.2 : 1, bare = 2.2 * statOf(v, 'G') * (v.d.trait === 'Bold' ? 1.25 : 1) * mk;
+  const g = gearOf(v), mk = (mastered(v, 'G') ? 1.2 : 1) * watchBell(v), bare = 2.2 * statOf(v, 'G') * (v.d.trait === 'Bold' ? 1.25 : 1) * mk;
   if (!g.weapon) return { dps: bare, range: 1.6 };
-  const w = itemWeapon(g.weapon), d = dpsOf(g.weapon, statOf(v, w.stat), foe) * (1 + g.vsWild / 100) * (v.d.trait === 'Bold' ? 1.1 : 1) * mk * castEdge(v);
+  const vs = WILD_FOES.has(foe) ? g.vsWild : JUMPER_FOES.has(foe) ? g.vsJumper : 0;
+  const w = itemWeapon(g.weapon), d = dpsOf(g.weapon, statOf(v, w.stat), foe) * (1 + vs / 100) * (v.d.trait === 'Bold' ? 1.1 : 1) * mk * castEdge(v);
   return w.range > 3 ? { dps: d, range: Math.min(w.range, 16), cd: w.cd, ranged: true, aspect: g.weapon.aspect || w.aspect } : { dps: Math.max(bare, d), range: Math.max(1.6, w.range * 0.8) };
 }
 function maxHpOf(v) { const g = gearOf(v); return Math.round(50 + statOf(v, 'G') * 5 + g.hp); }
@@ -71,47 +82,57 @@ function equip(v, it) {
   return true;
 }
 function unequip(v, slot) { const it = v.d.gear[slot]; if (!it) return; delete v.d.gear[slot]; GAME.stash.unshift(it); v.gearCache = null; if (slot === 'hand' && v.redraw) v.redraw(); }
-// modules and Lark parts can't be fitted yet: anything that isn't wearable becomes gear of the same rarity
-function toGear(it, ilvl = 1) { return it && (it.type === 'gear' || it.type === 'relic') ? it : LOOT.makeGear({ rarity: it ? it.rarity : 'salvage', ilvl, from: it && it.from }); }
-function addToStash(it, quiet) {
-  it = toGear(it, it && it.ilvl);
+// Modules and Lark parts stay what they are now (they're fitted at the buildings and the mast). Claims saved before
+// this keep the gear their old modules were turned into.
+function toGear(it) { return it; }
+// into the stash: numbered so the stash can sort newest first. Anything Signed or better gets its moment: a beam of
+// its colour where it dropped and a toast with its picture (finds.js). o: { pos, line }
+function addToStash(it, quiet, o = {}) {
+  if (!it) return it;
+  it.n = GAME.lootN = (GAME.lootN || 0) + 1; it.day = GAME.day;
   GAME.stash.unshift(it);
   AUDIO.loot(it.rarity);
-  if (!quiet) toast(`Found: <b style="color:${rarityOf(it).color}">${esc(it.name)}</b>`);
+  if (LOOT.rankOf(it.rarity) >= 4) lootMoment(it, o.pos, o.line);
+  else if (!quiet) toast(`${esc(o.line || 'Found')}: <b style="color:${rarityOf(it).color}">${esc(it.name)}</b>`);
   return it;
 }
-function addHaul(r) {   // the result of foeDrops / raidCrates
+function addHaul(r, pos) {   // the result of foeDrops / raidCrates
   if (!r) return;
   GAME.shards += r.shards || 0;
   for (const [k, n] of Object.entries(r.materials || {})) GAME.mats[k] = (GAME.mats[k] || 0) + n;
   for (const b of r.blueprints || []) if (!GAME.blueprints.includes(b)) GAME.blueprints.push(b);
-  for (const it of r.items || []) addToStash(it);
+  for (const it of r.items || []) addToStash(it, false, { pos });
 }
 function mineFindHere() {
-  const deep = workersOf('head').some(v => v.working && MINE_STATIONS[v.d.job.slot].g === 2);
+  const deep = workersOf('head').some(v => v.working && MINE_STATIONS[v.d.job.slot].g === 2), head = TOWN.b.head;
   const g = gearOf; let luck = castPerk('fox') ? 0.3 : 0; for (const v of workersOf('head')) luck = Math.max(luck, g(v).findLuck);
+  luck += modV(head, 'findLuck');   // the Ore Sorter
   const f = LOOT.mineFind(deep && Math.random() < 0.5 ? 'deep' : deep ? 'lower' : 'upper', { night: Math.max(1, GAME.nights), findLuck: luck });
-  if (f.item) { const it = addToStash(f.item, true); toast(`The miners turned something up: <b style="color:${rarityOf(it).color}">${esc(it.name)}</b>`); }
+  if (f.item) addToStash(f.item, false, { pos: head.worldPos(0, 0, 2.4), line: 'The miners turned something up' });
   else if (f.cell) { GAME.cells[f.cell] = (GAME.cells[f.cell] || 0) + 1; toast(`The miners found a <b>${esc(D.CELLS[f.cell].name)}</b> in the rock.`); }
   else if (f.blueprint && !GAME.blueprints.includes(f.blueprint)) { GAME.blueprints.push(f.blueprint); toast(`A blueprint in the spoil: <b>${esc(D.ITEMS[f.blueprint].name)}</b>. Odile pins it up.`); }
+  else if (f.material) { GAME.mats[f.material] = (GAME.mats[f.material] || 0) + f.n; toast(`The miners kept back <b>${f.n} ${esc(D.MATERIALS[f.material].name)}</b> for Odile's bench.`); }
   UI.refresh();
 }
 function wildlightDrop(f) {
   const foe = GAME.nights >= 6 && Math.random() < 0.25 ? 'flarehound' : 'glimmer';
   const r = LOOT.foeDrops(foe, { night: Math.max(1, GAME.nights), deep: TOWN.b.head.level >= 2 });
   if (r.items.length) FX.sparks(f.pos.clone().setY(1), 18, 0xfff0c0, 2);
-  addHaul(r);
+  addHaul(r, f.pos.clone().setY(Math.max(0, f.pos.y)));
 }
 function starterStash() {
   const mk = (base, rarity) => LOOT.makeGear({ base, rarity, ilvl: 1, from: 'the first crates off the courier' });
-  GAME.stash = [mk('earthing-lance', 'tooled'), mk('flare-pistol', 'salvage'), mk('duster', 'tooled'), mk('goggles', 'salvage'), mk('hobnails', 'salvage'), mk('work-gloves', 'salvage'), mk('sunstone-locket', 'salvage'), mk('pick', 'salvage')];
+  GAME.stash = [mk('earthing-lance', 'tooled'), mk('flare-pistol', 'salvage'), mk('duster', 'tooled'), mk('goggles', 'salvage'), mk('hobnails', 'salvage'), mk('work-gloves', 'salvage'), mk('sunstone-locket', 'salvage'), mk('pick', 'salvage'),
+    LOOT.makeModule({ id: 'parabolic', rarity: 'tooled', ilvl: 1, from: 'the first crates off the courier' })];
+  for (const it of GAME.stash) { it.n = GAME.lootN = (GAME.lootN || 0) + 1; it.day = 1; }
 }
 // ---- how items read in the UI
 const icon = (kind, o = {}) => iconCanvas(kind, o, D.RARITY, D.ASPECTS);
 function itemIcon(it, size = 64) { const c = icon(it.kind, { aspect: it.aspect, rarity: it.rarity, size }); return c; }
 function itemLines(it) {
   const out = [], { relic, base } = itemBase(it), s = itemStats(it), w = itemWeapon(it), mult = rarityOf(it).statMult;
-  if (w) out.push(`${Math.round(w.dmg * mult * (relic ? 1 : 1))} ${D.ASPECTS[it.aspect || w.aspect]?.name || ''} damage every ${w.cd}s · reach ${w.range} m · scales with ${STAT_NAMES[w.stat]}`);
+  if (isModuleItem(it)) { out.push(moduleEffect(it)); return out; }
+  if (w) out.push(`${Math.round(w.dmg * mult * ohK(it))} ${D.ASPECTS[it.aspect || w.aspect]?.name || ''} damage every ${w.cd}s · reach ${w.range} m · scales with ${STAT_NAMES[w.stat]}`);
   if (s.guard) out.push(`${s.guard}% guard`);
   if (s.hp) out.push(`+${s.hp} health`);
   if (s.out) out.push(`+${s.out}% output${s.outJob ? ' as ' + (DEFS[s.outJob === 'hall' ? 'keep' : s.outJob]?.job?.title || DEFS[s.outJob]?.name || s.outJob).toLowerCase() : ''}`);
@@ -135,6 +156,7 @@ function economy(dt) {
   // mine
   const head = TOWN.b.head;
   let ore = 0; for (const v of workersOf('head')) { const st = MINE_STATIONS[v.d.job.slot]; ore += v.eff() * (st.g === 2 ? RATES.mine2 : RATES.mine1); }
+  ore *= 1 + modV(head, 'ore') / 100;   // modules: the Steam Drill Head
   GAME.ore += ore * dt; head.busy = ore > 0 ? 1 : 0;
   GAME.rates = { ore: ore };
   // mine finds: every unit of ore dug has a small chance of turning something up
@@ -144,13 +166,13 @@ function economy(dt) {
   }
   // charging in the yards
   let cut = 0; for (const b of byType('shop')) cut += sum(b.id) * (b.level >= 2 ? 1.3 : 1);
-  const cutBonus = 1 + 0.22 * cut;
+  const cutBonus = (1 + 0.22 * cut) * (1 + modType('shop', 'cut') / 100);   // modules: the Diamond Grinding Wheel
   let charged = 0;
   for (const b of Object.values(TOWN.b)) {
     if (b.type !== 'yard' || b.level < 1) continue;
     const tend = sum(b.id), mult = b.level >= 3 ? 1.5 : b.level >= 2 ? 1.25 : 1;
-    const light = b.level >= 3 ? Math.max(sun, 0.35 * (1 - night)) : sun;
-    let want = tend * RATES.charge * mult * light * dt * (castPerk('tock') ? 1.2 : 1);
+    const light = yardLight(b, b.level >= 3 ? Math.max(sun, 0.35 * (1 - night)) : sun);
+    let want = tend * RATES.charge * mult * light * dt * (castPerk('tock') ? 1.2 : 1) * yardBoost(b);   // modules: mirrors, gimbals, bees
     want = Math.min(want, GAME.ore);
     GAME.ore -= want; charged += want * cutBonus;
     b.chargeK = lerp(b.chargeK || 0, tend > 0 && GAME.ore > 0.5 ? light : 0, Math.min(1, dt * 2));
@@ -159,7 +181,7 @@ function economy(dt) {
   GAME.shards += charged; GAME.rates.shards = charged / Math.max(dt, 1e-4);
   for (const b of byType('shop')) b.busy = workersOf(b.id).some(v => v.working) ? 1 : 0;
   // food: everyone at home eats; gear "of Plenty" eats less
-  let grown = 0; for (const b of byType('garden')) grown += sum(b.id) * RATES.food * (b.level >= 2 ? 1.3 : 1);
+  let grown = 0; for (const b of byType('garden')) grown += sum(b.id) * RATES.food * (b.level >= 2 ? 1.3 : 1) * (1 + modV(b, 'food') / 100) + nightGrow(b, dt);
   let mouths = 0; for (const v of GAME.villagers) if (!v.d.exp) mouths += 1 - Math.min(0.5, gearOf(v).upkeep / 100);
   GAME.rates.food = grown - mouths * RATES.eat;
   GAME.food += GAME.rates.food * dt;
@@ -175,7 +197,7 @@ function economy(dt) {
   // recruits
   const beds = totalBeds();
   if (GAME.villagers.length < beds) {
-    GAME.recruit += sum('keep') * RATES.recruit * dt;
+    GAME.recruit += sum('keep') * RATES.recruit * dt * (1 + modV(TOWN.b.keep, 'recruit') / 100);   // modules: the Telegraph Key
     if (GAME.recruit >= 1) { GAME.recruit = 0; recruitArrives(); }
   }
 }

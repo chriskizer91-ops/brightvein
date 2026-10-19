@@ -164,7 +164,7 @@ function dockHome(r) {
     const R = FLEET.data.raids[r.raid.id]; R.won++; R.day = GAME.day;
     const before = GAME.stash.length, haul = LOOT.raidCrates(r.raid.loot);
     addHaul({ ...haul, items: [] });
-    const items = haul.items.map(it => addToStash(it, true));
+    const items = haul.items.map(it => addToStash(it, true, { pos: DOCK.b.group.position.clone(), line: `From the crates of ${r.raid.name}` }));
     toast(`<b>${esc(r.raid.name)}</b> is taken. The crates hold ${SHARD} ${haul.shards} and ${items.length} find${items.length > 1 ? 's' : ''}.`);
     void before;
     setTimeout(() => UI.open('haul', { name: r.raid.name, items, shards: haul.shards, got: r.got }), 600);

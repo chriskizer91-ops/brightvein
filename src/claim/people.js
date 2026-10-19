@@ -208,6 +208,7 @@ class Villager {
     if (this.d.trait === 'Night owl') e *= night ? 1.35 : 0.85;
     const g = gearOf(this); e *= 1 + outFor(g, b.type) / 100; if (night) e *= 1 + g.night / 100;
     if (mastered(this, def.stat)) e *= 1.2;
+    e *= workBonus(this, b);   // modules: the Keep's radiator, Crew-Friendly modules (fittings.js)
     if (GAME.food <= 0) e *= 0.5;
     return e;
   }

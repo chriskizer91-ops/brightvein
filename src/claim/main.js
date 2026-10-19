@@ -324,6 +324,7 @@ function saveGame() {
       stash: GAME.stash, mats: GAME.mats, cells: GAME.cells, blueprints: GAME.blueprints, rooms: GAME.rooms, savedAt: Date.now(),
       people: GAME.villagers.map(v => ({ ...v.d })),
       sky: FLEET ? FLEET.data : undefined, story: storySave(), jumpNext: JUMP.next,
+      workshop: workshopSave(),   // Odile's bench, the fitted modules, the Lark's parts, the courier (bench.js, fittings.js)
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
   } catch (e) { }
@@ -378,6 +379,7 @@ function frame() {
     updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); jumpersTick(gdt); updateExpeditions(gdt);
     announceStudy(updateStudies(gdt));
   } else for (const v of GAME.villagers) { v.sprite.position.copy(v.pos); v.frame(0); }
+  benchFrame(rdt, gdt);   // the bench, the modules, the rare-find beams (bench.js)
   if (BUILD.on) updatePlaceCtl();
   updateRings(); updateInterior();
   if (VIEW.mode === 'keep') { buildInterior(); setInteriorLights(); }
@@ -493,6 +495,7 @@ async function boot() {
     // settlers from before the roll take a place on it (keeping their names), so their sprite matches a portrait
     for (const v of GAME.villagers) if (!v.d.portrait && !v.d.named && !v.d.hero) { const f = nextFolk(v.d.pref); if (f) { v.d.portrait = f.id; v.d.look = { ...v.d.look, ...f.look }; v.redraw(); } }
     storyLoad(save.story); JUMP.next = save.jumpNext ?? null;
+    workshopLoad(save.workshop);   // a claim from before the bench simply has none of it yet
     if (save.savedAt) GAME.away = catchUp((Date.now() - save.savedAt) / 1000);
     if (save.migrated) setTimeout(() => toast('Your claim is on the new build grid. Everyone lives in <b>the Keep</b> now. Tap <b>Build</b> to rearrange.'), 2500);
   } else { starterStash(); seedVillagers(); }
@@ -529,10 +532,13 @@ function simulate(seconds, step = 0.1) {
     if (prevPhase && TOD.phase !== prevPhase) phaseChange(prevPhase, TOD.phase); prevPhase = TOD.phase;
     economy(step); for (const v of GAME.villagers) v.update(step);
     updateWildlight(step, elapsed); updateDefenders(step, elapsed); jumpersTick(step); updateExpeditions(step); announceStudy(updateStudies(step));
+    benchFrame(step, step);
     const now = performance.now() / 1000; for (const b of BUILDINGS) b.update(now, step);
     FX.update(step); wallUpdate(step); dressScene(step, step);
   }
 }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
 window.__bv = { JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin };
+// the bench and the fittings, for tests (bench.js, fittings.js, finds.js)
+Object.assign(window.__bv, { BENCH_T: { benchSalvage, benchOverhaul, benchRetune, benchChoose, benchCell, benchUncell, benchAttune, benchCraft, benchAssay, benchSkill, overhaulCost, retuneCost, salvageYield, findItem, allItems, fitModule, unfitModule, socketCount, socketsAt, modV, larkV, yardRate, yardBoost, itemNumbers, itemStats, dpsOf, fittedAll, workshopSave, lootMoment, courierToday, suggestFor, WALLB } });
 boot().catch(e => { console.error(e); $('#loading').textContent = 'The town could not be raised: ' + e.message; });

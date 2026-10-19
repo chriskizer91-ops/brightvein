@@ -157,25 +157,25 @@ const AFFIXES = Object.fromEntries([
 const M = (id, name, building, kind, stat, base, text, o = {}) => ({ id, name, slot: "module", building, kind, stat, base, text, minLvl: 1, ...o });
 const MODULES = Object.fromEntries([
   M("telegraph", "Telegraph Key", "hall", "telegraph", "recruit", 15, "+{v}% settler arrivals"),
-  M("assay-scale", "Assay Scale", "hall", "scale", "assay", 1, "Assays one Signed item each morning for free"),
+  M("assay-scale", "Assay Scale", "hall", "scale", "assay", 1, "Assays up to {v} Signed piece each morning, free"),
   M("trade-ticker", "Trade Ticker", "hall", "ticker", "tradeCut", 10, "Couriers sell {v}% cheaper"),
   M("drill-head", "Steam Drill Head", "head", "drillhead", "ore", 12, "+{v}% ore"),
-  M("canary-cage", "Canary Cage", "head", "canary", "warn", 20, "Seam Wildlight are seen {v}s sooner"),
+  M("canary-cage", "Canary Cage", "head", "canary", "warn", 20, "The canary sings when the deep seam stirs: Wildlight take {v}s longer up the shaft"),
   M("ore-sorter", "Ore Sorter", "head", "sorter", "findLuck", 0.5, "+{v} luck on mine finds", { float: true }),
   M("pit-props", "Iron Pit Props", "head", "props", "deepSafe", 20, "{v}% fewer Wildlight from the deep seam", { minLvl: 6 }),
   M("parabolic", "Parabolic Mirror", "yard", "mirror", "charge", 12, "+{v}% charge rate"),
   M("gimbal", "Sun-Tracking Gimbal", "yard", "gimbal", "dawnDusk", 30, "+{v}% charge in morning and evening light"),
   M("cloud-lens", "Cloud Lens", "yard", "cloudlens", "thinLight", 25, "Charges at {v}% in cloud and storm", { minLvl: 5 }),
-  M("capacitor", "Capacitor Jars", "yard", "jars", "store", 40, "+{v} shard storage that never drains"),
+  M("capacitor", "Capacitor Jars", "yard", "jars", "store", 40, "Holds {v} shards in reserve that Wildlight can't drain: they keep the lamps lit when the stores run dry"),
   M("grinding-wheel", "Diamond Grinding Wheel", "shop", "wheel", "cut", 10, "+{v}% shards from every tray"),
   M("retuning-lathe", "Retuning Lathe", "shop", "lathe", "retuneCost", 20, "Retuning costs {v}% less"),
   M("bellows", "Forge Bellows", "shop", "bellows", "overhaulCost", 15, "Overhauls cost {v}% less"),
   M("drip-line", "Drip Irrigator", "garden", "drip", "food", 12, "+{v}% food"),
   M("bee-box", "Clockwork Bee Box", "garden", "beebox", "food", 8, "+{v}% food, and pollinates the yards: +3% charge"),
   M("grow-lamp", "Sunstone Grow Lamp", "garden", "growlamp", "nightFood", 50, "Grows at {v}% through the night. Spends shards", { minLvl: 4 }),
-  M("radiator", "Steam Radiator", "bunk", "radiator", "rest", 15, "Sleepers wake {v}% fresher"),
-  M("lockers", "Bunk Lockers", "bunk", "lockers", "stash", 6, "+{v} stash slots"),
-  M("alarm-bell", "Alarm Bell", "bunk", "bell", "muster", 25, "Sleepers muster {v}% faster when the wall is breached"),
+  M("radiator", "Steam Radiator", "bunk", "radiator", "rest", 15, "Sleepers wake fresher: everyone works {v}% harder in the morning"),
+  M("lockers", "Book Lockers", "bunk", "lockers", "study", 10, "Students keep their books to hand: study in the Keep goes {v}% faster"),
+  M("alarm-bell", "Alarm Bell", "bunk", "bell", "muster", 25, "When the wall is breached, the watch fights {v}% harder"),
   M("fresnel", "Fresnel Ring", "lens", "fresnel", "range", 15, "+{v}% beam range"),
   M("shutter", "Rapid Shutter", "lens", "shutter", "rate", 12, "+{v}% beam rate"),
   M("prism", "Prism Splitter", "lens", "prism", "split", 1, "Each beam also hits {v} more target", { minLvl: 6 }),
@@ -190,9 +190,9 @@ const MODULES = Object.fromEntries([
 const LARK_PARTS = Object.fromEntries([
   M("flare-battery", "Flare Battery", "mast", "battery", "flares", 1, "+{v} flare per volley"),
   M("crystal-sail", "Crystal Sail", "mast", "sail", "shipSpeed", 15, "+{v}% airspeed; charges a little shard by day"),
-  M("hull-plates", "Armoured Hull Plates", "mast", "plates", "shipGuard", 15, "+{v}% hull guard"),
-  M("gyro", "Gyro Stabiliser", "mast", "gyro", "aim", 15, "+{v}% flare accuracy in wind"),
-  M("harpoon-winch", "Harpoon Winch", "mast", "winch", "board", 1, "Lets the crew board claim-jumper ships on raids"),
+  M("hull-plates", "Armoured Hull Plates", "mast", "plates", "shipGuard", 15, "+{v}% hull guard: on patrol she takes jumper volleys meant for the yards"),
+  M("gyro", "Gyro Stabiliser", "mast", "gyro", "aim", 15, "Steadies her aim in the wind: she fires flares {v}% faster"),
+  M("harpoon-winch", "Harpoon Winch", "mast", "winch", "board", 1, "The crew board downed jumpers: each one leaves a second crate"),
 ].map(m => [m.id, { ...m, slot: "lark" }]));
 
 const MODULE_AFFIXES = Object.fromEntries([
@@ -388,18 +388,18 @@ const DROPS = {
 const MINE_FINDS = {
   perOre: 0.012,
   galleries: {
-    upper: { luck: 0, ilvlBonus: 0, table: { item: 60, module: 15, cell: 15, blueprint: 10 } },
-    lower: { luck: 1, ilvlBonus: 3, table: { item: 55, module: 20, cell: 15, blueprint: 10 } },
-    deep:  { luck: 2, ilvlBonus: 6, table: { item: 50, module: 20, cell: 15, blueprint: 10, antique: 5 } },
+    upper: { luck: 0, ilvlBonus: 0, table: { item: 52, module: 16, cell: 12, blueprint: 8, material: 12 }, materials: { brass: 80, glass: 20 } },
+    lower: { luck: 1, ilvlBonus: 3, table: { item: 48, module: 18, cell: 12, blueprint: 8, material: 14 }, materials: { brass: 50, glass: 44, heartstone: 6 } },
+    deep:  { luck: 2, ilvlBonus: 6, table: { item: 44, module: 18, cell: 12, blueprint: 7, material: 14, antique: 5 }, materials: { brass: 20, glass: 50, heartstone: 30 } },
   },
   sunforgedChance: 0.002,  // per deep-seam find
 };
 // Raids (later: flown on the Lark). Each camp is a crate table.
 const RAIDS = {
-  camp:     { name: "Prospect camp", tier: "veteran",  crates: 2, ilvl: 4,  shards: [20, 40] },
-  outpost:  { name: "Jumper outpost", tier: "bearer",  crates: 3, ilvl: 9,  shards: [50, 90], masterwork: 0.15 },
-  airship:  { name: "Claim-jumper airship", tier: "bearer", crates: 3, ilvl: 12, shards: [60, 120], masterwork: 0.25, larkPart: 0.5 },
-  citadel:  { name: "Claim-baron's citadel", tier: "champion", crates: 5, ilvl: 18, shards: [150, 300], masterwork: 0.6, sunforged: 0.05 },
+  camp:     { name: "Prospect camp", tier: "veteran",  crates: 2, ilvl: 4,  shards: [20, 40], materials: { brass: 2 } },
+  outpost:  { name: "Jumper outpost", tier: "bearer",  crates: 3, ilvl: 9,  shards: [50, 90], masterwork: 0.15, materials: { brass: 3, glass: 2 } },
+  airship:  { name: "Claim-jumper airship", tier: "bearer", crates: 3, ilvl: 12, shards: [60, 120], masterwork: 0.25, larkPart: 0.5, materials: { glass: 3, heartstone: 1 } },
+  citadel:  { name: "Claim-baron's citadel", tier: "champion", crates: 5, ilvl: 18, shards: [150, 300], masterwork: 0.6, sunforged: 0.05, materials: { glass: 4, heartstone: 3 } },
 };
 // Courier trade: buy Salvage–Tuned gear and modules with shards.
 const TRADE = { stock: 4, maxRarity: "tuned", pricePerIlvl: 6, rarityMult: { salvage: 1, tooled: 2, tuned: 4 } };
@@ -410,12 +410,25 @@ const MATERIALS = {
   glass:      { name: "Cut Glass",   color: "#cfe8ff", text: "Lens offcuts. For the middle overhauls (+4 to +6) and retuning Calibrated and Signed pieces." },
   heartstone: { name: "Heartstone",  color: "#ff8a3c", text: "Deep-seam crystal that never cools. The high overhauls (+7 to +10) and Attuning need it." },
 };
+// Times are in game seconds at the bench (an hour is 10 s), for an Engineering of about 7; a better hand is quicker.
 const WORKSHOP = {
-  salvage: { salvage: { brass: 1 }, tooled: { brass: 2 }, tuned: { brass: 1, glass: 1 }, calibrated: { glass: 2 }, signed: { heartstone: 1, glass: 1 } },
-  retune: { base: 20, material: { tooled: "brass", tuned: "brass", calibrated: "glass", signed: "glass" } },  // shards = base × ⌈ilvl/2⌉ × (1 + times retuned)
-  overhaul: { max: 10, base: 15, mult: [1, 2, 4, 6, 8, 11, 14, 18, 23, 30], glass: [0, 0, 0, 1, 2, 3, 0, 0, 0, 0], heartstone: [0, 0, 0, 0, 0, 0, 1, 2, 3, 4], perLevel: 0.04 },
-  socket: 10, assay: 15,
-  attune: { heartstone: 2, shards: 80 },
+  salvage: { salvage: { brass: 1 }, tooled: { brass: 2 }, tuned: { brass: 1, glass: 1 }, calibrated: { glass: 2 }, signed: { heartstone: 1, glass: 1 }, time: 1.2, maxTime: 8 },
+  retune: { base: 20, material: { tooled: "brass", tuned: "brass", calibrated: "glass", signed: "glass" }, time: 7 },  // shards = base × ⌈ilvl/2⌉ × (1 + times retuned)
+  // each step +1 … +10: shards = base × ⌈ilvl/2⌉ × mult, plus glass and heartstone; perLevel: how much each step adds
+  // to the item's own numbers (damage, guard, output, a module's effect). From +6 a step can fail: the materials
+  // are lost and half the shards come back, and the piece keeps its level. A good hand at the bench fails less.
+  overhaul: { max: 10, base: 15, mult: [1, 2, 4, 6, 8, 11, 14, 18, 23, 30], glass: [0, 0, 0, 1, 2, 3, 0, 0, 0, 0], heartstone: [0, 0, 0, 0, 0, 0, 1, 2, 3, 4], perLevel: 0.04,
+    fail: [0, 0, 0, 0, 0, 0.08, 0.15, 0.25, 0.35, 0.45], time: [3, 3.5, 4, 5, 6, 7, 8, 9.5, 11, 12] },
+  socket: 10, assay: 15, cellTime: 2.5,
+  attune: { heartstone: 2, shards: 80, time: 14 },
+  // blueprints: Odile makes the base item, at a rarity rolled with the bench hand's Engineering (Tooled to Signed)
+  craft: { shards: 12, perIlvl: 5, brass: 2, glassFrom: 6, time: 12 },
+};
+// Attuning a Masterwork: one of two ways, once. In a hand it changes how it fights; anywhere else, how it works.
+// A Masterwork module or Lark part takes its whole effect up instead.
+const ATTUNE = {
+  sun:  { name: "Sun-attuned", text: "Burns brighter by day: harder on claim-jumpers, and better at its work.", hand: { vsJumper: 25, out: 20 }, other: { out: 15, allStats: 1 }, fitted: 1.15 },
+  moon: { name: "Moon-attuned", text: "Burns brighter by night: harder on Wildlight, and steadier in the dark.", hand: { vsWild: 25, nerve: 2 }, other: { night: 20, nerve: 2, guard: 3 }, fitted: 1.3, nightOnly: true },
 };
 // Sunstone cells (Aethermoor's gems): one effect in a weapon, another in anything else.
 const CELLS = {
@@ -427,7 +440,7 @@ const CELLS = {
   verdant: { name: "Verdant Cell", color: "#7fcf5e", hand: { vsWild: 8 },           other: { S: 1 }, price: 40 },
 };
 
-return {ASPECTS,SLOTS,SLOT_WEIGHT,RARITY_ORDER,RANDOM_RARITIES,RARITY,ITEMS,AFFIXES,MODULES,LARK_PARTS,MODULE_AFFIXES,NAMES,SIGNED_POWERS,RELICS,SETS,FOES,DROPS,MINE_FINDS,RAIDS,TRADE,MATERIALS,WORKSHOP,CELLS};
+return {ASPECTS,SLOTS,SLOT_WEIGHT,RARITY_ORDER,RANDOM_RARITIES,RARITY,ITEMS,AFFIXES,MODULES,LARK_PARTS,MODULE_AFFIXES,NAMES,SIGNED_POWERS,RELICS,SETS,FOES,DROPS,MINE_FINDS,RAIDS,TRADE,MATERIALS,WORKSHOP,ATTUNE,CELLS};
 })();
 // Brightvein loot engine. Aethermoor's rules (luck curve, traits, tier drops, workshop loop)
 // running on Brightvein's data. Pure functions over a seeded rng; no DOM.
@@ -578,6 +591,7 @@ function createLoot(D, seed = Date.now()) {
     if (kind === "module") return { kind, item: makeModule({ luck, ilvl, from: `the ${gallery} gallery` }) };
     if (kind === "cell") return { kind, cell: rng.pick(Object.keys(CELLS)) };
     if (kind === "blueprint") return { kind, blueprint: pickBase({ ilvl: ilvl + 2 }) };
+    if (kind === "material") { const m = pickTable(g.materials || { brass: 1 }); return { kind, material: m, n: m === "heartstone" ? 1 : rng.int(1, 2) }; }
     const mw = rng.pick(relicsOf("masterwork").filter(r => /Mine/.test(r.source)));
     return { kind: "masterwork", item: makeRelic(mw.id, "the deep seam") };
   }
@@ -593,7 +607,7 @@ function createLoot(D, seed = Date.now()) {
     if (R.larkPart && rng.chance(R.larkPart)) crates.push(makeModule({ lark: true, luck, ilvl: R.ilvl, from: R.name }));
     if (R.masterwork && rng.chance(R.masterwork)) { const m = rng.pick(relicsOf("masterwork").filter(r => /Raid/.test(r.source))); crates.push(makeRelic(m.id, R.name)); }
     if (R.sunforged && rng.chance(R.sunforged)) { const s = rng.pick(relicsOf("sunforged").filter(r => /Raid/.test(r.source))); if (s) crates.push(makeRelic(s.id, R.name)); }
-    return { items: crates, shards: rng.int(R.shards[0], R.shards[1]) };
+    return { items: crates, shards: rng.int(R.shards[0], R.shards[1]), materials: { ...(R.materials || {}) } };
   }
 
   // ---- courier trade
@@ -610,17 +624,24 @@ function createLoot(D, seed = Date.now()) {
   // ---- workshop (Odile's bench)
   const half = it => Math.ceil(Math.max(1, it.ilvl || 1) / 2);
   const salvageYield = it => it.type === "relic" ? null : { ...(WORKSHOP.salvage[it.rarity] || {}) };
+  const isModule = it => it.type === "module" || it.type === "lark";
   function retuneCost(it) {
-    const mat = WORKSHOP.retune.material[it.rarity]; if (!mat || it.type !== "gear" || !it.traits.length) return null;
+    const mat = WORKSHOP.retune.material[it.rarity]; if (!mat || !(it.type === "gear" || isModule(it)) || !(it.traits || []).length) return null;
     return { shards: WORKSHOP.retune.base * half(it) * (1 + (it.retunes || 0)), materials: { [mat]: 1 } };
   }
+  // a fresh roll for one trait (the rest stay); returns a new copy of the item, or null if nothing else could roll
   function retune(it, index) {
-    const b = ITEMS[it.base]; if (!b || !it.traits[index]) return null;
+    if (!it.traits || !it.traits[index]) return null;
+    const mod = isModule(it), src = it.type === "lark" ? LARK_PARTS : MODULES, b = mod ? src[it.base] : ITEMS[it.base]; if (!b) return null;
     const keep = it.traits.filter((_, i) => i !== index);
     let fresh = null;
-    for (let k = 0; k < 8 && (!fresh || fresh.id === it.traits[index].id); k++) fresh = rollTraits(b.slot, it.rarity, it.ilvl, AFFIXES, keep.length + 1, keep).at(-1);
+    for (let k = 0; k < 8 && (!fresh || fresh.id === it.traits[index].id); k++) fresh = rollTraits(mod ? it.slot : b.slot, it.rarity, it.ilvl, mod ? MODULE_AFFIXES : AFFIXES, keep.length + 1, keep).at(-1);
     if (!fresh || fresh.id === it.traits[index].id) return null;
     const traits = it.traits.map((t, i) => i === index ? fresh : t);
+    if (mod) {
+      const pre = traits.map(t => MODULE_AFFIXES[t.id]).find(a => a && a.type === "prefix"), suf = traits.map(t => MODULE_AFFIXES[t.id]).find(a => a && a.type === "suffix");
+      return { ...it, traits, retunes: (it.retunes || 0) + 1, name: [pre?.name, b.name, suf?.name].filter(Boolean).join(" ") };
+    }
     return { ...it, traits, retunes: (it.retunes || 0) + 1, aspect: aspectOf(b, traits), name: ["salvage", "signed"].includes(it.rarity) ? it.name : nameFor(b, it.rarity, traits) };
   }
   function overhaulCost(it) {

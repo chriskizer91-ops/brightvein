@@ -7,8 +7,8 @@
 // mesh and a pulse of light; the fog bank is a dozen soft sprites.
 const WEATHERS = {
   clear: { name: 'Clear', text: 'Clear skies. The yards charge at full speed.' },
-  overcast: { name: 'Overcast', text: 'Cloud over the sun. The yards charge at about two-thirds speed, in flat grey light.' },
-  rain: { name: 'Rain', text: 'Rain. The yards charge at about half speed, the greenhouses grow half again as fast, and people walk a little slower.' },
+  overcast: { name: 'Overcast', text: 'Cloud over the sun. The yards charge at three-quarters speed, in flat grey light.' },
+  rain: { name: 'Rain', text: 'Rain. The yards charge a little over half speed, the greenhouses grow half again as fast, and people walk a little slower.' },
   fog: { name: 'Fog', text: 'A fog bank rolls over the rim. The yards charge a little slower, and at night the towers can’t see Wildlight until they’re close.' },
   storm: { name: 'Aether storm', text: 'A dark sky and lightning. A bolt near a sunning yard supercharges it; one on a building scorches it. A Lightning Rod catches bolts and turns them into shards.' },
 };
@@ -16,13 +16,13 @@ const WEATHER = { today: 'clear', next: 'clear', mix: { overcast: 0, rain: 0, fo
 // the mood of each weather, by day and by night: sky (zenith, horizon), fog, clouds (lit, shade), and how much sun,
 // sky light and exposure are left
 const MOODS = {
-  overcast: { day: { top: '#7f8997', hor: '#b6bcc2', fog: '#a7aeb5', lit: '#d4d7da', shade: '#7c828b', sun: 0.3, hemi: 1.3, exp: 0.98 },
+  overcast: { day: { top: '#7f8997', hor: '#b6bcc2', fog: '#a7aeb5', lit: '#d4d7da', shade: '#7c828b', sun: 0.12, hemi: 1.3, exp: 0.94 },
     night: { top: '#0e1219', hor: '#1b202b', fog: '#161b25', lit: '#3c4252', shade: '#151922', sun: 0.4, hemi: 0.9, exp: 1 } },
-  rain: { day: { top: '#5f6975', hor: '#8b939c', fog: '#7f8891', lit: '#a6acb3', shade: '#575d66', sun: 0.18, hemi: 1.15, exp: 0.93 },
+  rain: { day: { top: '#5f6975', hor: '#8b939c', fog: '#7f8891', lit: '#a6acb3', shade: '#575d66', sun: 0.07, hemi: 1.1, exp: 0.86 },
     night: { top: '#080b12', hor: '#131824', fog: '#0f131c', lit: '#2a3040', shade: '#0d1017', sun: 0.3, hemi: 0.8, exp: 0.98 } },
   fog: { day: { top: '#c3cace', hor: '#dadedf', fog: '#d4d8da', lit: '#eceeee', shade: '#b4babe', sun: 0.5, hemi: 1.35, exp: 1.0 },
     night: { top: '#161c2a', hor: '#273040', fog: '#222a3a', lit: '#38425a', shade: '#1a2030', sun: 0.6, hemi: 1.15, exp: 1.06 } },
-  storm: { day: { top: '#2b2a3d', hor: '#4c4860', fog: '#403d52', lit: '#6c6882', shade: '#282636', sun: 0.1, hemi: 0.8, exp: 0.9 },
+  storm: { day: { top: '#262338', hor: '#433e58', fog: '#38344a', lit: '#5f5a78', shade: '#221f30', sun: 0.03, hemi: 0.6, exp: 0.72 },
     night: { top: '#050409', hor: '#0d0b15', fog: '#0a0911', lit: '#1c1a28', shade: '#07060b', sun: 0.25, hemi: 0.7, exp: 0.94 } },
 };
 for (const m of Object.values(MOODS)) for (const p of [m.day, m.night]) for (const k of ['top', 'hor', 'fog', 'lit', 'shade']) p[k] = new THREE.Color(p[k]);
@@ -32,11 +32,11 @@ const WX_KEYS = ['overcast', 'rain', 'fog', 'storm'];
 const wxM = () => WEATHER.mix;
 const wxCover = () => { const M = WEATHER.mix; return clamp(M.overcast + M.rain + M.storm + M.fog * 0.45, 0, 1); };
 // sun on the yards (and a scorched building works slower until it's patched)
-function wxSun(b) { const M = WEATHER.mix; return clamp(1 - 0.38 * M.overcast - 0.55 * M.rain - 0.22 * M.fog - 0.5 * M.storm, 0.3, 1) * (1 - 0.5 * ((b && b.scorch) || 0)); }
+function wxSun(b) { const M = WEATHER.mix; return clamp(1 - 0.25 * M.overcast - 0.4 * M.rain - 0.15 * M.fog - 0.4 * M.storm, 0.3, 1) * (1 - 0.5 * ((b && b.scorch) || 0)); }
 function wxGrow(b) { const M = WEATHER.mix; return (1 + 0.5 * M.rain + 0.15 * M.storm - 0.08 * M.fog) * (1 - 0.5 * ((b && b.scorch) || 0)); }
 const wxWalk = () => 1 - 0.15 * WEATHER.mix.rain - 0.12 * WEATHER.mix.storm;
 // how far the towers see: in fog, at night, Wildlight get much closer before anyone spots them
-const wxSight = () => 1 - (0.42 * WEATHER.mix.fog + 0.06 * WEATHER.mix.rain) * smooth(0.2, 0.6, TOD.night);
+const wxSight = () => 1 - (0.3 * WEATHER.mix.fog + 0.06 * WEATHER.mix.rain) * smooth(0.2, 0.6, TOD.night);
 // a scorched turret is slower to fire
 const wxScorch = b => 1 + 0.6 * ((b && b.scorch) || 0);
 
@@ -141,9 +141,10 @@ function boltMeshes() {
         vec2 h = uRes * 0.5, sc = c.xy / c.w * h, sn = n.xy / n.w * h; vec2 d = sn - sc; d = length(d) < 1e-4 ? vec2(0.0, 1.0) : normalize(d);
         sc += vec2(-d.y, d.x) * aSide * uWidth; gl_Position = vec4(sc / h * c.w, c.z, c.w); vSide = aSide; }`,
     fragmentShader: `uniform vec3 uCol; uniform float uAlpha; varying float vSide; void main(){ float e = 1.0 - abs(vSide); gl_FragColor = vec4(uCol * (0.7 + 0.8 * e), uAlpha * smoothstep(0.0, 0.9, e)); }`,
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide,
   });
-  BOLT.mesh = new THREE.Mesh(g, mk(1.6, 0xf4f6ff, 1)); BOLT.glow = new THREE.Mesh(g, mk(9, 0x7fa6ff, 0.45));
+  BOLT.mesh = new THREE.Mesh(g, mk(2.6, 0xf4f6ff, 1)); BOLT.glow = new THREE.Mesh(g, mk(14, 0x8fb2ff, 0.5));
+  BOLT.mesh.material.uniforms.uCol.value.multiplyScalar(2.2); BOLT.glow.material.uniforms.uCol.value.multiplyScalar(1.6);
   for (const m of [BOLT.mesh, BOLT.glow]) { m.frustumCulled = false; m.renderOrder = 7; m.visible = false; scene.add(m); }
 }
 // a jagged channel from the cloud to the strike, with a fork or two
@@ -194,8 +195,9 @@ function lightningStrike(at = null, o = {}) {
   shapeBolt(from, p);
   const near = Math.hypot(p.x - controls.target.x, p.z - controls.target.z);
   WEATHER.flash = kind === 'far' ? 0.55 : 1;
-  if (kind !== 'far') { AUDIO.play('boltstrike'); if (near < 45) camShake(0.3); }
-  if (!QUIET) setTimeout(() => AUDIO.play('thunder'), kind === 'far' ? 900 + Math.random() * 1500 : 120);
+  if (kind !== 'far') muzzleFlash(p.clone().setY(p.y + 0.5), 0xd8e6ff, 16);
+  if (kind !== 'far') { AUDIO.play('boltstrike', p); if (near < 45) camShake(0.3); }
+  if (!QUIET) setTimeout(() => AUDIO.play('thunder', p), kind === 'far' ? 900 + Math.random() * 1500 : 120);
   const N = WL.night; if (N) N.strikes++;
   // what it hits
   if (kind === 'rod') {
@@ -242,6 +244,8 @@ function weatherMood(t, time) {
     sunK *= lerp(1, lerp(A.sun, B.sun, nk), w); hemiK *= lerp(1, lerp(A.hemi, B.hemi, nk), w); expK *= lerp(1, lerp(A.exp, B.exp, nk), w);
   }
   sun.intensity *= sunK; hemi.intensity *= hemiK; renderer.toneMappingExposure *= expK;
+  const amb = clamp(M.overcast + M.rain + M.storm + M.fog * 0.6, 0, 1);
+  if (amb > 0.002) { hemi.color.lerp(_wc.copy(skyU.uHor.value).multiplyScalar(1.15), amb * 0.55); hemi.groundColor.lerp(_wc.copy(scene.fog.color).multiplyScalar(0.55), amb * 0.4); sun.color.lerp(_wc.setRGB(0.85, 0.87, 0.92), amb * 0.6); }
   // clouds over the sun and stars
   skyU.uSunCol.value.multiplyScalar(1 - cover * 0.88);
   skyU.uNight.value *= 1 - cover * 0.93;
@@ -331,10 +335,12 @@ function buildFogBank() {
   }
 }
 // puddles on the lawn: dark, glossy patches that catch the sky and the lamps
-const PUDDLES = { mesh: null, n: 40 };
+const PUDDLES = { mesh: null, n: 30 };
 function buildPuddles() {
-  const mat = trackEnv(new THREE.MeshStandardMaterial({ color: 0x4a5462, roughness: 0.06, metalness: 0.55, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 1.5);
-  const m = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), mat, PUDDLES.n);
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), R = mulberry(77);
+  for (let i = 0; i < 9; i++) { const x = 34 + R() * 60, y = 34 + R() * 60, r = 14 + R() * 22, gr = g.createRadialGradient(x, y, r * 0.5, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+  const mat = trackEnv(new THREE.MeshStandardMaterial({ color: 0x2e3540, roughness: 0.04, metalness: 0.6, transparent: true, opacity: 0, alphaMap: canvasTex(c, { srgb: false }), depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 1.6);
+  const m = new THREE.InstancedMesh(new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2), mat, PUDDLES.n);
   m.renderOrder = 1; m.frustumCulled = false; m.receiveShadow = true; scene.add(m); PUDDLES.mesh = m;
   placePuddles();
 }
@@ -348,7 +354,7 @@ function placePuddles() {
       const tx = Math.floor((x - GRID.X0) / GRID.T), tz = Math.floor((z - GRID.Z0) / GRID.T);
       ok = tileOkAt(x, z) && !occ.has(tz * GRID.NX + tx) && !occ.has(tz * GRID.NX + tx + 1) && !occ.has((tz + 1) * GRID.NX + tx);
     }
-    _wm.compose(_wp.set(x, 0.04, z), _wq.setFromEuler(_we.set(0, Math.random() * TAU, 0)), _ws.set(ok ? 0.8 + Math.random() * 1.8 : 0, 1, ok ? 0.5 + Math.random() * 1.1 : 0));
+    _wm.compose(_wp.set(x, 0.04, z), _wq.setFromEuler(_we.set(0, Math.random() * TAU, 0)), _ws.set(ok ? 0.9 + Math.random() * 1.6 : 0, 1, ok ? 0.6 + Math.random() * 1.0 : 0));
     m.setMatrixAt(i, _wm);
   }
   m.instanceMatrix.needsUpdate = true;
@@ -390,12 +396,12 @@ function weatherDraw(rdt) {
   const wet = WEATHER.wet;
   if (worldMats.ground) { worldMats.ground.roughness = lerp(0.96, 0.6, wet); worldMats.ground.color.setScalar(lerp(1, 0.8, wet)); }
   if (worldMats.cliff) worldMats.cliff.color.setScalar(lerp(1, 0.78, wet));
-  if (PUDDLES.mesh) { PUDDLES.mesh.visible = wet > 0.02 && !inK; PUDDLES.mesh.material.opacity = wet * 0.8; }
+  if (PUDDLES.mesh) { PUDDLES.mesh.visible = wet > 0.02 && !inK; PUDDLES.mesh.material.opacity = wet * lerp(0.85, 0.4, nk); PUDDLES.mesh.material.color.setHex(nk > 0.5 ? 0x4a5466 : 0x2e3540); }
   // the bolt flickers and fades; the flash with it
   if (BOLT.mesh && BOLT.mesh.visible) {
     BOLT.t += rdt; const k = BOLT.t / BOLT.dur, fl = k < 1 ? (1 - k) * (0.55 + 0.45 * Math.sin(BOLT.t * 90)) : 0;
     for (const m of [BOLT.mesh, BOLT.glow]) { m.material.uniforms.uRes.value.set(renderer.domElement.width, renderer.domElement.height); m.material.uniforms.uAlpha.value = fl * (m === BOLT.glow ? 0.5 : 1); }
-    BOLT.mesh.material.uniforms.uWidth.value = 1.6 * renderer.getPixelRatio(); BOLT.glow.material.uniforms.uWidth.value = 9 * renderer.getPixelRatio();
+    BOLT.mesh.material.uniforms.uWidth.value = 2.6 * renderer.getPixelRatio(); BOLT.glow.material.uniforms.uWidth.value = 14 * renderer.getPixelRatio();
     if (k >= 1) BOLT.mesh.visible = BOLT.glow.visible = false;
   }
   WEATHER.flash = Math.max(0, WEATHER.flash - rdt * 2.6);

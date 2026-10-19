@@ -69,7 +69,7 @@ button { font: inherit; color: inherit; }
 
 /* ---------- nights: the dusk banner, the boss bar, the wave chip, where they climb, the dawn report */
 .nbanner { position: absolute; z-index: 6; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 17vh); transform: translateX(-50%); width: min(92vw, 640px); text-align: center; cursor: pointer;
-  padding: 18px 22px 16px; border-radius: 16px; background: radial-gradient(ellipse at 50% 40%, rgba(42,27,47,.82), rgba(23,15,25,.5) 70%, transparent);
+  padding: 22px 34px 20px; background: radial-gradient(ellipse closest-side at 50% 50%, rgba(30,19,34,.78), rgba(30,19,34,.55) 55%, rgba(30,19,34,0));
   text-shadow: 0 2px 0 #000, 0 0 18px rgba(0,0,0,.8); }
 .nbanner.in { animation: nbin 1.1s cubic-bezier(.2,.8,.2,1) both; }
 .nbanner.out { animation: nbout .8s ease-in both; }
@@ -126,15 +126,15 @@ button { font: inherit; color: inherit; }
 #dawnmini b { color: var(--gold); font-family: var(--f-display); margin-right: 4px; }
 #dawnmini u { color: var(--amber-2); text-decoration-color: rgba(255,207,133,.5); margin-left: 4px; }
 #app.boss-on #toasts { top: calc(env(safe-area-inset-top, 0px) + 112px); }
+@media (max-width: 1120px) { #app.boss-on .journal { display: none; } }
 @media (max-width: 560px) {
-  #app.boss-on .journal { display: none; }
-  .nbanner { top: calc(env(safe-area-inset-top, 0px) + 13vh); padding: 14px 12px; }
+  .nbanner { top: calc(env(safe-area-inset-top, 0px) + 27vh); padding: 14px 12px; }
   .nbanner .nb-line { font-size: 14.5px; }
   .dawn-card { padding: 13px 14px 12px; }
   .dawn-card h2 { font-size: 18.5px; }
   .dawn-stats b { font-size: 19px; }
   .dawn-lines { font-size: 13px; }
-  .wavechip { top: calc(env(safe-area-inset-top, 0px) + 52px); font-size: 11.5px; }
+  .wavechip { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 62px); font-size: 11.5px; }
 }
 /* the weather in the clock */
 .clock { cursor: pointer; }
@@ -151,6 +151,7 @@ button { font: inherit; color: inherit; }
   .wx .wxi { width: 15px; height: 15px; }
   .wx-next .wxi { width: 12px; height: 12px; opacity: .85; }
 }
+@media (max-width: 400px) { .wx-next { display: none; } .wx { padding-left: 4px; margin-left: 0; } }
 .wx-row { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; margin: 10px 0; }
 .wx-row .wxi { width: 34px; height: 34px; }
 .wx-row b { color: var(--gold); }

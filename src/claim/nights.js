@@ -13,7 +13,7 @@ const compassOf = (x, z) => COMPASS[((Math.round(Math.atan2(x, -z) / (Math.PI / 
 const sideOf = i => { const [x, z] = OUTLINE[clamp(Math.round(i), 0, OUTLINE.length - 1)]; return compassOf(x, z); };
 const BOSSES = {
   lodestar: { name: 'The Lantern-Eye', sub: 'a great Lodestar · it drinks the light of every lamp near it', scale: 2.3, width: 2.1, hp: n => 260 + n * 28, climb: 3.2 },
-  brightmaw: { name: 'The Brightmaw', sub: 'up from the deep seam · it charges the wall, and drinks the lamps', scale: 3.0, width: 2.6, hp: n => 400 + n * 40, climb: 3.0 },
+  brightmaw: { name: 'The Brightmaw', sub: 'up from the deep seam · it charges the wall, and drinks the lamps', scale: 3.0, width: 2.6, hp: n => 350 + n * 38, climb: 3.0 },
 };
 // what the claim has to lose: its stores and what it has built
 function wealthK() {
@@ -76,7 +76,7 @@ function planNight(n) {
   if (bright) {
     const kind = G ? G.kind : (seamBoss || deep || n >= 10) ? 'brightmaw' : 'lodestar', B = BOSSES[kind];
     const maxHp = G ? G.maxHp : Math.round(B.hp(n));
-    boss = { kind, name: G ? G.name : B.name, sub: B.sub, scale: B.scale, width: B.width, climb: B.climb, maxHp, hp: G ? Math.min(maxHp, Math.round(maxHp * (G.frac + 0.2))) : maxHp, from: seamBoss && !G ? 'seam' : null, grudge: !!G };
+    boss = { kind, name: G ? G.name : B.name, sub: B.sub, scale: B.scale, width: B.width, climb: B.climb, maxHp, hp: G ? Math.min(maxHp, Math.round(maxHp * (G.frac + 0.1))) : maxHp, from: seamBoss && !G ? 'seam' : null, grudge: !!G };
     const wv = waves[Math.min(1, waves.length - 1)];
     wv.units.unshift({ kind, at: boss.from, boss });
     wv.t0 = Math.min(wv.t0, nw === 1 ? 0.7 : 0.735);
@@ -157,7 +157,7 @@ function waveWarn(N, w, i) {
     if (!NIGHT.markers.some(m => m.pos.distanceTo(p) < 1)) NIGHT.markers.push({ pos: p, label: boss ? boss.boss.name : `Wave ${i + 1}`, until: w.t0 + 0.05, boss: !!boss });
     cloudGlow(cliffAt(w.center, -31, 3).setY(-33));
   }
-  AUDIO.play('bell');
+  AUDIO.play('wave', cliff ? cliffAt(w.center, 0, 0) : null);   // the watch bell, rung fast
 }
 
 // ----------------------------------------------------------------- who did the damage, and what dropped
@@ -233,7 +233,7 @@ function bossTick(f, dt) {
       f.chargeCd = 1;
       let best = null, bd = 11;
       for (const s of WALL.segs) { if (s.broken) continue; const d = Math.hypot(s.mx - f.pos.x, s.mz - f.pos.z); if (d < bd && Math.hypot(s.mx, s.mz) < Math.hypot(f.pos.x, f.pos.z) + 1.5) { bd = d; best = s; } }
-      if (best) { f.windup = 1.3; f.dashSeg = best; AUDIO.play('bossroar'); return 'hold'; }
+      if (best) { f.windup = 1.3; f.dashSeg = best; AUDIO.play('bossroar', f.pos); return 'hold'; }
     }
   }
   // the light-drinking pulse: it gathers the light in, then throws it out and every lamp in reach goes dark
@@ -265,7 +265,7 @@ function bossPulse(f) {
   f.pulseCd = f.kind === 'brightmaw' ? 15 : 11; f.charge = 0;
   pulseRing(f.pos, R, 0.7);
   FX.sparks(f.pos.clone().setY(1.5 * f.root.scale.x), 30, 0xffe0a0, 6);
-  camShake(0.35); AUDIO.play('snuff');
+  camShake(0.35); AUDIO.play('snuff', f.pos);
   WL.flowT = 0;
 }
 function bossSlam(f, s) {
@@ -275,17 +275,18 @@ function bossSlam(f, s) {
   for (const j of [i - 1, i + 1]) if (WALL.segs[j]) wallHit(WALL.segs[j], 0.55, f);
   const p = new THREE.Vector3(s.mx, 1.2, s.mz);
   FX.sparks(p, 40, 0xffd090, 7); FX.puff(p, 14, 0xb8a888, 2.2);
-  camShake(1); AUDIO.play('wallhit');
+  camShake(1); AUDIO.play('wallhit', p);
   toast(`<b>${esc(f.name)}</b> has smashed through the ${compassOf(s.mx, s.mz)} wall!`, 'night');
 }
 // over the rim: a boss roars, and the camera feels it
 function wlCrest(f) {
   if (!f.boss) return;
-  f.roarT = 1.3; camShake(0.6); AUDIO.play('bossroar');
+  f.roarT = 1.3; camShake(0.6); AUDIO.play('bossroar', f.pos);
   toast(`<b>${esc(f.name)}</b> is over the rim!`, 'night');
 }
 function bossDown(f) {
   const N = WL.night, B = f.bossDef || {};
+  if (N) { N.bossName = f.name; N.bossKind = f.kind; }
   NIGHT.bossDowned[f.kind] = (NIGHT.bossDowned[f.kind] || 0) + 1;
   const first = NIGHT.bossDowned[f.kind] === 1;
   if (N) N.bossKilled = true;
@@ -309,7 +310,7 @@ function bossDown(f) {
 function bossRetreat(f) {
   const N = WL.night, B = f.bossDef || {};
   NIGHT.grudge = { kind: f.kind, name: f.name, frac: clamp(f.hp / f.maxHp, 0.05, 1), maxHp: f.maxHp };
-  if (N) N.bossEscaped = true;
+  if (N) { N.bossEscaped = true; N.bossName = f.name; N.bossKind = f.kind; }
   let bi = 9, bd = 1e9; for (let i = 9; i < OUTLINE.length - 10; i++) { const d = Math.hypot(OUTLINE[i][0] - f.pos.x, OUTLINE[i][1] - f.pos.z); if (d < bd) { bd = d; bi = i; } }
   const down = climbRoute(bi).reverse();
   f.leaving = true; f.mode = 'route'; f.route = down; f.inward = down.inward.clone().negate(); f.feeding = false; f.dash = null; f.windup = 0; f.pulseT = 0;
@@ -351,8 +352,7 @@ function snuffLamp(L, by) {
   FX.sparks(p, 8, 0xffc070, 1.6);
   FX.puff(p, 5, 0x4e4844, 0.45);
   for (let i = 0; i < 3; i++) FX.smoke(p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.1 * i, (Math.random() - 0.5) * 0.3)), 0x3e3a3a);
-  AUDIO.play('snuff');
-  void by;
+  void by;   // (the sound: audio.js hears a lamp go out by itself)
 }
 function relightLamp(L) {
   if (L.lit) return;
@@ -374,13 +374,13 @@ function wallHit(s, amt, by) {
     wallMatrices(); buildNav(); WL.flowT = 0;
     const p = new THREE.Vector3(s.mx, 1.2, s.mz);
     FX.puff(p, 10, TOWN.wallLevel >= 2 ? 0xa89c8c : 0x8a6a4a, 1.6); FX.sparks(p, 12, 0xffc070, 3);
-    AUDIO.play('wallhit'); AUDIO.play('crack');
+    AUDIO.play('wallhit', p); AUDIO.play('crack', p);
     if (N) { N.breaches++; N.walls++; }
     if (!(by && by.boss)) toast(`Wildlight have broken through the ${compassOf(s.mx, s.mz)} wall.`, 'night');
     return;
   }
   const st = wallStage(s);
-  if (st !== (s.stage || 0)) { s.stage = st; wallMatrices(); FX.puff(new THREE.Vector3(s.mx, 1.6, s.mz), 5, TOWN.wallLevel >= 2 ? 0xa89c8c : 0x8a6a4a, 1); AUDIO.play('wallhit'); }
+  if (st !== (s.stage || 0)) { s.stage = st; wallMatrices(); const q = new THREE.Vector3(s.mx, 1.6, s.mz); FX.puff(q, 5, TOWN.wallLevel >= 2 ? 0xa89c8c : 0x8a6a4a, 1); AUDIO.play('wallhit', q); }
 }
 // the cracks and rubble, drawn over the wall (called from wallMatrices)
 const WDMG = { cracks: null, stones: null, logs: null };
@@ -404,7 +404,7 @@ function wallDamageDraw() {
   const segs = WALL.segs, n = segs.length; if (!n) return;
   if (!WDMG.cracks) {
     const geo = new THREE.PlaneGeometry(1, 1);
-    WDMG.cracks = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ map: crackTexture(), transparent: true, depthWrite: false, color: 0xffffff, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), n * 2);
+    WDMG.cracks = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ map: crackTexture(), transparent: true, depthWrite: false, color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), n * 2);
     const sg = projUV(new THREE.DodecahedronGeometry(0.42, 0), 1);
     WDMG.stones = new THREE.InstancedMesh(sg, MAT.stone, n * 6);
     const lg = new THREE.CylinderGeometry(0.16, 0.19, 2.2, 6).rotateZ(Math.PI / 2);
@@ -463,7 +463,7 @@ function wallRepairTick(dt) {
   for (const v of GAME.villagers) {
     const s = v.repairSeg; if (!s || !v.working || v.hidden || !v.d.job || v.d.job.bid !== 'wall') continue;
     if (Math.hypot(v.pos.x - s.mx, v.pos.z - s.mz) > 3) continue;
-    const rate = 0.03 * (0.5 + statOf(v, 'E') * 0.06 + statOf(v, 'G') * 0.03) * (TOWN.wallLevel >= 2 ? 0.8 : 1), cost = rate * dt * 8;
+    const rate = 0.03 * (0.5 + statOf(v, 'E') * 0.06 + statOf(v, 'G') * 0.03) * (TOWN.wallLevel >= 2 ? 0.8 : 1), cost = rate * dt * 5;
     if (GAME.shards < cost) continue;
     GAME.shards -= cost; s.hp = Math.min(1, s.hp + rate * dt);
     if (Math.random() < dt * 1.5) FX.puff(new THREE.Vector3(s.mx + (Math.random() - 0.5) * 2, 1.2, s.mz + (Math.random() - 0.5) * 2), 1, 0xc8b898, 0.5);
@@ -496,7 +496,7 @@ function flashTick(dt) {
 }
 // rings on the ground: a boss gathering light in (negative time: shrinking), or throwing it out
 const PULSES = [];
-const ringGeo = new THREE.RingGeometry(0.86, 1, 64).rotateX(-Math.PI / 2);
+const ringGeo = new THREE.RingGeometry(0.95, 1, 72).rotateX(-Math.PI / 2);
 function pulseRing(p, R, dur) {
   let P = PULSES.find(x => x.t >= x.dur);
   if (!P) { const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffd090, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide })); m.renderOrder = 5; scene.add(m); P = { m, t: 0, dur: 1 }; PULSES.push(P); }
@@ -506,7 +506,7 @@ function pulseTick(dt) {
   for (const P of PULSES) {
     if (P.t >= P.dur) { P.m.visible = false; continue; }
     P.t += dt; const k = clamp(P.t / P.dur, 0, 1), r = P.inward ? P.R * (1 - k * 0.9) : P.R * (0.1 + k * 0.9);
-    P.m.scale.set(r, 1, r); P.m.material.opacity = P.inward ? 0.25 + k * 0.6 : (1 - k) * 0.9;
+    P.m.scale.set(r, 1, r); P.m.material.opacity = P.inward ? 0.12 + k * 0.35 : (1 - k) * 0.6;
   }
 }
 // a glow in the cloud sea under the cliff a wave is about to climb
@@ -589,7 +589,8 @@ function nightReport(N) {
     else if (top[0] === 'b') {
       const b = TOWN.b[top.slice(1)], crew = b ? workersOf(b.id) : [];
       const towers = Object.keys(N.dmg).filter(k => k[0] === 'b').length;
-      credit = crew.length ? `${firstName(crew[0].d.name)}’s ${towers > 1 ? 'lens on ' + (b.name || 'the tower') : 'lenses'} did most of the work.` : 'The lens towers did most of the work.';
+      credit = crew.length ? `${firstName(crew[0].d.name)}’s lens tower did most of the work.` : 'The lens towers did most of the work.';
+      void towers;
     }
   }
   // the verdict, in plain words
@@ -625,7 +626,7 @@ function showDawn(R, big) {
   lines.push(`<li><i class="dk sh"></i><span><b>Shards</b> ${R.drained ? `${R.drained} drunk by the Wildlight` : 'none lost to the Wildlight'}${R.spent ? `, ${R.spent} spent on shots` : ''}. ${R.stores} in the stores.</span></li>`);
   if (R.lamps) lines.push(`<li><i class="dk lp"></i><span><b>Lamps</b> ${R.lamps} snuffed${R.relit ? `, ${R.relit} relit by the watch` : ''}. All burning again now.</span></li>`);
   if (R.wallHit) lines.push(`<li><i class="dk wa"></i><span><b>Wall</b> ${R.wallHit} section${R.wallHit > 1 ? 's' : ''} hit${R.breaches ? `, ${R.breaches} broken through` : ''}. ${R.wallNow ? (R.watch ? 'The watch will mend it today.' : 'Nobody is on the watch to mend it.') : 'Sound again.'}</span></li>`);
-  if (R.hurt.length) lines.push(`<li><i class="dk hu"></i><span><b>Hurt</b> ${esc(andList(R.hurt.map(firstName)))}. Back on ${R.hurt.length > 1 ? 'their' : 'their'} feet today.</span></li>`);
+  if (R.hurt.length) lines.push(`<li><i class="dk hu"></i><span><b>Hurt</b> ${esc(andList(R.hurt.map(firstName)))}, who limped home to the Keep. They’ll be back on their feet today.</span></li>`);
   const mats = Object.entries(R.mats).filter(([, n]) => n).map(([k, n]) => `${n} ${esc(D.MATERIALS[k] ? D.MATERIALS[k].name : k)}`);
   if (R.drops.length || mats.length) lines.push(`<li><i class="dk fd"></i><span><b>Found</b> ${[...R.drops.map(d => `<em style="color:${d.color}">${esc(d.name)}</em>`), ...mats].join(', ')}.</span></li>`);
   const stat = (v, l, bad) => `<div class="${bad && v ? 'bad' : ''}"><b>${v}</b><span>${l}</span></div>`;
@@ -641,9 +642,9 @@ function showDawn(R, big) {
 }
 
 // ----------------------------------------------------------------- the HUD: banner, boss bar, waves, where they climb
-function hudEl(id, html) {
+function hudEl(id, html, cls = id) {
   let el = document.getElementById(id);
-  if (!el) { el = document.createElement('div'); el.id = id; el.hidden = true; el.innerHTML = html; $('#app').append(el); }
+  if (!el) { el = document.createElement('div'); el.id = id; el.className = cls; el.hidden = true; el.innerHTML = html; $('#app').append(el); }
   return el;
 }
 function showBanner(P) {
@@ -653,7 +654,7 @@ function showBanner(P) {
   el.className = 'nbanner' + (P.bright ? ' bright' : '');
   el.innerHTML = `<p class="nb-n">Night ${P.n}</p><h2>${esc(P.title)}</h2><p class="nb-line">${esc(P.line)}</p>`;
   el.hidden = false; el.classList.remove('out'); void el.offsetWidth; el.classList.add('in');
-  clearTimeout(el._t); el._t = setTimeout(() => { el.classList.add('out'); setTimeout(() => { if (el.classList.contains('out')) el.hidden = true; }, 900); }, P.bright ? 8000 : 6500);
+  clearTimeout(el._t); el._t = setTimeout(() => { el.classList.add('out'); setTimeout(() => { if (el.classList.contains('out')) el.hidden = true; }, 900); }, NIGHT.bannerMs || (P.bright ? 8000 : 6500));
   el.onclick = () => { el.classList.add('out'); setTimeout(() => el.hidden = true, 400); };
 }
 const _mk = new THREE.Vector3();
@@ -665,7 +666,7 @@ function nightsDraw(rdt) {
   // pinned to the edge of the screen when it's out of view
   const show = TOD.t >= 0.45 && TOD.t < 0.95 && VIEW.mode === 'town' && !(SKY && SKY.on) && !GAME.talk;
   for (let i = 0; i < 3; i++) {
-    const M = NIGHT.markers[i], el = hudEl('sidemark' + i, '<i></i><span></span>');
+    const M = NIGHT.markers[i], el = hudEl('sidemark' + i, '<i></i><span></span>', 'sidemark');
     if (!M || !show || TOD.t >= M.until) { if (!el.hidden) el.hidden = true; continue; }
     _mk.copy(M.pos).setY(2).project(camera);
     const W = innerWidth, H = innerHeight, pad = 34;
@@ -698,7 +699,7 @@ function nightsSave() {
     wall: WALL.segs.map(s => Math.round(s.hp * 1000) / 1000), broken: WALL.segs.map(s => s.broken ? 1 : 0),
     plan: NIGHT.plan ? { n: NIGHT.plan.n } : null,
     // a night in progress: the waves still to come, and a boss that's still standing
-    on: N ? { n: N.n, title: N.title, bright: N.bright, deep: N.deep, waves: N.waves.map(w => ({ t0: w.t0, center: w.center, spread: w.spread, side: w.side, units: w.units.filter(u => !u.boss), gap: w.gap, next: w.next, warned: w.warned })),
+    on: N ? { n: N.n, title: N.title, bright: N.bright, deep: N.deep, waves: N.waves.map(w => ({ t0: w.t0, center: w.center, spread: w.spread, side: w.side, units: w.units, gap: w.gap, next: w.next, warned: w.warned })),
       boss: boss ? { kind: boss.kind, name: boss.name, hp: boss.hp, maxHp: boss.maxHp, def: boss.bossDef } : null, bossName: N.bossName, bossKind: N.bossKind,
       stats: { spawned: N.spawned, downed: N.downed, drained: N.drained, lamps: N.lamps, breaches: N.breaches, spent: N.spent, kinds: N.kinds, hurt: N.hurt, dropShards: N.dropShards } } : null,
   };

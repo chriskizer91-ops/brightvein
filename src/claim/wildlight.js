@@ -94,10 +94,10 @@ const wlCoreTex = radialTex('rgba(255,255,255,1)', 'rgba(200,225,255,0)', 64);
 // Flarehounds are full-grown and chew through walls; a Lodestar has something swallowed glowing in its chest; a
 // Brightmaw climbs out of a deep seam. hp grows with the night count n. cost: what one is worth when a night is planned.
 const WL_KINDS = {
-  glimmer:    { name: 'Glimmer', plural: 'Glimmers', scale: 0.68, col: [1.3, 0.82, 0.34], glow: 0xffc870, hp: n => 14 + n * 3, speed: [3.9, 4.6], climb: 3.6, chew: 0.5, bite: 3, width: 1.1, cost: 1 },
+  glimmer:    { name: 'Glimmer', plural: 'Glimmers', scale: 0.68, col: [1.22, 0.74, 0.3], glow: 0xffc870, hp: n => 14 + n * 3, speed: [3.9, 4.6], climb: 3.6, chew: 0.5, bite: 3, width: 1.1, cost: 1 },
   flarehound: { name: 'Flarehound', plural: 'Flarehounds', scale: 1.0, col: [1.25, 0.52, 0.17], glow: 0xff9a48, hp: n => 32 + n * 5, speed: [3.0, 3.6], climb: 3.0, chew: 1.5, bite: 5, width: 1.3, cost: 2.6 },
-  lodestar:   { name: 'Lodestar', plural: 'Lodestars', scale: 1.38, col: [1.15, 0.86, 0.5], glow: 0xffd8a0, core: 0xcfe6ff, hp: n => 72 + n * 8, speed: [2.4, 2.7], climb: 2.5, chew: 1.0, bite: 7, width: 1.5, cost: 6 },
-  brightmaw:  { name: 'Brightmaw', plural: 'Brightmaws', scale: 3.0, col: [1.5, 1.02, 0.58], glow: 0xfff0d0, core: 0xffffff, hp: n => 1100 + n * 60, speed: [2.0, 2.0], climb: 3.0, chew: 3, bite: 16, width: 2.6, cost: 0 },
+  lodestar:   { name: 'Lodestar', plural: 'Lodestars', scale: 1.38, col: [1.08, 0.76, 0.42], glow: 0xffd8a0, core: 0xcfe6ff, hp: n => 72 + n * 8, speed: [2.4, 2.7], climb: 2.5, chew: 1.0, bite: 7, width: 1.5, cost: 6 },
+  brightmaw:  { name: 'Brightmaw', plural: 'Brightmaws', scale: 3.0, col: [1.3, 0.82, 0.42], glow: 0xfff0d0, core: 0xffffff, hp: n => 1100 + n * 60, speed: [2.0, 2.0], climb: 3.0, chew: 3, bite: 16, width: 2.6, cost: 0 },
 };
 class Wildlight {
   constructor(route, kind = 'flarehound', o = {}) {
@@ -120,7 +120,7 @@ class Wildlight {
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: wlGlowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.35, color: K.glow }));
     pool.position.y = 0.05; this.root.add(pool); this.pool = pool;
     // the swallowed light in a Lodestar's chest, and the white-hot heart of a Brightmaw
-    if (K.core) { const c = new THREE.Sprite(new THREE.SpriteMaterial({ map: wlCoreTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.9, color: K.core, toneMapped: false })); c.scale.setScalar(0.6); c.position.set(0.22, 0.76, 0); this.bones.body.add(c); this.core = c; }
+    if (K.core) { const c = new THREE.Sprite(new THREE.SpriteMaterial({ map: wlCoreTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.9, color: K.core, toneMapped: false })); c.scale.setScalar(this.kind === 'brightmaw' ? 0.5 : 0.42); c.position.set(0.22, 0.76, 0); this.bones.body.add(c); this.core = c; }
     this.root.scale.setScalar(o.scale || K.scale);
     scene.add(this.root);
     this.pos = route[0].clone(); this.route = route.slice(1); this.mode = 'route'; this.inward = route.inward || null;
@@ -141,7 +141,7 @@ class Wildlight {
     this.dead = true; this.dying = 0;
     const s = this.root.scale.x;
     FX.sparks(this.pos.clone().setY(this.pos.y + 0.8 * s), Math.round((killed ? 26 : 14) * Math.min(3, s)), 0xffc070, 3.5 * Math.min(2, s));
-    AUDIO.play('poof');
+    AUDIO.play('poof', this.pos);
     if (killed) { GAME.ore += 2; nightDowned(this); }
   }
   update(dt) {
@@ -189,10 +189,12 @@ class Wildlight {
     let dy = yaw - this.root.rotation.y; while (dy > Math.PI) dy -= TAU; while (dy < -Math.PI) dy += TAU;
     this.root.rotation.y += dy * Math.min(1, dt * 8);
     this.root.position.copy(this.pos);
-    const bright = 1 + (this.charge || 0) * 1.4;
-    if (this.flash > 0) { this.flash -= dt; this.uni.uCol.value.setRGB(2.0, 1.6, 1.2); } else this.uni.uCol.value.copy(this.baseCol).multiplyScalar(bright);
-    this.glow.material.opacity = (0.32 + Math.sin(s * 3) * 0.06) * bright;
-    if (this.core) this.core.material.opacity = 0.75 + Math.sin(s * 2.3) * 0.2 + (this.charge || 0) * 0.5;
+    // a big one is drawn with the same light per stroke, so its glow is kept low or it would bloom into a blob
+    const bright = 1 + (this.charge || 0) * 0.5, big = this.root.scale.x > 1.5 ? 0.3 : 1;
+    if (this.flash > 0) { this.flash -= dt; this.uni.uCol.value.setRGB(1.8, 1.4, 1.0).multiplyScalar(big < 1 ? 0.7 : 1); } else this.uni.uCol.value.copy(this.baseCol).multiplyScalar(bright * (big < 1 ? 0.62 : 1));
+    this.glow.material.opacity = (0.32 + Math.sin(s * 3) * 0.06) * bright * big;
+    this.pool.material.opacity = 0.35 * (big < 1 ? 0.6 : 1);
+    if (this.core) this.core.material.opacity = (0.5 + Math.sin(s * 2.3) * 0.15 + (this.charge || 0) * 0.35) * (big < 1 ? 0.6 : 1);
     this.pool.visible = this.pos.y > -0.5;
     return true;
   }
@@ -368,7 +370,7 @@ function towerAI(dt) {
       fireBeam(muzzle, to); best.hurt(15 + (b.level >= 2 ? 5 : 0), b);
       b.coreMat.emissiveIntensity = 4;
       muzzleFlash(muzzle, 0xfff0c8, 2.4);
-      AUDIO.play('zap');
+      AUDIO.play('zap', muzzle);
     }
   }
 }
@@ -384,7 +386,7 @@ function updateRings() {
       g.renderOrder = 4; g.children.forEach(m => m.renderOrder = 4); scene.add(g); b.ring = g;
     }
     const sel = (BUILD.on && (BUILD.sel === b || (BUILD.drag && BUILD.drag.b === b))) || (!BUILD.on && UI.cur && UI.cur.kind === 'building' && UI.cur.ref === b);
-    b.ring.visible = VIEW.mode === 'town' && (BUILD.on || sel) && b.group.parent === scene;
+    b.ring.visible = !!(VIEW.mode === 'town' && (BUILD.on || sel) && b.group.parent === scene);   // (null would count as visible)
     const r = turretRange(b); b.ring.position.set(b.L.x, 0.12, b.L.z); b.ring.scale.set(r, 1, r);
     b.ring.children[0].material.opacity = sel ? 0.95 : 0.4; b.ring.children[1].material.opacity = sel ? 0.1 : 0.035;
   }
@@ -411,7 +413,7 @@ function ballistaAI(dt) {
       const m = new THREE.Mesh(boltGeo, MAT.iron); m.position.copy(muzzle); m.lookAt(best.pos.x, best.pos.y + 0.6, best.pos.z); scene.add(m);
       BOLTS.push({ m, from: muzzle.clone(), target: best, t: 0, dur: Math.max(0.12, bd / 45), dmg: b.level >= 2 ? 14 : 10, src: b });
       muzzleFlash(muzzle, 0xffe8c0, 1.1); FX.puff(muzzle.clone(), 2, 0xc8b898, 0.4);
-      AUDIO.play('thunk');
+      AUDIO.play('thunk', muzzle);
     }
   }
   for (let i = BOLTS.length - 1; i >= 0; i--) {
@@ -422,15 +424,23 @@ function ballistaAI(dt) {
   }
 }
 function watchAI() {
-  if (!WL.list.length) return;
+  // lamps the Wildlight have snuffed: the watch goes to relight them when there's nothing to fight nearby
+  const unlit = TOD.phase === 'night' && POWER.on ? DECOR.lamps.filter(L => !L.lit) : [];
+  if (!WL.list.length && !unlit.length) return;
   for (const v of GAME.villagers) {
     if (v.hidden || v.where !== 'surface' || v.d.exp || v.hurt) continue;
     let nearest = null, nd = 1e9;
     for (const f of WL.list) { if (f.dead || f.air || f.leaving || f.pos.y < -1) continue; const d = Math.hypot(f.pos.x - v.pos.x, f.pos.z - v.pos.z); if (d < nd) { nd = d; nearest = f; } }
-    if (!nearest) continue;
     const isWatch = v.d.job && v.d.job.bid === 'wall';
-    if (isWatch) { if (nd < 18 && (!v.plan[0] || v.plan[0].type !== 'chase')) v.plan = [{ type: 'chase', target: nearest, t: 9 }]; }
-    else if (v.d.trait !== 'Bold' && nd < (v.d.trait === 'Skittish' ? 13 : 6.5) && !(v.plan[0] && v.plan[0].run)) {
+    if (isWatch && nearest && nd < 18) { if (!v.plan[0] || v.plan[0].type !== 'chase') v.plan = [{ type: 'chase', target: nearest, t: 9 }]; continue; }
+    if (isWatch && unlit.length && !(v.plan[0] && (v.plan[0].type === 'chase' || v.plan[0].tend))) {
+      let L = null, ld = 24;
+      for (const q of unlit) { const d = Math.hypot(q.x - v.pos.x, q.z - v.pos.z); if (d < ld && !GAME.villagers.some(o => o !== v && o.plan[0] && o.plan[0].tend === q)) { ld = d; L = q; } }
+      if (L) { const w = walkTo(v, new THREE.Vector3(L.x + 0.7, 0, L.z + 0.7)); w.tend = L; v.plan = [w, { type: 'wait', t: 2, tend: L }]; }
+      continue;
+    }
+    if (!nearest || isWatch) continue;
+    if (v.d.trait !== 'Bold' && nd < (v.d.trait === 'Skittish' ? 13 : 6.5) && !(v.plan[0] && v.plan[0].run)) {
       v.plan = [walkTo(v, homeEntry(v), { run: true }), { type: 'enter' }, { type: 'wait', t: 14 }, { type: 'warp', to: homeEntry(v), then: () => { v.where = 'surface'; v.setHidden(false); } }];
     }
   }

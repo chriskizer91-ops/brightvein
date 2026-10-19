@@ -25,6 +25,9 @@
 - `src/claim/`: the claim (town, Keep, mine, people, Wildlight, loot, UI). One shared scope: its files are joined in the order of `src/claim/order.json` into one module. Add a file there to add it to the build.
   - `folk.js`: everyone's portrait and look, picture first. Settlers come off this roll so their sprite and portrait match. `node tools/portrait-prompts.mjs` writes `docs/art-requests/03-portraits.md` from it.
   - `cast.js`: the visiting cast's looks. `story.js`: chapters, scenes, visitors, the journal and codex (`docs/story.md`). `dock.js`: the Sky Dock and the fleet's panel. `life.js`: birds, distant ships, fireflies, mine dust.
+  - `wildlight.js`: the Wildlight (`WL_KINDS`: Glimmer, Flarehound, Lodestar, Brightmaw), their climb up the cliff (`climbRoute`), hunting, and the turrets, the Lark and the watch.
+  - `nights.js`: the shape of a night (`NIGHT`, `planNight`): the lookout's afternoon warning, the dusk banner, waves up their own cliffs, Bright Nights and their bosses (`BOSSES`), the boss bar, harm you can see (wall cracks and rubble, snuffed lamps, dimmed yards, the hurt limping home), the watch mending the wall by day, muzzle flashes and camera shake, and the dawn report.
+  - `weather.js`: the day's weather and tomorrow's forecast (`WEATHER`, `forceWeather`), its moods by day and night (`weatherMood`, called from `applyTimeOfDay`), rain, fog, the cloud deck, puddles, lightning, the Lightning Rod building, and the weather in the clock.
 - `src/sky/`, `src/ship/`, `src/ships/`: the skies, the ship builder and the six ships, from the airship game. Ordinary ES modules.
 - `src/shell.html`, `src/style.css`: the page and its look.
 - `assets/claim/`: the claim's painted textures (from Briarwatch). `assets/map/`, `assets/ships/`, `assets/fonts/`: from the airship game.

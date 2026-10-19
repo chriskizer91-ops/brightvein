@@ -88,13 +88,12 @@ with sync_playwright() as p:
     check("the camp's crates opened at home", r['stash'] >= before + 2 and r['won'] == 1 and r['panel'] == 'haul', json.dumps(r))
     # nights: a Bright Night brings a boss with a health bar, and it can be brought down; dawn brings the report
     r = pg.evaluate('''(() => { const B = __bv, out = {};
-      B.renderer.setAnimationLoop(null);
       B.NIGHT.grudge = null; B.GAME.nights = 4; B.forceWeather('clear', 'clear');
       B.skipTo(0.62); out.banner = !document.getElementById('nightbanner').hidden && document.getElementById('nightbanner').textContent;
       out.plan = B.NIGHT.plan && B.NIGHT.plan.n; out.bright = B.NIGHT.plan && B.NIGHT.plan.bright;
       for (let i = 0; i < 200 && !(B.WL.night && B.WL.night.boss); i++) B.simulate(1, 0.1);
       const f = B.WL.night && B.WL.night.boss; out.boss = !!f && f.boss && f.name; out.hp = f && Math.round(f.hp);
-      out.bar = !document.getElementById('bossbar').hidden && document.getElementById('bossbar').textContent;
+      const bb = document.getElementById('bossbar'); out.bar = !bb.hidden && getComputedStyle(bb).position === 'absolute' && bb.getBoundingClientRect().height > 20 && bb.textContent;
       const stash = B.GAME.stash.length, shards = B.GAME.shards;
       if (f) { f.hurt(1e6, 'lark'); B.simulate(1, 0.1); }
       out.dead = !!f && f.dead; out.killed = B.WL.night && B.WL.night.bossKilled; out.loot = B.GAME.stash.length - stash; out.bonus = Math.round(B.GAME.shards - shards);

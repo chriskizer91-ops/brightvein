@@ -67,8 +67,13 @@ const WILD_FOES = new Set(['glimmer', 'flarehound', 'lodestar', 'brightmaw']), J
 function fightOf(v, foe = 'glimmer') {
   const g = gearOf(v), mk = (mastered(v, 'G') ? 1.2 : 1) * watchBell(v), bare = 2.2 * statOf(v, 'G') * (v.d.trait === 'Bold' ? 1.25 : 1) * mk;
   if (!g.weapon) return { dps: bare, range: 1.6 };
-  const vs = WILD_FOES.has(foe) ? g.vsWild : JUMPER_FOES.has(foe) ? g.vsJumper : 0;
-  const w = itemWeapon(g.weapon), d = dpsOf(g.weapon, statOf(v, w.stat), foe) * (1 + vs / 100) * (v.d.trait === 'Bold' ? 1.1 : 1) * mk * castEdge(v);
+  const vs = WILD_FOES.has(foe) ? g.vsWild : JUMPER_FOES.has(foe) ? g.vsJumper : 0, edge = (1 + vs / 100) * castEdge(v);
+  const w = itemWeapon(g.weapon), own = dpsOf(g.weapon, statOf(v, w.stat), foe) * (v.d.trait === 'Bold' ? 1.1 : 1) * mk * edge;
+  // A made weapon (Tooled or better) never fights worse than bare hands: someone strong hits hard with anything they
+  // hold, and the better made it is (and the further overhauled) the more of that strength it carries. A weapon that
+  // suits them better than that fights with its own numbers. Salvage gets no such help.
+  const rank = LOOT.rankOf(g.weapon.rarity), floor = rank >= 1 ? bare * (1.06 + 0.04 * Math.min(rank, 6)) * ohK(g.weapon) * edge : 0;
+  const d = Math.max(own, floor);
   return w.range > 3 ? { dps: d, range: Math.min(w.range, 16), cd: w.cd, ranged: true, aspect: g.weapon.aspect || w.aspect } : { dps: Math.max(bare, d), range: Math.max(1.6, w.range * 0.8) };
 }
 function maxHpOf(v) { const g = gearOf(v); return Math.round(50 + statOf(v, 'G') * 5 + g.hp); }
@@ -184,7 +189,7 @@ function economy(dt) {
   else if (!POWER.on && GAME.shards > 3) POWER.on = true;
   // recruits
   const beds = totalBeds();
-  if (GAME.villagers.length < beds) {
+  if (bedsUsed() < beds) {   // the cast are guests and don't take beds (people.js)
     GAME.recruit += sum('keep') * RATES.recruit * dt * (1 + modV(TOWN.b.keep, 'recruit') / 100);   // modules: the Telegraph Key
     if (GAME.recruit >= 1) { GAME.recruit = 0; recruitArrives(); }
   }

@@ -29,7 +29,7 @@ function moodFactors() {
   if (GAME.food < 1) add(-25, 'There is nothing to eat');
   else if ((GAME.rates && GAME.rates.food || 0) < 0 && GAME.food < n * 1.5) add(-8, 'The food is running out');
   else if (GAME.food >= n * 3) add(6, 'Full larders');
-  const free = totalBeds() - GAME.villagers.length;
+  const free = totalBeds() - bedsUsed();   // the cast sleep aboard, so they don't fill the Keep
   if (free <= 0) add(-2, 'The Keep is full: no free beds'); else if (free >= 4) add(2, 'Room to spare in the Keep');
   if (typeof POWER !== 'undefined' && !POWER.on) add(-15, 'The lamps are dark: no shards to light them');
   const out0 = DECOR.lamps ? DECOR.lamps.filter(l => !l.lit).length : 0; if (out0 && !day) add(-Math.min(10, out0 * 2), 'Lamps snuffed by the Wildlight');

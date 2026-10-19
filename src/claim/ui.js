@@ -1,14 +1,77 @@
 // ===================================================================== UI
 let QUIET = false;
-function toast(html, kind = '') {
+// Toasts wait their turn: three at most on screen (two on a phone), the rest queued, a long queue going a little
+// faster and dropping its oldest everyday lines. They sit low, above the controls (or above the panel, or beside it
+// on a wide screen), clear of the banners at the top. While a card is up (a scene, a day event, the dawn report, the
+// settings) they hold still and out of sight, and pick up where they were when it's gone.
+const TOASTS = { q: [], live: [], max: () => innerWidth < 560 ? 2 : 3, shown: 0 };
+function toast(html, kind = '', o = {}) {
   if (QUIET) return;
-  const el = document.createElement('div'); el.className = 'toast ' + kind; el.innerHTML = html;
-  const box = $('#toasts'); box.appendChild(el);
-  while (box.children.length > 3) box.firstChild.remove();
-  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 500); }, kind === 'night' ? 5200 : 4200);
+  const same = !o.el && [...TOASTS.live, ...TOASTS.q].find(t => !t.el && t.html === html);
+  if (same) { same.left = Math.max(same.left || 0, 2.5); return; }
+  TOASTS.q.push({ html, kind, el: o.el || null, left: (o.ms || (kind === 'night' ? 5200 : 4200)) / 1000 });
+  while (TOASTS.q.length > 8) { const i = TOASTS.q.findIndex(t => !t.kind && !t.el); TOASTS.q.splice(i >= 0 ? i : 0, 1); }
+  toastPump();
+}
+// is a card up that toasts shouldn't sit over?
+function toastsHeld() {
+  if (!started || TITLE.on || (SKY && SKY.on) || GAME.talk || STORY.shown || EVT.card) return true;
+  const d = document.getElementById('dawn');
+  return (d && !d.hidden) || !$('#menu').hidden || !$('#intro').hidden || !$('#fd-sheet').hidden;
+}
+function toastPump() {
+  if (toastsHeld()) return;
+  const box = $('#toasts');
+  while (TOASTS.live.length < TOASTS.max() && TOASTS.q.length) {
+    const t = TOASTS.q.shift();
+    if (!t.el) { t.el = document.createElement('div'); t.el.className = 'toast ' + t.kind; t.el.innerHTML = t.html; }
+    box.appendChild(t.el); TOASTS.live.push(t); TOASTS.shown++;
+  }
+  toastPlace();
+}
+function toastGone(t) {
+  TOASTS.live.splice(TOASTS.live.indexOf(t), 1);
+  t.el.classList.add('out'); const el = t.el; setTimeout(() => el.remove(), reducedMotion ? 0 : 420);
+}
+let toastLast = performance.now();
+setInterval(() => {
+  const now = performance.now(), dt = Math.min(0.5, (now - toastLast) / 1000); toastLast = now;
+  const held = toastsHeld(), box = $('#toasts');
+  box.classList.toggle('held', held);
+  if (held) return;
+  const hurry = TOASTS.q.length > 2 ? 1.6 : 1;
+  for (const t of TOASTS.live.slice()) { if (!t.el.isConnected) { TOASTS.live.splice(TOASTS.live.indexOf(t), 1); continue; } if ((t.left -= dt * hurry) <= 0) toastGone(t); }
+  toastPump();
+}, 100);
+// where the stack sits: above the bottom bar, the build tray or a phone's panel; beside a wide screen's panel
+function toastPlace() {
+  const box = $('#toasts'), W = innerWidth, H = innerHeight;
+  let bottom = 68, left = W / 2;
+  const tray = $('#buildbar'), panel = $('#panel'), hint = $('#hint');
+  if (tray && !tray.hidden) bottom = Math.max(bottom, H - tray.getBoundingClientRect().top + 8);
+  if (panel && !panel.hidden) {
+    const r = panel.getBoundingClientRect();
+    if (W >= 900) left = Math.max(170, r.left / 2);
+    else bottom = Math.max(bottom, H - r.top + 8);
+  }
+  if (hint && !hint.hidden && bottom < 110) bottom = 110;
+  const chip = document.getElementById('wavechip');   // on a phone the night's wave chip sits just above the controls
+  if (chip && !chip.hidden && W <= 560 && bottom < 100) bottom = 100;
+  // a first-time tip low on the screen: beside it on a wide screen, above it otherwise
+  let lo = 0, hi = W >= 900 && panel && !panel.hidden ? left * 2 : W;
+  const tip = document.getElementById('hintcard');
+  if (tip && !tip.hidden) {
+    const r = tip.getBoundingClientRect();
+    if (r.bottom > H - bottom - 140) { if (W >= 900 && r.right < W / 2) lo = r.right + 8; else bottom = Math.max(bottom, H - r.top + 8); }
+  }
+  box.style.bottom = `calc(env(safe-area-inset-bottom, 0px) + ${Math.round(bottom)}px)`;
+  box.style.left = Math.round((lo + hi) / 2) + 'px';
+  box.style.width = Math.round(Math.min(460, W * 0.92, hi - lo - 24)) + 'px';
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const fmt = n => n >= 100 ? Math.floor(n).toString() : n >= 10 ? Math.floor(n).toString() : (Math.floor(n * 10) / 10).toString();
+// the top bar's numbers stay short: 12.4k, not 12437
+const fmtHud = n => n >= 99950 ? Math.round(n / 1000) + 'k' : n >= 9999.5 ? (Math.floor(n / 100) / 10).toFixed(1) + 'k' : fmt(n);
 const SHARD = '<svg viewBox="0 0 20 20" width="13" height="13" style="vertical-align:-2px"><path d="M10 1.5 15.5 9 10 18.5 4.5 9z" fill="#ffb347" stroke="#5a2a10" stroke-width="1.4"/></svg>';
 // a small canvas with one frame of a villager's sheet. It is drawn at the screen's own resolution: in whole-pixel
 // steps when there is room for at least two screen pixels per sprite pixel, otherwise smoothly scaled down, so
@@ -79,8 +142,8 @@ const UI = {
     if (b.type === 'shop') chips.push(`<span class="chip amber">+${Math.round(22 * workersOf(b.id).reduce((s, v) => s + v.eff(), 0) * (lv >= 2 ? 1.3 : 1))}% shards from every tray</span>`);
     if (b.type === 'garden') { const net = (GAME.rates && GAME.rates.food || 0) * 60; chips.push(`<span class="chip ${net < 0 ? 'warn' : 'good'}">Claim food ${net >= 0 ? '+' : ''}${net.toFixed(1)} a minute</span>`); }
     if (b.type === 'keep') {
-      const n = bedsOf(b), used = GAME.villagers.length, free = n - used;
-      chips.push(`<span class="chip">${used} of ${n} beds taken</span>`);
+      const n = bedsOf(b), used = bedsUsed(), free = n - used, guests = GAME.villagers.length - used;
+      chips.push(`<span class="chip">${used} of ${n} beds taken</span>`); if (guests) chips.push(`<span class="chip" title="The cast sleep aboard their ships, so they don't take beds">${guests} guest${guests > 1 ? 's' : ''} aboard</span>`);
       chips.push(`<span class="chip ${free > 0 ? 'amber' : 'warn'}">${free > 0 ? `Next settler ${Math.round(GAME.recruit * 100)}% of the way` : 'No free beds: raise the Keep'}</span>`);
       chips.push(`<span class="chip">${expOut().length} of ${expLimit()} out in the wilds</span>`);
     }
@@ -186,7 +249,7 @@ const UI = {
     if (typeof key !== 'number') {
       const F = ROOM_FIXED[key];
       body.append(this.h(`<h2>${esc(F.name)}</h2><p>${esc(F.blurb)}</p>`));
-      if (key === 'dorm') body.append(this.h(`<div class="stats-row"><span class="chip">${GAME.villagers.length} of ${totalBeds()} beds taken</span></div>`));
+      if (key === 'dorm') body.append(this.h(`<div class="stats-row"><span class="chip">${bedsUsed()} of ${totalBeds()} beds taken</span>${guestCount() ? `<span class="chip">The cast sleep aboard their ships</span>` : ''}</div>`));
       const here = GAME.villagers.filter(v => v.isprite.visible && v.where === 'home');
       if (here.length && key !== 'lookout') { body.append(this.h(`<h3>Here now</h3>`)); const box = document.createElement('div'); box.className = 'workers'; for (const v of here) { const el = document.createElement('button'); el.type = 'button'; el.className = 'wslot'; el.append(miniSprite(v)); el.append(this.h(`<b>${esc(v.d.name.split(' ')[0])}</b>`)); el.onclick = () => UI.open('villager', v); box.append(el); } body.append(box); }
       return;
@@ -413,7 +476,8 @@ const UI = {
   },
   roster(body) {
     const n = GAME.villagers.length, idle = GAME.villagers.filter(v => !v.d.job && !v.d.exp).length, out = expOut();
-    body.append(this.h(`<h2>The crew</h2><p class="sub">${n} people · ${totalBeds()} beds in the Keep · ${idle ? idle + ' without work' : 'everyone busy'}</p>`));
+    const gs = guestCount();
+    body.append(this.h(`<h2>The crew</h2><p class="sub">${n} people · ${bedsUsed()} of ${totalBeds()} beds taken${gs ? ` · ${gs} guest${gs > 1 ? 's' : ''} aboard their ships` : ''} · ${idle ? idle + ' without work' : 'everyone busy'}</p>`));
     const tabs = this.h(`<div class="tabs" role="group" aria-label="Show"><button type="button" data-t="crew">Crew</button><button type="button" data-t="wilds">Wilds · ${out.length}/${expLimit()}</button><button type="button" data-t="stash">Stash · ${GAME.stash.length}</button></div>`);
     for (const bt of tabs.querySelectorAll('button')) { bt.setAttribute('aria-pressed', bt.dataset.t === this.tab); bt.onclick = () => { this.tab = bt.dataset.t; this.refresh(); }; }
     body.append(tabs);
@@ -521,8 +585,14 @@ const PHASE_NAMES = t => t < 0.05 ? 'First light' : t < 0.2 ? 'Morning' : t < 0.
 function updateHUD(dt) {
   hudT -= dt; if (hudT > 0) return; hudT = 0.25;
   const set = (id, v) => { const el = $(id + ' b'); if (el.textContent !== v) el.textContent = v; };
-  set('#r-ore', fmt(GAME.ore)); set('#r-shards', fmt(GAME.shards)); set('#r-food', fmt(GAME.food));
-  set('#r-pop', GAME.villagers.length + '/' + totalBeds());
+  set('#r-ore', fmtHud(GAME.ore)); set('#r-shards', fmtHud(GAME.shards)); set('#r-food', fmtHud(GAME.food));
+  // settlers in the Keep's beds; the cast are guests who sleep aboard, counted on their own
+  const settlers = bedsUsed(), guests = GAME.villagers.length - settlers, pop = $('#r-pop');
+  set('#r-pop', settlers + '/' + totalBeds());
+  const gk = guests ? '+' + guests : '';
+  if (pop.dataset.guests !== gk) {
+    let g = pop.querySelector('.gst'); if (!g) { g = document.createElement('i'); g.className = 'gst'; pop.querySelector('b').after(g); }
+    g.textContent = gk; pop.dataset.guests = gk; pop.title = `${settlers} settlers in the Keep’s ${totalBeds()} beds${guests ? `, and ${guests} guest${guests > 1 ? 's' : ''} of the claim (the cast sleep aboard their ships)` : ''}.`; }
   const out = expOut().length, eb = $('#exp-badge'); if (eb.textContent !== (out ? String(out) : '')) eb.textContent = out ? String(out) : ''; eb.hidden = !out;
   $('#r-food').classList.toggle('low', GAME.food < 5);
   $('#r-shards').classList.toggle('low', GAME.shards < 10 && TOD.night > 0.3);

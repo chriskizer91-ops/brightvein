@@ -211,8 +211,12 @@ function storyLoad(s) {
 const VISIT = { ships: {} };
 function visitShip(kind, quiet) {
   if (VISIT.ships[kind] || !SKY || !SKY.shipArt) { if (!VISIT.ships[kind] && SKY) SKY.art.then(() => visitShip(kind, quiet)); return; }
-  const R = SHIPS.find(s => s.id === (kind === 'faire' ? 'brig' : 'cutter')), s = buildShipAt(R, 'middle', SKY.shipArt);
-  if (kind === 'faire') s.body.traverse(o => { if (o.isMesh && o.name === 'canvas') { o.material = o.material.clone(); o.material.color.set(0xd88ad0); } });
+  // the Magpie: small and black-hulled; the Moon Faire's ship: a brig painted teal, with rose-violet sails
+  const A = SKY.shipArt, M = { ...A.M, hull: A.M.hull.clone(), canvas: A.M.canvas.clone() };
+  M.canvas.onBeforeCompile = A.M.canvas.onBeforeCompile; M.canvas.customProgramCacheKey = A.M.canvas.customProgramCacheKey;
+  if (kind === 'faire') { M.hull.color.set(0x5f9aa0); M.canvas.color.set(0xe0a0dc); M.canvas.emissive.set(0x5a2050); }
+  else { M.hull.color.set(0x4a4048); }
+  const R = SHIPS.find(x => x.id === (kind === 'faire' ? 'brig' : 'cutter')), s = buildShipAt(R, 'middle', { ...A, M });
   const D = LAYOUT.dock, at = kind === 'faire' ? new THREE.Vector3(D.x - 34, 9, D.z - 18) : new THREE.Vector3(D.x + 30, 7, D.z - 13);
   s.root.position.copy(at); s.root.rotation.y = kind === 'faire' ? -Math.PI / 2 : Math.PI / 2;
   scene.add(s.root);

@@ -323,7 +323,7 @@ function saveGame() {
       buildings: Object.values(TOWN.b).filter(b => !b.pending).map(b => ({ id: b.id, type: b.type, level: b.level, tx: b.tile ? b.tile.tx : null, tz: b.tile ? b.tile.tz : null })),
       stash: GAME.stash, mats: GAME.mats, cells: GAME.cells, blueprints: GAME.blueprints, rooms: GAME.rooms, savedAt: Date.now(),
       people: GAME.villagers.map(v => ({ ...v.d })),
-      sky: FLEET ? FLEET.data : undefined, story: storySave(),
+      sky: FLEET ? FLEET.data : undefined, story: storySave(), jumpNext: JUMP.next,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
   } catch (e) { }
@@ -375,7 +375,7 @@ function frame() {
     // sub-step villagers at high speed so paths stay smooth
     const n = Math.ceil(gdt / 0.05), sdt = gdt / n;
     for (let i = 0; i < n; i++) for (const v of GAME.villagers) v.update(sdt);
-    updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); updateExpeditions(gdt);
+    updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); jumpersTick(gdt); updateExpeditions(gdt);
     announceStudy(updateStudies(gdt));
   } else for (const v of GAME.villagers) { v.sprite.position.copy(v.pos); v.frame(0); }
   if (BUILD.on) updatePlaceCtl();
@@ -492,7 +492,7 @@ async function boot() {
     autoAssign();
     // settlers from before the roll take a place on it (keeping their names), so their sprite matches a portrait
     for (const v of GAME.villagers) if (!v.d.portrait && !v.d.named && !v.d.hero) { const f = nextFolk(v.d.pref); if (f) { v.d.portrait = f.id; v.d.look = { ...v.d.look, ...f.look }; v.redraw(); } }
-    storyLoad(save.story);
+    storyLoad(save.story); JUMP.next = save.jumpNext ?? null;
     if (save.savedAt) GAME.away = catchUp((Date.now() - save.savedAt) / 1000);
     if (save.migrated) setTimeout(() => toast('Your claim is on the new build grid. Everyone lives in <b>the Keep</b> now. Tap <b>Build</b> to rearrange.'), 2500);
   } else { starterStash(); seedVillagers(); }
@@ -528,11 +528,11 @@ function simulate(seconds, step = 0.1) {
     applyTimeOfDay(GAME.t, elapsed += step);
     if (prevPhase && TOD.phase !== prevPhase) phaseChange(prevPhase, TOD.phase); prevPhase = TOD.phase;
     economy(step); for (const v of GAME.villagers) v.update(step);
-    updateWildlight(step, elapsed); updateDefenders(step, elapsed); updateExpeditions(step); announceStudy(updateStudies(step));
+    updateWildlight(step, elapsed); updateDefenders(step, elapsed); jumpersTick(step); updateExpeditions(step); announceStudy(updateStudies(step));
     const now = performance.now() / 1000; for (const b of BUILDINGS) b.update(now, step);
     FX.update(step); wallUpdate(step); dressScene(step, step);
   }
 }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
-window.__bv = { STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin };
+window.__bv = { JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin };
 boot().catch(e => { console.error(e); $('#loading').textContent = 'The town could not be raised: ' + e.message; });

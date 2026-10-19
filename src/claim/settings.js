@@ -55,7 +55,9 @@ function syncMenu() {
 // saving: which claim is open, and when it was last saved (read from the save itself, so only when the panel opens)
 function menuSaveLine() {
   const S = slotSummary(SLOTS.active);
-  $('#save-where').innerHTML = `<b>${esc(slotName(SLOTS.active))}</b> · ${S ? `${esc(summaryLine(S))} · saved ${esc(ago(S.savedAt))}` : 'not saved yet'}`;
+  // the claim as it is on the page (the save may be a minute behind it), and when it was last saved
+  const now = started ? { day: GAME.day, chapter: chapterLabel(STORY.ch), people: GAME.villagers.length } : S;
+  $('#save-where').innerHTML = `<b>${esc(slotName(SLOTS.active))}</b> · ${now ? esc(summaryLine(now)) + ' · ' : ''}${S ? `saved ${esc(ago(S.savedAt))}` : 'not saved yet'}`;
 }
 function openMenu() { $('#menu').hidden = false; $('#reset-confirm').hidden = true; syncMenu(); menuSaveLine(); const c = $('#menu .menu-card'); if (c) c.scrollTop = 0; }
 function closeMenu() { $('#menu').hidden = true; $('#reset-confirm').hidden = true; }

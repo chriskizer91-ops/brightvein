@@ -104,7 +104,9 @@ function keepCamPose() {
 function keepClamp() {
   const C = KCAM, t = kcamT(), a = innerWidth / innerHeight, wide = innerWidth >= 900 && !!UI.cur;
   C.wd = clamp(C.wd, 7, keepMaxDist());
-  const hh = C.wd * t, hw = hh * a, x0 = -KW / 2 - 4, x1 = KW / 2 + 4 + (wide ? hw * 1.2 : 0), y0 = -2, y1 = keepTop() + 1.5;
+  // with a panel open, leave room to slide what you tapped clear of it: left on a wide screen, up on a narrow one
+  const hh = C.wd * t, hw = hh * a, narrow = innerWidth < 900 && !!UI.cur;
+  const x0 = -KW / 2 - 4, x1 = KW / 2 + 4 + (wide ? hw * 1.2 : 0), y0 = -2 - (narrow ? hh * 1.1 : 0), y1 = keepTop() + 1.5;
   C.wx = x1 - x0 < hw * 2 ? (x0 + x1) / 2 : clamp(C.wx, x0 + hw * 0.7, x1 - hw * 0.7);
   C.wy = y1 - y0 < hh * 2 ? clamp(C.wy, y1 - hh, y0 + hh) : clamp(C.wy, y0 + hh * 0.7, y1 - hh * 0.7);
 }

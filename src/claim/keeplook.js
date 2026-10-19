@@ -31,6 +31,8 @@ function kglowMat(m) {
           vec3 d = uKGlowP[i].xyz - gP; float dd = dot(d, d), f = max(0.0, 1.0 - dd / uKGlowP[i].w); f *= f;
           gL += uKGlowC[i] * f * (0.35 + 0.65 * max(dot(normal, d * inversesqrt(dd + 0.0001)), 0.0));
         }
+        // where several lamps overlap, the light saturates instead of burning white
+        gL *= 1.0 / (1.0 + 0.35 * max(gL.r, max(gL.g, gL.b)));
         outgoingLight += diffuseColor.rgb * gL;
       }
       #include <opaque_fragment>`);
@@ -775,8 +777,9 @@ const KFURN = {
     ksph(0.18, KM.plain, tu - 0.3, 0.92, tz + 0.05, { s: [1.5, 0.7, 1], col: 0xc8904a }); kcyl(0.09, 0.12, 0.28, KM.plain, tu + 0.5, 0.98, tz + 0.1, { col: 0xb8b0a0, seg: 10 });
     kcandle(tu + 1.2, 0.84, tz, { light: true, r: 2.4 });
     // stools by the fire for warming, and the cook's place at the pot
-    kstool(fu - 1.15, -0.95); kstool(fu + 1.35, -0.95);
-    kspot('fire', fu - 1.15, 0, -0.95, { pose: 'sit', sink: 0.32, face: FACE.right }); kspot('fire', fu + 1.35, 0, -0.95, { pose: 'sit', sink: 0.32, face: FACE.left });
+    kstool(fu + 1.35, -0.95); kspot('fire', fu + 1.35, 0, -0.95, { pose: 'sit', sink: 0.32, face: FACE.left });
+    // the best seat by the fire: a stool, then (level 3) a high-backed chair for whoever likes the hall best
+    if (lv < 3) { kstool(fu - 1.15, -0.95); kspot('fav', fu - 1.15, 0, -0.95, { pose: 'sit', sink: 0.32, face: FACE.right, i: 1 }); }
     kspot('cook', fu + 0.9, 0, Zb + 1.55, { face: FACE.left, work: true });
     kspot('rest', fu + 0.2, 0, -1.25, { face: FACE.back });
     // herbs drying over the fire
@@ -802,14 +805,14 @@ const KFURN = {
     if (lv >= 3) {
       KT = 3;
       // a brass chandelier over the table, and a high-backed chair at the fire for whoever likes it best
-      karmchair(o * 3.35, 0.55, -o * 0.6, 0x6a2a3a);
-      kspot('fav', o * 3.35, 0, 0.5, { pose: 'sit', sink: 0.3, face: FACE.cam, i: 1 });
+      karmchair(fu - 1.3, -0.75, 0.7, 0x6a2a3a);
+      kspot('fav', fu - 1.3, 0, -0.8, { pose: 'sit', sink: 0.3, face: FACE.cam, i: 1 });
       for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; kcandle(tu + Math.cos(a) * 0.55, CH - 1.35, tz + Math.sin(a) * 0.35, { bare: true, h: 0.12 }); }
       kput(new THREE.TorusGeometry(0.6, 0.035, 6, 24), KM.brass, kx(tu), ky(CH - 1.35), tz, { rx: Math.PI / 2, s: [1, 0.62, 1] });
       for (const s of [-1, 1]) kbox(0.02, 1.3, 0.02, KM.iron, tu + s * 0.4, CH - 0.68, tz, { col: 0x3a3a3a });
       klight('candle', kx(tu), ky(CH - 1.6), tz + 0.6, 4.5, [0.9, 0.58, 0.28]);
       kframe(-o * 3.4, 2.95, 0.9, 0.72, 'paint1', { z: Zb });
-    } else kspot('fav', fu - 1.15, 0, -0.95, { pose: 'sit', sink: 0.32, face: FACE.right, i: 1 });
+    }
   },
   // ----- the Dormitory: bunks with everyone's quilts, chests, a washstand, windows that show the hour
   dorm(R, Rn) {
@@ -862,8 +865,8 @@ const KFURN = {
     kbox(1.2, 0.08, 0.2, KM.wood, d * 3.55, 1.6, Zb + 0.12, { col: 0x5a4030 }); kbox(1.2, 0.08, 0.2, KM.wood, d * 3.55, 0.35, Zb + 0.12, { col: 0x5a4030 });
     kwin(-0.6 * o, 1.35, 1.1, 1.6, {});
     // sparring in the ring, the tutor calling the drill behind it
-    kspot('student', -0.55, 0, -0.6, { i: 1, face: FACE.right, work: true }); kspot('student', 0.95, 0, -0.6, { i: 2, face: FACE.left, work: true });
-    kspot('tutor', 0.2, 0, -2.45, { face: FACE.cam, work: true });
+    kspot('student', -0.95, 0, -0.55, { i: 1, face: FACE.right, work: true }); kspot('student', 1.35, 0, -0.55, { i: 2, face: FACE.left, work: true });
+    kspot('tutor', 0.2, 0, -2.7, { face: FACE.cam, work: true });
     // the heavy bag on the door side, swinging when someone works it
     kbox(0.12, 0.12, 2.0, KM.wood, d * 2.65, CH - 0.35, -1.6, { col: 0x4a3424 });
     KEEPV.dyn.push(kdyn('bag', kx(d * 2.65), ky(CH - 0.4), -1.6, () => { kbox(0.03, 0.9, 0.03, KM.plain, d * 2.65, CH - 0.85, -1.6, { col: 0xb59a70 }); kcyl(0.28, 0.28, 1.05, KM.cloth, d * 2.65, CH - 1.85, -1.6, { col: 0x8a3a2a, seg: 12 }); kcyl(0.29, 0.29, 0.06, KM.plain, d * 2.65, CH - 1.35, -1.6, { col: 0x4a3020, seg: 12 }); }, { axis: 'x', amp: 0.18, speed: 3.2, room: R.key, student: 3 }));
@@ -942,11 +945,11 @@ const KFURN = {
       // a calculating engine: a brass cabinet of wheels and a crank; a lamp shade of brass over the tables
       const cu = d * 2.35;
       kbox(0.9, 1.0, 0.45, KM.brass, cu, 0.5, Zb + 0.3, { col: 0xb89860 });
-      for (let i = 0; i < 3; i++) kcyl(0.12, 0.12, 0.05, KM.plain, cu - 0.26 + i * 0.26, 0.78, Zb + 0.55, { rx: Math.PI / 2, col: 0xe8e0c8, seg: 12 });
+      for (let i = 0; i < 3; i++) kcyl(0.12, 0.12, 0.05, KM.plain, cu - 0.26 + i * 0.26, 0.78, Zb + 0.55, { rx: Math.PI / 2, col: 0xbcae8c, seg: 12 });
       kbox(0.05, 0.4, 0.05, KM.iron, cu + 0.48, 0.6, Zb + 0.45, { col: 0x4a4a4a, rz: 0.5 });
       kput(new THREE.ConeGeometry(0.28, 0.4, 10, 1, true), KM.brass, kx(d * 1.8), ky(CH - 0.75), -1.6, { rx: Math.PI, col: 0xb89860 });
       kbox(0.02, 0.55, 0.02, KM.iron, d * 1.8, CH - 0.28, -1.6, { col: 0x3a3a3a });
-      klight('candle', kx(d * 1.8), ky(CH - 1.4), -1.2, 3.5, [1.4, 1.1, 0.6]);
+      klight('candle', kx(d * 1.8), ky(CH - 1.4), -1.2, 3.2, [1.0, 0.8, 0.45]);
     }
   },
   // ----- Agility: the Rigging Loft. A climbing wall, ratlines, a haul rope, a lens-sighting bench.
@@ -965,22 +968,22 @@ const KFURN = {
     for (let y = 0.4; y < CH - 0.6; y += 0.38) kbox(2.1, 0.03, 0.03, KM.plain, ru, y, Zb + 0.7 + 0.25 + (CH * 0.5 - y) * 0.12, { col: 0x8a7050 });
     kspot('student', ru + o * 0.3, 0, Zb + 1.35, { i: 1, face: FACE.back, climb: [0.1, 1.6] });
     // the haul: a block from the ceiling, a rope, a sandbag to lift
-    const hu = d * 2.0;
+    const hu = d * 2.3;
     kbox(0.22, 0.3, 0.16, KM.wood, hu, CH - 0.45, -1.2, { col: 0x5a4030 }); kput(new THREE.TorusGeometry(0.11, 0.03, 4, 12), KM.iron, kx(hu), ky(CH - 0.45), -1.2, { col: 0x5a5a5a });
     kbox(0.03, CH - 1.6, 0.03, KM.plain, hu + 0.1, (CH - 0.45 + 1.15) / 2, -1.2, { col: 0xb59a70 });
     ksph(0.3, KM.cloth, hu + 0.1, 0.32, -1.2, { s: [1, 1.1, 1], col: 0xb89a68 });
-    kspot('student', hu - d * 0.6, 0, -1.2, { i: 2, face: d > 0 ? FACE.right : FACE.left, work: true });
+    kspot('student', hu - d * 0.55, 0, -1.2, { i: 2, face: d > 0 ? FACE.right : FACE.left, work: true });
     // the lens-sighting bench by the door: brass lenses on stands, a target on the wall
     const lu = d * 3.4;
     ktable(lu, Zb + 0.5, 1.4, 0.65, 0.95, { col: 0x8a6a4a });
     for (const s of [-0.35, 0.35]) { kbox(0.04, 0.35, 0.04, KM.brass, lu + s, 1.13, Zb + 0.5); kput(new THREE.TorusGeometry(0.12, 0.025, 6, 16), KM.brass, kx(lu + s), ky(1.33), Zb + 0.5, { ry: Math.PI / 2 }); kput(new THREE.CircleGeometry(0.11, 14), KM.glass, kx(lu + s), ky(1.33), Zb + 0.5, { ry: Math.PI / 2 }); }
     kquad(0.6, 0.6, KM.sign, SIGN_R.target, d * 4.38 * -1 * -1 - d * 0.0, 1.5, 0, { ry: d > 0 ? -Math.PI / 2 : Math.PI / 2, s: [1, 1, 1] });
     kspot('student', lu - d * 0.0, 0, Zb + 1.25, { i: 3, face: FACE.back, work: true });
-    kspot('tutor', d * 0.55, 0, -0.2, { face: FACE.cam, work: true });
+    kspot('tutor', d * 0.3, 0, 0.1, { face: FACE.cam, work: true });
     // coils of rope, a spar across the room, the window
-    for (let i = 0; i < 3; i++) kput(new THREE.TorusGeometry(0.22, 0.07, 5, 14), KM.plain, kx(o * 3.9 - o * i * 0.1), ky(0.07 + i * 0.12), 0.9, { rx: Math.PI / 2, col: 0xb59a70 });
+    for (let i = 0; i < 3; i++) kput(new THREE.TorusGeometry(0.22, 0.07, 5, 14), KM.plain, kx(o * 3.85 - o * i * 0.06), ky(0.07 + i * 0.12), 1.3, { rx: Math.PI / 2, col: 0xb59a70 });
     kwin(d * 1.2, 1.5, 0.9, 1.45, {});
-    kspot('fav', o * 3.6, 0, 1.0, { face: FACE.cam, i: 1 });
+    kspot('fav', o * 3.2, 0, 1.15, { face: FACE.cam, i: 1 });
     // a barrel of chalk for the hands by the door
     kbarrel(d * 3.85, 0.85, 0.75, { col: 0x8a6a4a }); kcyl(0.27, 0.27, 0.02, KM.plain, d * 3.85, 0.76, 0.85, { col: 0xf0f0ea, seg: 12 });
     klamp(0, -0.2, { lv });
@@ -989,11 +992,17 @@ const KFURN = {
       // a ship's wheel on the wall, and a second lamp
       kput(new THREE.TorusGeometry(0.42, 0.05, 6, 20), KM.wood, kx(d * 2.9), ky(2.9), Zb + 0.1, { col: 0x7a5434 }); for (let i = 0; i < 4; i++) kbox(1.05, 0.04, 0.04, KM.wood, d * 2.9, 2.9, Zb + 0.12, { rz: i * Math.PI / 4, col: 0x7a5434 });
       klamp(d * 2.2, 0.2, { lv });
+      // a pair of rings to hang from, and a rope to climb
+      for (const s of [-1, 1]) { kbox(0.02, 1.6, 0.02, KM.plain, d * 0.4 + s * 0.25, CH - 0.8, 0.5, { col: 0x8a7050 }); kput(new THREE.TorusGeometry(0.11, 0.025, 6, 16), KM.wood, kx(d * 0.4 + s * 0.25), ky(CH - 1.7), 0.5, { col: 0x8a5a34 }); }
+      // a climbing rope in the front corner, its tail coiled on the floor
+      kcyl(0.04, 0.04, CH - 0.45, KM.plain, o * 3.85, (CH - 0.45) / 2 + 0.45, 1.3, { col: 0x9a8058, seg: 6 }); kbox(0.3, 0.08, 0.08, KM.wood, o * 3.85, CH - 0.05, 1.3, { col: 0x5a4030 });
     }
     if (lv >= 3) {
       KT = 3;
+      kbanner(o * 1.0, 2.75, 0.6, 1.25, 'bLens');
+      kbox(0.3, 0.06, 0.2, KM.brass, d * 3.3, 1.0, Zb + 0.5, { col: 0xb89860 }); kput(new THREE.TorusGeometry(0.16, 0.02, 4, 16, Math.PI / 3), KM.brass, kx(d * 3.3), ky(1.1), Zb + 0.5, { col: 0xb89860 });
       // a model airship hanging from the beams
-      const mu = d * 1.6, mz = 0.9;
+      const mu = o * 2.4, mz = 0.95;
       ksph(0.32, KM.cloth, mu, CH - 0.85, mz, { s: [1.9, 0.62, 0.62], col: 0xc8a070 }); kbox(0.38, 0.1, 0.16, KM.wood, mu, CH - 1.12, mz, { col: 0x6a4226 });
       for (const s of [-1, 1]) { kbox(0.015, 0.45, 0.015, KM.plain, mu + s * 0.3, CH - 0.4, mz, { col: 0x8a8a8a }); kbox(0.02, 0.22, 0.14, KM.cloth, mu + s * 0.62, CH - 0.85, mz, { col: 0x9a4430 }); }
     }
@@ -1011,7 +1020,9 @@ const KFURN = {
     kcyl(0.07, 0.07, 0.7, KM.wood, fu, 0.15, Zb + 0.3, { rz: Math.PI / 2, col: 0x3a2418, seg: 6 });
     klight('fire', kx(fu), ky(0.6), Zb + 1.5, 4.6, [1.3, 0.56, 0.2]);
     kcandle(fu - 0.85, 1.45, Zb + 0.35); kcandle(fu + 0.85, 1.45, Zb + 0.35, { light: true });
-    if (lv >= 2) { kbox(1.1, 0.9, 0.04, KM.wood, fu, 2.2, Zb + 0.04, { col: 0xc99a3c }); kplane(0.95, 0.75, KM.glass, fu, 2.2, Zb + 0.07, { col: 0xc8d8e0 }); }
+    if (lv >= 2) { kbox(1.1, 0.9, 0.04, KM.wood, fu, 2.2, Zb + 0.04, { col: 0xc99a3c }); kplane(0.95, 0.75, KM.glass, fu, 2.2, Zb + 0.07, { col: 0xc8d8e0 });
+      // the glass catches the light in two streaks
+      kbox(0.06, 0.62, 0.005, KM.plain, fu - 0.18, 2.24, Zb + 0.08, { rz: -0.6, col: 0xf4f8ff }); kbox(0.03, 0.4, 0.005, KM.plain, fu - 0.02, 2.2, Zb + 0.08, { rz: -0.6, col: 0xf4f8ff }); }
     else kframe(fu, 2.2, 0.9, 0.72, 'paint1');
     // two armchairs, a low table between them with the tea service
     karmchair(fu - 1.35, -1.5, 0.35, 0x5a7a6a); karmchair(fu + 1.35, -1.5, -0.35, 0x6a5a8a);
@@ -1066,7 +1077,7 @@ const KFURN = {
     }
     for (const s of [-1, 1]) kbox(0.05, 1.4, 0.05, KM.wood, gu + s * (gw / 2 - 0.25), 0.7, Zb + 0.75, { col: 0x6a4a30 });
     kpot(gu - o * 1.4, 0, Zb + 1.55, 0.22, { plant: 0, ps: 0.9 }); kpot(gu + o * 0.2, 0, Zb + 1.7, 0.18, { plant: 1, ps: 0.75 });
-    kspot('student', gu - o * 0.3, 0, Zb + 1.45, { i: 1, face: FACE.back, work: true });
+    kspot('student', gu + o * 0.45, 0, Zb + 1.45, { i: 1, face: FACE.back, work: true });
     // the potting bench in front of the nook
     const pu = o * 2.6;
     ktable(pu, -0.45, 1.5, 0.65, 0.88, { col: 0x8a6a4a });
@@ -1083,9 +1094,9 @@ const KFURN = {
     KEEPX.bees.push({ x: kx(bu), y: ky(1.2), z: bz, n: 5 + lv * 2, r: 0.6 }, { x: kx(gu), y: ky(1.4), z: Zb + 1.0, n: 3 + lv, r: 1.0 });
     kspot('student', bu - d * 1.0, 0, bz, { i: 3, face: d > 0 ? FACE.right : FACE.left, work: true });
     // the tutor at a sorting table, seed packets spread out
-    ktable(d * 0.55, -0.55, 1.1, 0.55, 0.8, { col: 0x7a5a40, skirt: 0x8a9a6a });
-    for (let i = 0; i < 5; i++) kbox(0.12, 0.01, 0.16, KM.plain, d * 0.55 - 0.4 + i * 0.2, 0.83, -0.55 + (Rn() - 0.5) * 0.2, { ry: Rn(), col: [0xe8d8a8, 0xc8d8a0, 0xe8c0a0][i % 3] });
-    kspot('tutor', d * 0.55, 0, -1.2, { face: FACE.cam, work: true });
+    ktable(o * 0.2, -0.55, 1.1, 0.55, 0.8, { col: 0x7a5a40, skirt: 0x8a9a6a });
+    for (let i = 0; i < 5; i++) kbox(0.12, 0.01, 0.16, KM.plain, o * 0.2 - 0.4 + i * 0.2, 0.83, -0.55 + (Rn() - 0.5) * 0.2, { ry: Rn(), col: [0xe8d8a8, 0xc8d8a0, 0xe8c0a0][i % 3] });
+    kspot('tutor', o * 0.2, 0, -1.2, { face: FACE.cam, work: true });
     // herbs drying from the beams, a watering can, a sack of seed
     for (let i = 0; i < 6; i++) kplant(-2.6 + i * 1.05, CH - 0.95, -1.4, i % 2 ? 1 : 2, 0.6, { flip: true });
     kcyl(0.13, 0.15, 0.3, KM.brass, d * 0.9, 0.15, 0.9, { col: 0xb87a4a, seg: 10 }); kbox(0.45, 0.55, 0.4, KM.cloth, d * 0.2, 0.27, 1.1, { col: 0xd8c8a0 });
@@ -1103,7 +1114,7 @@ const KFURN = {
       // a crystal grow-lamp over the trays
       kbox(1.8, 0.06, 0.25, KM.brass, gu, CH - 0.6, Zb + 0.9); for (let i = 0; i < 4; i++) kput(new THREE.OctahedronGeometry(1, 0), KM.crystal, kx(gu - 0.6 + i * 0.4), ky(CH - 0.75), Zb + 0.9, { s: [0.06, 0.13, 0.06] });
       klight('crystal', kx(gu), ky(CH - 1.2), Zb + 1.2, 3.6, [1.8, 1.2, 0.5]);
-      for (let i = 0; i < 3; i++) kpot(d * 0.3 + i * 0.5 * d, 0, 1.4, 0.15, { plant: i % 2, ps: 0.6 });
+      for (let i = 0; i < 3; i++) kpot(d * (1.2 + i * 0.5), 0, 1.25, 0.15, { plant: i % 2, ps: 0.6 });
     }
   },
   // ----- the Lookout, under the roof at level 3: a telescope at a big window, charts, a brazier
@@ -1387,9 +1398,9 @@ function keepLightK(g, now, out) {
     return out;
   }
   let s = 1;
-  if (g.kind === 'lamp') s = 0.3 + 0.85 * night + 0.25 * cover * day;
-  else if (g.kind === 'fire') s = 0.85 + 0.35 * night + 0.12 * Math.sin(now * 11 + g.x) + 0.08 * Math.sin(now * 23.7 + g.z * 3) + 0.06 * Math.sin(now * 5.3);
-  else if (g.kind === 'candle') s = (0.5 + 0.8 * night) * (1 + 0.1 * Math.sin(now * 17 + g.x * 9));
+  if (g.kind === 'lamp') s = 0.3 + 0.5 * night + 0.25 * cover * day;
+  else if (g.kind === 'fire') s = 0.8 + 0.1 * night + 0.12 * Math.sin(now * 11 + g.x) + 0.08 * Math.sin(now * 23.7 + g.z * 3) + 0.06 * Math.sin(now * 5.3);
+  else if (g.kind === 'candle') s = (0.45 + 0.45 * night) * (1 + 0.1 * Math.sin(now * 17 + g.x * 9));
   else if (g.kind === 'porch') s = night * 1.1;
   else if (g.kind === 'beacon') s = 0.5 + night * 1.4 + Math.sin(now * 1.5) * 0.15;
   else if (g.kind === 'crystal') s = 0.7 + 0.2 * Math.sin(now * 1.3) + night * 0.4;

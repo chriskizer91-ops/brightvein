@@ -376,7 +376,6 @@ function frame() {
   if (BUILD.on) updatePlaceCtl();
   if (VIEW.mode === 'keep') buildInterior();
   updateRings(); updateInterior(rdt, gdt);
-  if (VIEW.mode === 'keep') keepLookUpdate(rdt, gdt);
   const now = performance.now() / 1000;
   for (const b of BUILDINGS) b.update(now, gdt || rdt * 0.25);
   FX.update(rdt * (GAME.paused ? 0.2 : Math.min(GAME.speed, 2)));
@@ -384,6 +383,7 @@ function frame() {
   dressScene(rdt, gdt);
   dockUpdate(rdt); updateLife(rdt, TOD.night); storyTick(rdt); talkFrame(rdt);
   updateCamera(rdt); digFrameUpdate(rdt, gdt);
+  if (VIEW.mode === 'keep') keepLookUpdate(rdt, gdt);   // after the camera moves: the lamplight is placed in its view
   nightsDraw(rdt); weatherDraw(rdt);
   updateHUD(rdt); updateLabels();
   AUDIO.ambience(TOD.night, !GAME.paused);

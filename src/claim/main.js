@@ -106,6 +106,7 @@ const BICON = {
   lens: '<path d="M19 41V18h16v23z" fill="#b9ad98" stroke="#2a1b2f" stroke-width="2"/><rect x="16" y="15" width="22" height="4" fill="#d8cbb0" stroke="#2a1b2f" stroke-width="1.6"/><circle cx="27" cy="9" r="6" fill="#d8f4f0" stroke="#c99a3c" stroke-width="2.4"/><path d="M27 9 46 4" stroke="#ffcf85" stroke-width="2"/>',
   ballista: '<path d="M10 40h34l-4-8H14z" fill="#d8cbb0" stroke="#2a1b2f" stroke-width="2"/><path d="M12 22c8-10 22-10 30 0" fill="none" stroke="#7d8590" stroke-width="3"/><path d="M12 22 27 30l15-8" fill="none" stroke="#cdb48a" stroke-width="1.4"/><rect x="25" y="12" width="4" height="22" fill="#8a5a34" stroke="#2a1b2f" stroke-width="1.6"/><circle cx="27" cy="32" r="3" fill="#c99a3c" stroke="#2a1b2f" stroke-width="1.4"/>',
   mast: '<path d="M18 42 23 8h8l5 34" fill="none" stroke="#8a5a34" stroke-width="3"/><path d="M20 30h14M21 20h12" stroke="#5a3a26" stroke-width="2"/><rect x="20" y="5" width="14" height="4" fill="#c99a3c" stroke="#2a1b2f" stroke-width="1.6"/>',
+  rod: '<path d="M19 41h16l-2-6H21z" fill="#b9ad98" stroke="#2a1b2f" stroke-width="2"/><path d="M27 35V9" stroke="#c46a3a" stroke-width="2.6"/><path d="m27 3-2.6 7h5.2z" fill="#c46a3a" stroke="#2a1b2f" stroke-width="1.2"/><rect x="34" y="29" width="7" height="8" rx="2" fill="#9fd8ff" stroke="#2a1b2f" stroke-width="1.6"/><path d="M37.5 29 28 19" stroke="#c99a3c" stroke-width="1.2"/><path d="m40 4-3 6h3l-2 5" fill="none" stroke="#ffe27a" stroke-width="1.6" stroke-linejoin="round"/>',
 };
 const bIcon = t => `<svg viewBox="0 0 54 44" aria-hidden="true">${BICON[t] || ''}</svg>`;
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), _gp = new THREE.Vector3();
@@ -324,6 +325,7 @@ function saveGame() {
       stash: GAME.stash, mats: GAME.mats, cells: GAME.cells, blueprints: GAME.blueprints, rooms: GAME.rooms, savedAt: Date.now(),
       people: GAME.villagers.map(v => ({ ...v.d })),
       sky: FLEET ? FLEET.data : undefined, story: storySave(), jumpNext: JUMP.next,
+      night: nightsSave(), weather: weatherSave(),
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
   } catch (e) { }
@@ -388,6 +390,7 @@ function frame() {
   dressScene(rdt, gdt);
   dockUpdate(rdt); updateLife(rdt, TOD.night); storyTick(rdt); talkFrame(rdt);
   updateCamera(rdt);
+  nightsDraw(rdt); weatherDraw(rdt);
   updateHUD(rdt); updateLabels();
   AUDIO.ambience(TOD.night, !GAME.paused);
   saveT -= rdt; if (saveT <= 0 && started) { saveT = 15; saveGame(); }
@@ -400,22 +403,14 @@ function frame() {
     lensPass.uniforms.uFocus.value = side ? 0.5 : 0.47;
     gradePass.uniforms.uNight.value = TOD.night;
   }
+  if (!inK) shakeCamera(rdt);
   composer ? composer.render() : renderer.render(S, C);
+  if (!inK) unshakeCamera();
 }
 function phaseChange(a, b) {
-  if (b === 'dusk') { toast('Dusk. The tenders bring the crystal in, and <b>the lamps take over.</b>', 'night'); AUDIO.play('bell'); }
+  if (b === 'dusk') nightDusk();   // the banner names the night to come
   if (b === 'night') startNight();
-  if (a === 'night' && b === 'dawn') {
-    endNight();
-    // the watch mends breaches at dawn
-    const br = WALL.segs.filter(s => s.broken);
-    if (br.length) {
-      const watch = workersOf('wall').length;
-      const fix = Math.min(br.length, watch ? br.length : 0), cost = fix * 4;
-      if (fix && GAME.shards >= cost) { GAME.shards -= cost; for (const s of br) { s.broken = false; s.hp = 1; } wallMatrices(); buildNav(); toast(`The watch mends ${fix} breach${fix > 1 ? 'es' : ''} for ${cost} shards.`); }
-      else if (!watch) toast('Nobody is on the watch, so <b>the wall stays broken.</b>', 'night');
-    }
-  }
+  if (a === 'night' && b === 'dawn') endNight();   // the dawn report; by day the watch mends the wall (nights.js)
   for (const v of GAME.villagers) v.replan = true;
   UI.refresh();
 }
@@ -425,11 +420,12 @@ function dressScene(rdt, gdt) {
   const night = TOD.night, pw = POWER.on ? 1 : 0.2;
   MAT.window.emissiveIntensity = night * 1.7 * pw + 0.05;
   for (const b of BUILDINGS) for (const L of b.lights) L.light.intensity = b.level >= L.lvl ? L.power * night * pw * (L.yard ? 0.4 + (b.chargeK || 0) : 1) : 0;
+  for (const b of BUILDINGS) if (b.type === 'yard') for (const L of b.lights) if (L.yard) L.light.intensity *= yardLightK(b);
   const keep = TOWN.b.keep; if (keep && keep.beaconMat) keep.beaconMat.emissiveIntensity = 1.4 + night * 3 * pw + Math.sin(elapsed * 1.5) * 0.3;
   MAT.crystal.emissiveIntensity = 0.9 + night * 1.2 * pw;
   for (const b of BUILDINGS) if (b.type === 'yard' && b.crystalMat) {
     b.drainK = Math.max(0, (b.drainK || 0) - rdt);
-    const glow = 0.12 + (b.chargeK || 0) * 0.55 + night * 1.2 * pw - b.drainK * 0.6 + (b.drainK ? Math.random() * 0.4 : 0);
+    const glow = Math.max(0.05, 0.12 + (b.chargeK || 0) * 0.55 + night * 1.2 * pw - b.drainK * 0.6 + (b.drainK ? Math.random() * 0.4 : 0) + yardMood(b, night));
     b.crystalMat.emissiveIntensity = lerp(b.crystalMat.emissiveIntensity, glow, Math.min(1, rdt * 4));
     if ((b.chargeK || 0) > 0.25 && gdt && Math.random() < rdt * 9) FX.mote(b.worldPos((Math.random() - 0.5) * 8, 0.9, (Math.random() - 0.5) * 6));
   }
@@ -475,6 +471,7 @@ async function boot() {
   setupLife();
   fixEnv(scene);
   if (save) { TOWN.wallLevel = save.wall || 1; wallSetLevel(TOWN.wallLevel, false); }
+  nightsLoad(save); weatherLoad(save);   // wall damage, a night in progress, a boss that got away; the weather
   buildNav();
   if (save) {
     Object.assign(GAME, { day: save.day, t: save.t, ore: save.ore, shards: save.shards, food: save.food, recruit: save.recruit, nights: save.nights, nextId: save.nextId,
@@ -533,6 +530,10 @@ function simulate(seconds, step = 0.1) {
     FX.update(step); wallUpdate(step); dressScene(step, step);
   }
 }
+// test hook: skip to a time of day (0 = first light, 0.6 dusk, 0.69 night, 0.96 dawn), running everything on the way
+function skipTo(t, step = 0.25) { let guard = 0; while (Math.abs(GAME.t - t) > step / DAY_LEN * 1.5 && guard++ < 20000) simulate(step, step); }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
-window.__bv = { JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin };
+window.__bv = { JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin,
+  NIGHT, WEATHER, WEATHERS, WL_KINDS, WALL, KEEP_LIMITS, BUY, DEFS, byType, autoAssign, findSpot, layoutChanged, planNight, forceWeather, lightningStrike, wallHit, nightReport, showDawn, skipTo, phaseChange, camShake, OUTLINE, cliffAt,
+  showBanner, bossBar, nightLookout, BOLT, wallSetLevel, wallMatrices, snuffLamp, FX };
 boot().catch(e => { console.error(e); $('#loading').textContent = 'The town could not be raised: ' + e.message; });

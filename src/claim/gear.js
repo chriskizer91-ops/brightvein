@@ -149,7 +149,7 @@ function economy(dt) {
   for (const b of Object.values(TOWN.b)) {
     if (b.type !== 'yard' || b.level < 1) continue;
     const tend = sum(b.id), mult = b.level >= 3 ? 1.5 : b.level >= 2 ? 1.25 : 1;
-    const light = b.level >= 3 ? Math.max(sun, 0.35 * (1 - night)) : sun;
+    const light = (b.level >= 3 ? Math.max(sun, 0.35 * (1 - night)) : sun) * wxSun(b);   // cloud and rain slow it (weather.js)
     let want = tend * RATES.charge * mult * light * dt * (castPerk('tock') ? 1.2 : 1);
     want = Math.min(want, GAME.ore);
     GAME.ore -= want; charged += want * cutBonus;
@@ -159,7 +159,7 @@ function economy(dt) {
   GAME.shards += charged; GAME.rates.shards = charged / Math.max(dt, 1e-4);
   for (const b of byType('shop')) b.busy = workersOf(b.id).some(v => v.working) ? 1 : 0;
   // food: everyone at home eats; gear "of Plenty" eats less
-  let grown = 0; for (const b of byType('garden')) grown += sum(b.id) * RATES.food * (b.level >= 2 ? 1.3 : 1);
+  let grown = 0; for (const b of byType('garden')) grown += sum(b.id) * RATES.food * (b.level >= 2 ? 1.3 : 1) * wxGrow(b);
   let mouths = 0; for (const v of GAME.villagers) if (!v.d.exp) mouths += 1 - Math.min(0.5, gearOf(v).upkeep / 100);
   GAME.rates.food = grown - mouths * RATES.eat;
   GAME.food += GAME.rates.food * dt;

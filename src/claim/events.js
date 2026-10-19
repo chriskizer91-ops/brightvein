@@ -12,7 +12,7 @@ const firstOf = v => v.d.name.split(' ')[0];
 const itemTag = it => `<b style="color:${rarityOf(it).color}">${esc(it.name)}</b>`;
 const evIlvl = () => Math.round(3 + STORY.ch * 1.4);
 const settlers = (f = () => true) => GAME.villagers.filter(v => !v.d.hero && !v.d.named && !v.d.exp && !v.d.sick && f(v));
-const freeBeds = () => totalBeds() - GAME.villagers.length;
+const freeBeds = () => totalBeds() - bedsUsed();
 const dayEnd = () => GAME.day + 0.62;               // dusk, in claim days
 // people at the gate, not yet on the claim: off the settlers' roll (so their portraits match), never the same one twice
 function strangers(n) {
@@ -311,7 +311,7 @@ function evQuiet() {
   if (TOD.phase !== 'day' && TOD.phase !== 'dawn') return false;
   if (jumpersActive() || WL.list.some(f => !f.dead)) return false;
   const dawn = document.getElementById('dawn'); if (dawn && !dawn.hidden) return false;
-  return $('#menu').hidden && $('#intro').hidden;
+  return !frontOpen();   // not while the settings or one of their cards is open (title.js)
 }
 function eventsFrame() {
   const T = EVT.today; if (!T || T.fired) return;

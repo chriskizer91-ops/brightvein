@@ -61,6 +61,7 @@ function lifeShips() {
   for (const [id, r, h, sp, ph] of [['brig', 420, 40, 0.012, 1.2], ['cutter', 560, 75, -0.009, 4.1]]) {
     const R = SHIPS.find(s => s.id === id), s = buildShipFar(R, A);
     if (!s) return;
+    s.root.traverse(o => { if (o.isMesh) o.castShadow = false; });   // hundreds of metres off: their shadows fall on nothing
     scene.add(s.root);
     LIFE.ships.push({ s, r, h, sp, ph });
   }

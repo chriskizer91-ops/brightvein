@@ -45,9 +45,10 @@ const keepBedOf = v => KEEPV.beds && KEEPV.beds.find(b => b.owner === v) || null
 // ----------------------------------------------------------------- giving everyone a place
 function keepAssign() {
   const spots = KEEPV.spots; if (!spots) return;
-  // beds: everyone has their own, in the order they came to the claim (those up all night at their books last, so
-  // the bunks go to people who'll sleep in them)
-  const away = v => (v.d.study ? 2 : 0) + (isNightJob(v) || v.where === 'ship' || v.where === 'mast' ? 1 : 0);
+  // beds: every settler has their own, in the order they came to the claim (those up all night at their books last,
+  // so the bunks go to people who'll sleep in them). The cast are guests (bedsUsed in people.js): they take a bunk
+  // only when one is spare, and otherwise a bedroll by the hall's fire.
+  const away = v => (isGuest(v) ? 4 : 0) + (v.d.study ? 2 : 0) + (isNightJob(v) || v.where === 'ship' || v.where === 'mast' ? 1 : 0);
   const people = GAME.villagers.filter(v => !v.d.exp).sort((a, b) => (away(a) - away(b)) || a.d.id - b.d.id);
   for (const b of KEEPV.beds) b.owner = null;
   people.forEach((v, i) => { if (KEEPV.beds[i]) KEEPV.beds[i].owner = v; });

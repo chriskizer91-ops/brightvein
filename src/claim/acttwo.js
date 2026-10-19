@@ -167,7 +167,7 @@ CHAPTERS.push(
     onOpen() {
       if (WEATHER.today !== 'storm') { WEATHER.next = 'storm'; weatherHUD(true); }
       // the first of Hollowcrest's people come up the bridge
-      const n = Math.min(2, Math.max(0, totalBeds() - GAME.villagers.length)), D0 = LAYOUT.dock;
+      const n = Math.min(2, Math.max(0, totalBeds() - bedsUsed())), D0 = LAYOUT.dock;
       for (let i = 0; i < n; i++) { const d = makePerson(mulberry((Math.random() * 1e9) | 0)); const v = addVillager(d, new THREE.Vector3(D0.x - 8 + Math.random() * 2, 0, D0.z + 6 + Math.random() * 2)); v.replan = true; }
       if (n) { autoAssign(); setTimeout(() => toast(`${n === 1 ? 'One' : 'Two'} of Hollowcrest’s people come up the bridge, soaked through.`), 1500); }
     },

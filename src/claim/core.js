@@ -21,7 +21,7 @@ function mulberry(seed) { let a = seed >>> 0 || 1; return () => { a |= 0; a = a 
 function hash2(x, y) { let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
 function vnoise(x, y) { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf); return lerp(lerp(hash2(xi, yi), hash2(xi + 1, yi), u), lerp(hash2(xi, yi + 1), hash2(xi + 1, yi + 1), u), v); }
 function fbm(x, y, o = 4) { let s = 0, a = 0.5, f = 1, n = 0; for (let i = 0; i < o; i++) { s += a * vnoise(x * f + i * 17.3, y * f - i * 9.1); n += a; a *= 0.5; f *= 2.03; } return s / n; }
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;   // Settings can change it (settings.js)
 
 // ----------------------------------------------------------------- renderer
 const canvas = $('#view');
@@ -99,6 +99,7 @@ function applyQuality() {
   const ms = QUALITY.level === 'high' ? 2048 : QUALITY.level === 'balanced' ? 2048 : 1024;
   if (typeof sun !== 'undefined' && sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   setupComposer(); resize();
+  if (typeof lightCasts === 'function') lightCasts();   // (kit.js)
 }
 function resize() {
   const w = innerWidth, h = innerHeight;
@@ -112,9 +113,11 @@ function resize() {
 
 // ----------------------------------------------------------------- assets
 const IMG = {};
-function loadAssets() {
-  return Promise.all(Object.entries(ASSETS).map(([k, src]) => new Promise(res => {
-    const im = new Image(); im.onload = () => { IMG[k] = im; res(); }; im.onerror = () => res(); im.src = src;
+function loadAssets(onStep) {
+  const all = Object.entries(ASSETS); let n = 0;
+  const one = () => { n++; if (onStep) onStep(n / all.length); };
+  return Promise.all(all.map(([k, src]) => new Promise(res => {
+    const im = new Image(); im.onload = () => { IMG[k] = im; one(); res(); }; im.onerror = () => { one(); res(); }; im.src = src;
   })));
 }
 const TEX = {};

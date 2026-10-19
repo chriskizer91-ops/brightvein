@@ -21,7 +21,7 @@ THEMES = [('title', 0, 30, 'title'), ('day', 0, 30, 'day'), ('dusk', 0, 26, 'dus
           ('faire', 0, 26, 'faire'), ('keep', 0, 26, 'keep'), ('mine', 0, 30, 'mine')]
 SFX = ['tap', 'open', 'lift', 'place', 'build', 'built', 'upgraded', 'levelup', 'statup', 'chime', 'goal', 'zap', 'flare', 'volley', 'thunk', 'cannon',
        'cannonfar', 'hit', 'hullhit', 'raiderhit', 'poof', 'crack', 'wallhit', 'snuff', 'jumperdown', 'raiderdown', 'sunk', 'tower', 'horn', 'warhorn',
-       'bell', 'alarm', 'dig', 'rockfall', 'cart', 'thunder', 'raidlost', 'pickup', 'sail']
+       'bell', 'alarm', 'bossroar', 'dig', 'rockfall', 'cart', 'thunder', 'raidlost', 'pickup', 'sail']
 LOOT = ['salvage', 'tuned', 'signed', 'masterwork', 'guild', 'sunforged']
 AMB = [('day', {'out': True, 'day': 1}), ('night', {'out': True, 'night': 1, 'hum': 0.7}), ('mine', {'mine': True, 'miners': True}),
        ('keep', {'keep': True}), ('skies', {'sky': True, 'speed': 40}), ('rain', {'out': True, 'day': 1, 'rain': 0.8})]

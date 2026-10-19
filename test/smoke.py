@@ -37,6 +37,7 @@ with sync_playwright() as p:
     check('a ship moored at the Sky Dock', pg.evaluate('__bv.DOCK.ship.recipe.id') == 'skiff')
     pg.evaluate('__bv.GAME.shards = 1000; __bv.openSky("voyage")')
     pg.wait_for_function('__bv.SKY.mode === "voyage"', timeout=120000)
+    pg.wait_for_function('BV_AUDIO.AUDIO.status().theme === "skies"', timeout=30000)
     r = pg.evaluate('''(() => {
       const B = __bv, g = B.SKY, P = g.player, out = { t0: B.GAME.t, shards0: Math.round(B.GAME.shards) };
       g.wind.strength = 0;
@@ -51,6 +52,7 @@ with sync_playwright() as p:
           c = { fire: true, turn: Math.max(-1, Math.min(1, -g.cam.yaw * 2)), climb: Math.max(-1, Math.min(1, (live[0].f.pos.y - P.pos.y) / 40)) };
         }
         g.step(0.25, c); t += 0.25;
+        if (g.waves.state === 'fight' && !out.fightWant) out.fightWant = BV_AUDIO.MUSIC.want();
       }
       out.wave1 = Math.round(t); out.choose = !document.getElementById('calm').hidden; out.won = Math.round(g.voyage.shards);
       document.getElementById('btn-sail-on').click(); g.step(5, {});
@@ -65,6 +67,7 @@ with sync_playwright() as p:
       return out; })()''')
     check('set sail from the Sky Dock', r['sailed'], json.dumps(r))
     check('wave 1 beaten, then sail on to wave 2', r['choose'] and r['won'] > 0 and r['wave2'])
+    check('the music sails with her, and a fight brings in the drums', r.get('fightWant', {}).get('theme') == 'skies' and r['fightWant'].get('i') == 2, json.dumps(r.get('fightWant')))
     check('lost the ship, and the crew got her home with half', r['sunk'] and r['home'] and abs(r['banked'] - r['half']) <= 1)
     check("the claim's time stood still while she was away", r['claimStill'] and r['voyages'] == 1)
     pg.wait_for_function('__bv.DOCK.ship.root.parent === __bv.scene', timeout=20000)
@@ -85,8 +88,31 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1200)
     r = pg.evaluate('({ stash: __bv.GAME.stash.length, won: __bv.FLEET.data.raids.camp.won, panel: __bv.UI.cur && __bv.UI.cur.kind })')
     check("the camp's crates opened at home", r['stash'] >= before + 2 and r['won'] == 1 and r['panel'] == 'haul', json.dumps(r))
+    r = pg.evaluate('''(async () => { const B = __bv, A = BV_AUDIO.AUDIO, out = { before: A.status().theme };
+      B.GAME.t = 0.8;
+      for (let i = 0; i < 40 && A.status().theme !== 'night'; i++) { while (B.STORY.shown) B.talkNext(); await new Promise(r => setTimeout(r, 400)); }
+      out.night = A.status().theme; out.want = BV_AUDIO.MUSIC.want().theme;
+      B.simulate(60); await new Promise(r => setTimeout(r, 4000));
+      const s = A.status(); out.voices = s.voices; out.persist = s.persist; out.state = s.state; out.dropped = s.dropped;
+      return out; })()''')
+    check('the music turns to the night watch at night', r['night'] == 'night', json.dumps(r))
+    check("a minute of play doesn't pile up sounds", r['state'] == 'running' and r['voices'] < 72 and r['persist'] < 200, json.dumps(r))
     extra = os.environ.get('SMOKE_EXTRA')
     if extra: print(pg.evaluate(extra))
+    pg.evaluate('__bv.renderer.setAnimationLoop(null)'); pg.close()   # the next page loads faster on its own
+    pg2 = b.new_page(viewport={'width': 480, 'height': 360})
+    pg2.add_init_script('delete window.AudioContext; delete window.webkitAudioContext; delete window.OfflineAudioContext; delete window.webkitOfflineAudioContext;')
+    quiet = []
+    pg2.on('pageerror', lambda e: quiet.append(str(e)))
+    pg2.route('**/fonts.g*/**', lambda r: r.fulfill(body='', content_type='text/css'))
+    pg2.goto('file://' + ROOT + '/dist/test.html', timeout=300000)
+    pg2.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=240000)
+    r = pg2.evaluate('''(async () => { const B = __bv, A = BV_AUDIO.AUDIO; B.begin(true); B.exitBuild(); B.simulate(30, 0.1);
+      for (const k of A.names()) A.play(k, { x: 0, y: 0, z: 0 }); A.loot('sunforged'); A.rain(0.5); A.ambience(); A.vol('music', 0.5);
+      document.getElementById('b-menu').click(); document.querySelector('#mb-list .mb-play').click(); document.getElementById('menu-close').click();
+      return { missing: A.missing, status: A.status().state, render: await A.render({ theme: 'day', seconds: 1 }) }; })()''')
+    check('with no sound in the browser, nothing breaks', not quiet and r['missing'] and r['render'] is None, json.dumps(r) + ' ' + '; '.join(quiet))
+    pg2.close()
     b.close()
 for e in errors: print('  -', e)
 print('all good' if not errors else f'{len(errors)} problem(s)')

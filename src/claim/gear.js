@@ -76,6 +76,7 @@ function toGear(it, ilvl = 1) { return it && (it.type === 'gear' || it.type === 
 function addToStash(it, quiet) {
   it = toGear(it, it && it.ilvl);
   GAME.stash.unshift(it);
+  AUDIO.loot(it.rarity);
   if (!quiet) toast(`Found: <b style="color:${rarityOf(it).color}">${esc(it.name)}</b>`);
   return it;
 }
@@ -185,6 +186,6 @@ function recruitArrives() {
   v.where = 'mast'; v.plan = [{ type: 'climb', to: M.worldPos(0, 0, 2.2), then: () => v.where = 'surface' }];
   const best = Object.entries(d.stats).sort((a, b) => b[1] - a[1])[0][0];
   toast(`A courier sets down <b>${d.name}</b>, strong in ${STAT_NAMES[best]}.`);
-  AUDIO.play('chime');
+  AUDIO.play('horn');
   UI.refresh();
 }

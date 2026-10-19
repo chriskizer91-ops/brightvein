@@ -146,7 +146,7 @@ class Building {
         return true;
       });
     }
-    if (this.building && now > this.doneAt && !this.anim.length) { this.building = false; scaffoldOff(this); this.bake(); this.onDone && this.onDone(); }
+    if (this.building && now > this.doneAt && !this.anim.length) { this.building = false; scaffoldOff(this); this.bake(); AUDIO.play(this.level > 1 ? 'upgraded' : 'built', this.group.position); this.onDone && this.onDone(); }
     for (const s of this.spin) s.obj.rotation[s.axis] += dt * s.speed * (s.when ? s.when() : 1);
   }
   worldPos(x, y, z) { return this.group.localToWorld(new THREE.Vector3(x, y, z)); }

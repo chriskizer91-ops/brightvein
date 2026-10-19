@@ -71,6 +71,14 @@
       <p class="small">Light turns off glow and softens shadows for smaller phones.</p>
       <div class="row"><span>Game speed</span><div class="seg" id="spd-seg" role="group" aria-label="Game speed"><button type="button" data-s="1">1×</button><button type="button" data-s="2">2×</button><button type="button" data-s="4">4×</button></div></div>
       <div class="row"><span>Sound</span><button type="button" class="btn" id="b-sound" aria-pressed="true">On</button></div>
+      <div class="row vol"><label for="vol-music">Music</label><input type="range" id="vol-music" min="0" max="100" step="1" value="70"></div>
+      <div class="row vol"><label for="vol-sfx">Effects</label><input type="range" id="vol-sfx" min="0" max="100" step="1" value="80"></div>
+      <p class="small" id="sound-note" hidden>This browser can't make sound, so the game plays silently.</p>
+      <details class="mbox" id="mbox">
+        <summary>Music box <span class="small">every tune in the game</span></summary>
+        <p class="small">Tap a tune to hear it. The game's own music comes back when you close the settings.</p>
+        <ul id="mb-list" class="mb-list"></ul>
+      </details>
       <div class="row"><span>How to play</span><button type="button" class="btn" id="b-help">Show</button></div>
       <div class="row"><span>New claim</span><button type="button" class="btn danger" id="b-reset">Start over</button></div>
       <div class="confirm" id="reset-confirm" hidden><p>Start a new claim? Your town and people here will be lost.</p><div class="row"><button type="button" class="btn" id="reset-no">Keep my town</button><button type="button" class="btn danger" id="reset-yes">Start over</button></div></div>

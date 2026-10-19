@@ -179,12 +179,12 @@ function yardRaidHome(r) {
 #app .li.raid.sel { border-color: var(--amber-2); box-shadow: 0 0 0 1px var(--amber-2) inset; }
 #app .wanted { margin: 8px 0; padding: 10px 12px; border-radius: 10px; background: linear-gradient(#e9d6aa, #cdb27c); color: #3a1f12; border: 2px solid #6e4a32; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 #app .wanted h4 { margin: 0; font-family: var(--f-display); font-size: 22px; letter-spacing: .12em; text-align: center; color: #5a1a10; }
-#app .wanted p { margin: 4px 0; font-size: 13px; text-align: center; color: #3a1f12; }
+#app .wanted p, #app .panel .wanted p, #app .panel .wanted .small { margin: 4px 0; font-size: 13px; text-align: center; color: #3a1f12; }
 #app .wanted b { color: #5a1a10; }
 #app .wanted .btn { width: 100%; margin-top: 6px; }
 #app .wanted img { display: block; width: 112px; height: 112px; margin: 6px auto; border-radius: 6px; border: 2px solid #6e4a32; filter: sepia(.35); }
-#app .yplace { display: grid; grid-template-columns: auto 1fr; gap: 10px; margin: 8px 0; padding: 8px; border-radius: 10px; border: 1px solid var(--amber-2); background: rgba(0,0,0,.2); }
-#app .yplace img { width: 112px; height: 84px; object-fit: cover; border-radius: 8px; }
+#app .yplace { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 8px 0; padding: 8px; border-radius: 10px; border: 1px solid var(--amber-2); background: rgba(0,0,0,.2); }
+#app .yplace img { width: 100%; aspect-ratio: 4 / 3; max-height: 260px; object-fit: cover; border-radius: 8px; display: block; }
 #app .yplace .stars { color: var(--amber-2); font-size: 11px; }
 #app .yplace p { margin: 3px 0; }
 #app .yplace .btn { margin-top: 4px; }
@@ -311,7 +311,9 @@ function yardRaidsTab(ui, body) {
   const d = FLEET.data, list = yardSites(), flag = yardShip(d.flying), cfg = d.ships[d.flying], left = yardLeft(cfg, yardNow());
   // the map round Brightvein
   const wrap = document.createElement('div'); wrap.className = 'ymap'; const cv = document.createElement('canvas'); wrap.append(cv); body.append(wrap);
-  requestAnimationFrame(() => yardDrawMap(cv, list));
+  // drawn whenever it has room on screen: a panel held out of sight under a scene or a tip comes back with its map drawn
+  if (window.ResizeObserver) { const ro = new ResizeObserver(() => { if (!cv.isConnected) return ro.disconnect(); if (cv.getBoundingClientRect().width) yardDrawMap(cv, list); }); ro.observe(wrap); }
+  else requestAnimationFrame(() => yardDrawMap(cv, list));
   cv.onclick = e => {
     const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
     let best = null, bd = 0.06;
@@ -343,7 +345,7 @@ function yardRaidsTab(ui, body) {
     const small = YARD_CLASS[d.flying] < YARD_CLASS[s.ship], icon = L.locked ? '?' : st.won ? '⚑' : '◆';
     const side = L.locked ? '' : L.wait > 0 ? `Manned again in ${L.wait} day${L.wait > 1 ? 's' : ''}` : `${crates} crate${crates > 1 ? 's' : ''} · Raid`;
     const el = document.createElement('button'); el.type = 'button'; el.className = 'li raid' + (YARD.sel === s.id ? ' sel' : '');
-    el.append(ui.h(`<span class="rk">${icon}</span><span><span class="nm">${esc(L.locked ? 'Somewhere out there' : s.name)}</span>${L.locked ? `<span class="jb">${esc(`Take ${L.after.short} first.`)}</span>` : `<span class="stars">${yardStars(s.stars)}</span> <span class="jb">${esc(s.goal)}.</span><span class="pay">${esc(s.pays)}${repeat ? ' · taken before: half the haul' : ''}${st.best ? ` · best ${yardTime(st.best)}` : ''}${st.won ? ` · taken ${st.won}×` : ''}${small ? ` · hard in a ${flag.cls}: a ${yardShip(s.ship).cls} or bigger` : ''}</span>`}</span><span class="side">${side}</span>`));
+    el.append(ui.h(`<span class="rk">${icon}</span><span><span class="nm">${esc(L.locked ? 'Somewhere out there' : s.name)}</span>${L.locked ? `<span class="jb">${esc(`Take ${L.after.short.replace(/^The /, 'the ')} first.`)}</span>` : `<span class="stars">${yardStars(s.stars)}</span> <span class="jb">${esc(s.goal)}.</span><span class="pay">${esc(s.pays)}${repeat ? ' · taken before: half the haul' : ''}${st.best ? ` · best ${yardTime(st.best)}` : ''}${st.won ? ` · taken ${st.won}×` : ''}${small ? ` · hard in a ${flag.cls}: a ${yardShip(s.ship).cls} or bigger` : ''}</span>`}</span><span class="side">${side}</span>`));
     el.disabled = L.locked || L.wait > 0 || !!left;
     el.onclick = () => openSky('raid', { site: s.id });
     box.append(el);
@@ -381,7 +383,8 @@ function yardDrawMap(cv, list) {
       if (!L.locked && !L.bounty) { g.font = `${Math.round(9 * dpr)}px system-ui`; g.fillStyle = '#ffcf85'; g.strokeText(yardStars(L.s.stars).replace(/☆/g, ''), x, y + s * 2.4); g.fillText(yardStars(L.s.stars).replace(/☆/g, ''), x, y + s * 2.4); }
     }
   };
-  if (!YARD.img) { YARD.img = new Image(); YARD.img.onload = () => { if (cv.isConnected) draw(); }; YARD.img.src = YARD_MAPURL; }
+  if (!YARD.img) { YARD.img = new Image(); YARD.img.src = YARD_MAPURL; }
+  if (!YARD.img.complete) YARD.img.addEventListener('load', () => { if (cv.isConnected) draw(); }, { once: true });
   draw();
 }
 

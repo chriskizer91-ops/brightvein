@@ -86,7 +86,7 @@ function yardHome(r) {
   let k = 0;
   for (const id of ids) {
     const v = yardWho(id); if (!v || v.d.exp || v.d.study) continue;
-    v.setHidden(false); v.where = 'surface'; v.inside = false;
+    v.setHidden(false); v.where = 'surface';
     v.place(D.x - 1 + (k % 3) * 0.9, 0, D.z + 7.2 + Math.floor(k / 3) * 0.8); k++;
     v.plan = []; v.replan = false;
     if (r.lost && Math.random() < 0.5 && typeof hurtVillager === 'function') hurtVillager(v);
@@ -402,4 +402,4 @@ UI.haul = function (body, h) {
 };
 
 // ---- for tests (window.__bv is made at the end of main.js, after this file has run)
-queueMicrotask(() => { if (window.__bv) Object.assign(window.__bv, { YARD, yardSeat, yardSeats, yardCrewFor, yardCrewNames, yardAutoCrew, yardAboard, yardTick, yardNewDay, yardSites, yardRaidHome, SITES, makeBounty: yardMakeBounty }); });
+queueMicrotask(() => { if (window.__bv) Object.assign(window.__bv, { YARD, yardSeat, yardSeats, yardCrewFor, yardCrewNames, yardAutoCrew, yardAboard, yardTick, yardNewDay, yardSites, yardRaidHome, yardSailing, yardHome, SITES, makeBounty: yardMakeBounty }); });

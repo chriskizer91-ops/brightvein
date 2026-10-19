@@ -199,8 +199,9 @@ with sync_playwright() as p:
       ppl[0].d.stats.A = 10; ppl[1].d.stats.A = 9; B.yardSeat('gunner', 0, ppl[0]); B.yardSeat('gunner', 1, ppl[1]);
       out.reload = [r0, g.loadoutOf('cutter').guns.reload]; out.names = B.yardCrewNames('cutter');
       B.UI.open('dock', { tab: 'crew' }); out.portraits = document.querySelectorAll('#panel-body .yseat .pframe').length; B.UI.close();
-      // in the air: the gunnery reloads faster with them aboard
-      g.fly('cutter'); const withCrew = g.gunnery.reload('port'); g.endVoyage(1);
+      // in the air: the gunnery reloads faster with them aboard; home again, they come down the boarding bridge
+      B.yardSailing(); out.aboard = B.YARD.sailed.length; g.fly('cutter'); const withCrew = g.gunnery.reload('port'); g.endVoyage(1);
+      const D = B.DOCK.b.group.position; out.home = [ppl[0], ppl[1]].map(v => v.where === 'surface' && !v.hidden && Math.hypot(v.pos.x - D.x, v.pos.z - D.z) < 12).every(Boolean);
       const keep = d.crew.gunners; d.crew.gunners = []; g.fly('cutter'); const without = g.gunnery.reload('port'); g.endVoyage(1); d.crew.gunners = keep;
       out.air = [without, withCrew];
       // repairs: harm she brought home costs shards and time at the dock, and the claim finishes them
@@ -211,6 +212,7 @@ with sync_playwright() as p:
     check('buy a ship in the Shipyard with shards and materials', r['bought'] and r['paid'][0] == 300 and r['paid'][1] == 2, json.dumps(r))
     check('a refit raises her numbers and changes her model', r['hull'][1] > r['hull'][0] and r['rebuilt'], json.dumps(r['hull']))
     check('crew from the claim make the guns reload faster, in the Shipyard and in the air', r['reload'][1] < r['reload'][0] * 0.9 and r['air'][1] < r['air'][0] * 0.9 and r['portraits'] >= 2, json.dumps({k: r[k] for k in ('reload', 'air', 'portraits', 'names')}))
+    check('the crew go aboard, and come home down the boarding bridge', r['aboard'] == 2 and r['home'], json.dumps({k: r[k] for k in ('aboard', 'home')}))
     check('a ship brought home hurt is repaired at the dock for shards and time', r['repair']['paid'] > 0 and (r['repair']['until'] or 0) >= 1, json.dumps(r['repair']))
     pg.evaluate('__bv.SKY.on || __bv.openSky("port")')
     pg.wait_for_function('__bv.SKY.mode === "port"', timeout=120000)

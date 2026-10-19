@@ -18,7 +18,7 @@ function makeMaterials() {
   MAT.rock = std({ map: tex('rock'), roughness: 0.96 }, 0.15);
   MAT.loam = std({ map: tex('loam'), roughness: 1 }, 0.1);
   MAT.dark = new THREE.MeshStandardMaterial({ color: 0x1b1218, roughness: 1 });
-  MAT.glass = std({ color: 0xbfe6e2, roughness: 0.04, metalness: 0.1, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide }, 1.6);
+  MAT.glass = std({ color: 0xbfe6e2, roughness: 0.18, metalness: 0.1, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide }, 0.7);
   MAT.window = std({ color: 0x2a2433, roughness: 0.2, metalness: 0.2, emissive: 0xffb35c, emissiveIntensity: 0 }, 1.0);
   MAT.lens = std({ color: 0xd8f4f0, roughness: 0.02, metalness: 0.3, transparent: true, opacity: 0.55, emissive: 0xffc070, emissiveIntensity: 0.1, side: THREE.DoubleSide }, 2.0);
   MAT.crystal = std({ color: 0xffb04a, emissive: 0xff8a24, emissiveIntensity: 1.2, roughness: 0.22, metalness: 0.1, flatShading: true }, 0.8);

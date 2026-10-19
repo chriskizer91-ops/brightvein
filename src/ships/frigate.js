@@ -1,0 +1,43 @@
+// The Frigate, the Tempest: the hunter. Long and sleek, with a fine sharp bow, a low quarterdeck, three crystal
+// clusters, three masts and ten gun ports a side. Shaped from the fleet lineup (art/ships/lineup.png) and its stats,
+// dressed in the Brig's paint.
+export default {
+  id: 'frigate', name: 'Tempest', cls: 'Frigate', length: 40,
+  tileScale: 1,
+  hull: {
+    stern: -20, bow: 15.2, fullness: 0.95, wale: 0, tumblehome: 0.05,
+    half: [[-20, 3.0], [-19, 3.8], [-16, 4.35], [-10, 4.55], [0, 4.6], [6, 4.5], [10, 4.0], [12.5, 3.2], [14.2, 2.0], [15.2, 0.75]],
+    rim: [[-20, 1.15], [-14.62, 1.15], [-14.42, 0], [9, 0.05], [12.5, 0.3], [15.2, 0.75]],
+    keel: [[-20, -1.0], [-18.8, -2.6], [-17, -3.6], [-13, -4.4], [-5, -4.7], [4, -4.65], [9, -4.3], [12, -3.6], [13.8, -2.6],
+      [14.8, -1.4], [15.2, -0.55]],
+  },
+  quarterdeck: { front: -14.5, height: 1.15, stairs: { bottom: -12.9, width: 2.8 } },
+  bands: { sheer: [-0.35, -0.8], lower: [-3.4, -3.65], quarter: true, straps: [[-19.7, 0.4], [-14.6, 0.6], [-4.95, 0.5], [5.05, 0.5], [12.9, 0.55], [15.0, 0.4]] },
+  ram: { from: 14.9, to: 20, y: -0.15, r: 0.92, collar: 1.3 },
+  ports: { y: -1.8, z: [-12, -9.5, -7, -4.5, -2, 0.5, 3, 5.5, 8, 10.5], w: 1.18, h: 1.3 },
+  bowGuns: [{ x: 1.3, y: 1.05, z: 13.6, len: 3.1 }, { x: -1.3, y: 1.05, z: 13.6, len: 3.1 }],
+  sternGuns: [{ x: 1.45, y: -0.45, z: -20, len: 2.0, port: true }, { x: -1.45, y: -0.45, z: -20, len: 2.0, port: true }],
+  clusters: [{ z: -6.9, scale: 1.05 }, { z: 1.35, scale: 1.1 }, { z: 9.6, scale: 1.0 }],
+  cluster: { r: 1.0, h: 1.5, crystals: 5, center: 2.7, around: 1.45, spread: 1.2 },
+  masts: [
+    { z: 5.5, height: 13.2, tiers: [{ at: 0.4, span: 7.2, rise: 0.7, sweep: 0.8 }, { at: 0.72, span: 7.6, rise: 0.7, sweep: 0.9 }] },
+    { z: -2.75, height: 12.6, tiers: [{ at: 0.4, span: 7.0, rise: 0.7, sweep: 0.8 }, { at: 0.72, span: 7.4, rise: 0.7, sweep: 0.9 }] },
+    { z: -16.2, height: 10.4, tiers: [{ at: 0.38, span: 6.4, rise: 0.6, sweep: 0.8 }, { at: 0.72, span: 6.7, rise: 0.6, sweep: 0.8 }] },
+  ],
+  fins: [{ z0: -13.2, z1: -10.2, span: 2.7, sweep: -0.8, tilt: 0.5 }, { z0: 6.4, z1: 9.3, span: 2.7, sweep: 0.75, tilt: 0.5 }],
+  rudder: { z: -19.95, top: -0.55, bottom: -4.7, width: 1.6 },
+  wheel: { z: -18.4, r: 0.72 },
+  hatches: [{ z: -9.3, len: 1.8, wid: 1.8 }, { z: 3.6, len: 1.6, wid: 1.8 }, { z: 12.3, len: 1.4, wid: 1.5 }],
+  capstan: { z: -0.9 },
+  windows: { side: { z0: -19.3, z1: -15.6, y0: 0.05, y1: 1.05 }, transom: { w: 3.0, y0: 0.15, y1: 1.05, twin: true } },
+  lanterns: [
+    { at: [2.75, 1.15, -19.6], post: 0.6 }, { at: [-2.75, 1.15, -19.6], post: 0.6 },
+    { at: [4.15, 1.15, -14.75], post: 0.6 }, { at: [-4.15, 1.15, -14.75], post: 0.6 },
+    { at: [2.6, 0.3, 13.6], post: 0.62 }, { at: [-2.6, 0.3, 13.6], post: 0.62 },
+    { at: [0, -1.15, 16.4], hang: 0.55 }, { at: [4.4, -1.1, 11.0], hang: 0.5 }, { at: [-4.4, -1.1, 11.0], hang: 0.5 },
+    { at: [3.4, -0.75, -19.0], hang: 0.5 }, { at: [-3.4, -0.75, -19.0], hang: 0.5 },
+  ],
+  cargo: { barrels: [[3.4, -12.0], [-3.4, -0.6], [3.3, 7.3], [-3.3, 12.6]], coils: [[1.1, 6.6], [-1.1, -1.7], [1.1, -15.0], [-1.0, 11.8]],
+    crates: [[-3.3, -9.6], [3.4, 2.9], [-3.4, 7.2]] },
+  rail: { h: 0.68, step: 0.36, quarterH: 0.45 },
+};

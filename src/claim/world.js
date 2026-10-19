@@ -468,7 +468,7 @@ const sun = new THREE.DirectionalLight(0xffffff, 3);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -62, right: 62, top: 62, bottom: -62, near: 10, far: 320 });
-sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04; sun.shadow.radius = 2.5;
 scene.add(sun); scene.add(sun.target);
 const hemi = new THREE.HemisphereLight(0xbfd6ff, 0x6a5a40, 0.6); scene.add(hemi);
 scene.fog = new THREE.Fog(0xcfd8e0, 220, 1250);
@@ -527,4 +527,7 @@ function applyTimeOfDay(t, time) {
   if (bloom) { bloom.strength = lerp(0.42, 0.95, TOD.night); bloom.threshold = lerp(0.88, 0.62, TOD.night); }
 }
 const ENV_MATS = [];
-function trackEnv(m, k) { m.envMapIntensity = k; m.userData.env = k; ENV_MATS.push(m); return m; }
+function trackEnv(m, k) { if (!m.envMap) m.envMap = envTex; m.envMapIntensity = k; m.userData.env = k; ENV_MATS.push(m); return m; }
+// three r163+ scales only a material's own envMap by envMapIntensity; the scene's environment ignores it. Give every
+// lit material the environment directly, so each one's intensity holds (as it did when the claim was first built).
+function fixEnv(root) { root.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) if ((m.isMeshStandardMaterial || m.isMeshPhysicalMaterial) && !m.envMap) { m.envMap = envTex; m.needsUpdate = true; } }); }

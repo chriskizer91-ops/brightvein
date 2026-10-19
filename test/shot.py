@@ -3,7 +3,7 @@ import sys, os, json
 from playwright.sync_api import sync_playwright
 out=sys.argv[1]; w=int(sys.argv[2]) if len(sys.argv)>2 else 1280; h=int(sys.argv[3]) if len(sys.argv)>3 else 800
 code=sys.argv[4] if len(sys.argv)>4 else ''; wait=int(sys.argv[5]) if len(sys.argv)>5 else 2500
-root='/home/claude/bv'
+root='/home/claude/brightvein'
 def route(r):
     u=r.request.url
     if 'cdn.jsdelivr.net/npm/three@0.160.0/' in u:

@@ -168,6 +168,7 @@ function buildInterior(force) {
   const keepDyn = new Set(); dyn.traverse(o => keepDyn.add(o));
   const list = []; g.traverse(o => { if (o.isMesh && o.material !== KMAT.hit && !keepDyn.has(o)) list.push(o); });
   mergeMeshes(g, list); for (const m of list) m.parent.remove(m);
+  fixEnv(g);
   setInteriorLights();
 }
 // props for each kind of room. (cx, y0): centre of the room's floor. Back wall at z = -3.2, front at +3.2.

@@ -1,22 +1,44 @@
-// Build: concatenates src/*.js in load order into one module, inlines CSS and assets, writes dist/.
-//   node tools/build.mjs            → dist/brightvein.html (the artifact) and dist/test.html (local test page)
-import fs from 'fs';
-import path from 'path';
+// build.mjs: makes Brightvein one page with everything inside it (three.js, the claim, the skies, every texture,
+// map tile and ship part), so it opens with no internet.
+//   dist/brightvein.html            the page, to open in a browser
+//   dist/brightvein.artifact.html   the same page without the document around it, for publishing on claude.ai
+//   dist/test.html                  the artifact page inside the same skeleton claude.ai wraps around it (for tests)
+// The claim (src/claim/) is one shared scope: its files are joined in the order of src/claim/order.json into one
+// module, which then imports the skies (src/sky/) and the ships (src/ship/, src/ships/) as ordinary modules.
+// Run: node tools/build.mjs   (after `npm install`)
+import { build } from 'esbuild';
+import fs from 'node:fs';
+import path from 'node:path';
+
 const ROOT = path.dirname(path.dirname(new URL(import.meta.url).pathname));
-const rd = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
-// load order matters: everything shares one module scope
-const FILES = JSON.parse(rd('src/order.json'));
+const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const MIME = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', avif: 'image/avif' };
+const minify = !process.argv.includes('--debug');
+
+// the claim's textures, as one object of data URLs the claim code looks up by name
 const assets = {};
-for (const f of fs.readdirSync(path.join(ROOT, 'assets')).sort()) {
-  const ext = f.split('.').pop(), mime = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', avif: 'image/avif' }[ext];
-  if (!mime) continue;
-  assets[f.replace(/\.\w+$/, '')] = `data:${mime};base64,` + fs.readFileSync(path.join(ROOT, 'assets', f)).toString('base64');
+for (const f of fs.readdirSync(path.join(ROOT, 'assets/claim')).sort()) {
+  const mime = MIME[f.split('.').pop()]; if (!mime) continue;
+  assets[f.replace(/\.\w+$/, '')] = `data:${mime};base64,` + fs.readFileSync(path.join(ROOT, 'assets/claim', f)).toString('base64');
 }
-const parts = FILES.map(f => `// ---- ${f}\n` + rd('src/' + f));
-const js = parts[0] + `\nconst ASSETS = ${JSON.stringify(assets)};\n` + parts.slice(1).join('\n');
-const html = rd('src/shell.html').replace('/*__CSS__*/', () => rd('src/style.css')).replace('/*__JS__*/', () => js);
+// join the claim's files into one module
+const order = JSON.parse(rd('src/claim/order.json'));
+const parts = order.map((f) => `// ---- ${f}\n` + rd('src/claim/' + f));
+const claim = parts[0] + `\nconst ASSETS = ${JSON.stringify(assets)};\n` + parts.slice(1).join('\n');
+fs.mkdirSync(path.join(ROOT, '.build'), { recursive: true });
+fs.writeFileSync(path.join(ROOT, 'src/.claim.gen.js'), claim);
+
+const out = await build({
+  entryPoints: [path.join(ROOT, 'src/.claim.gen.js')], bundle: true, format: 'iife', minify, target: 'es2020', write: false,
+  loader: { '.webp': 'dataurl', '.avif': 'dataurl', '.png': 'dataurl', '.woff': 'dataurl', '.json': 'json' }, legalComments: 'none', logLevel: 'warning',
+});
+const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
+const font = (f) => 'data:font/woff;base64,' + fs.readFileSync(path.join(ROOT, 'assets/fonts', f)).toString('base64');
+const css = rd('src/style.css').replace('/*FONT_DISPLAY*/', font('jacquard-12.woff')).replace('/*FONT_BODY*/', font('pixelify-sans.woff'));
+const page = rd('src/shell.html').replace('/*__CSS__*/', () => css).replace('/*__JS__*/', () => js);
 fs.mkdirSync(path.join(ROOT, 'dist'), { recursive: true });
-fs.writeFileSync(path.join(ROOT, 'dist/brightvein.html'), html);
-// local test page: the same skeleton the artifact host wraps around the page
-fs.writeFileSync(path.join(ROOT, 'dist/test.html'), `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>${html}</body></html>`);
-console.log('built', (html.length / 1048576).toFixed(2) + ' MB', '· js', (js.length / 1024 | 0) + ' KB', '· assets', Object.keys(assets).length);
+const head = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">';
+fs.writeFileSync(path.join(ROOT, 'dist/brightvein.artifact.html'), page);
+fs.writeFileSync(path.join(ROOT, 'dist/brightvein.html'), `${head}</head><body>${page}</body></html>`);
+fs.writeFileSync(path.join(ROOT, 'dist/test.html'), `${head}<style>:root{color-scheme:light}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>${page}</body></html>`);
+console.log(`dist/brightvein.html: ${(page.length / 1048576).toFixed(2)} MB (code ${(js.length / 1024 | 0)} KB)`);

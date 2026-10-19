@@ -474,7 +474,7 @@ const AU = (() => {
     if (p) { p.pan.value = Math.max(-1, Math.min(1, P.pan)); g.connect(p); p.connect(P.world ? E.world : E.sfx); } else g.connect(P.world ? E.world : E.sfx);
     const r = c.createGain(); r.gain.value = def[1] * (P.far || 1); g.connect(r); r.connect(E.sfxRev);
     def[0](E, t, g);
-    if (!E.offline) setTimeout(() => { for (const n of [g, p, r]) if (n) try { n.disconnect(); } catch (x) { } }, (t - c.currentTime + 4.5) * 1000);
+    if (!E.offline) setTimeout(() => { for (const n of [g, p, r]) if (n) try { n.disconnect(); } catch (x) { } }, (t - c.currentTime + 9) * 1000);   // after the longest (thunder)
     return true;
   }
   const LOOT_TRIM = [-6.5, -6, -6, -5, -5, -3.5, -4.5, -4.5];
@@ -482,7 +482,7 @@ const AU = (() => {
     const c = E.ctx, g = c.createGain(); g.gain.value = (P.gain ?? 1) * Math.pow(10, LOOT_TRIM[rank] / 20); g.connect(E.sfx);
     const r = c.createGain(); r.gain.value = 0.4; g.connect(r); r.connect(E.sfxRev);
     loot(E, t, g, rank);
-    if (!E.offline) setTimeout(() => { g.disconnect(); r.disconnect(); }, (t - c.currentTime + 5) * 1000);
+    if (!E.offline) setTimeout(() => { g.disconnect(); r.disconnect(); }, (t - c.currentTime + 9) * 1000);
   }
   return { engine, INST, SFX, LOOT, sfx, lootSfx, ambTick, activeVoices, f2, n2m, drum };
 })();

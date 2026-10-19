@@ -10,11 +10,12 @@
 const MUSIC = (() => {
   let E = null, main = null, overlays = [], cue = null, boxPick = null;
   // ---------------------------------------------------------------- a lane: one theme after another
-  const lane = (E, dest, want, onFinish) => ({ E, dest, want, onFinish, cur: null, q: [], next: null });
+  const lane = (E, dest, want, onFinish) => ({ E, dest, want, onFinish, cur: null, q: [], next: null, resume: {} });
   function startInst(L, id, T, w) {
     const E = L.E, c = E.ctx, th = ARR.compile(id);
-    const I = { id, th, beat: 60 / th.bpm, tick: 60 / th.bpm / th.tpb, beatIn: 0, formIdx: 0, bar: 0, first: true, finished: false, layers: {}, nodes: [], lastVar: {}, rng: E.rng, i: w.i || 0,
-      P: { sec: th.form[0].s, bar: 0, vars: {}, voice: {}, carry: {}, mixNow: {}, mixWas: {}, nextChord: null } };
+    const at = th.once || w.fromTop ? 0 : (L.resume[id] || 0) % th.form.length;
+    const I = { id, th, beat: 60 / th.bpm, tick: 60 / th.bpm / th.tpb, beatIn: 0, formIdx: at, bar: 0, first: true, finished: false, layers: {}, nodes: [], lastVar: {}, rng: E.rng, i: w.i || 0,
+      P: { sec: th.form[at].s, bar: 0, vars: {}, voice: {}, carry: {}, mixNow: {}, mixWas: {}, nextChord: null } };
     for (const [n, Ld] of Object.entries(th.layers)) {
       const g = c.createGain(); g.gain.value = 0;
       const pan = c.createStereoPanner ? c.createStereoPanner() : null;
@@ -25,10 +26,11 @@ const MUSIC = (() => {
       I.layers[n] = { g, L: Ld, vol: Ld.vol * (th.level || 1) };
     }
     E.persist += I.nodes.length;
-    if (L.dest === E.duck) E.echo.delayTime.setValueAtTime(th.echo || I.beat * 0.75, T);
+    if (L.dest === E.duck && th.echo) E.echo.delayTime.setValueAtTime(th.echo, T);   // the mine's echo, timed to its tempo
     return I;
   }
   function stopInst(L, I, T) {
+    L.resume[I.id] = I.formIdx + (I.bar > 0 ? 1 : 0);
     L.q = L.q.filter(x => x.I !== I || x.at < T);                    // its notes still to come are dropped
     for (const Lr of Object.values(I.layers)) { Lr.g.gain.cancelScheduledValues(T); Lr.g.gain.setTargetAtTime(0, T, 0.3); }
     const E = L.E; if (E.offline) return;
@@ -124,7 +126,7 @@ const MUSIC = (() => {
     return { theme: 'day', i: 0 };
   }
   function decide() {
-    if (boxPick) { if ($('#menu').hidden) { boxPick = null; boxSync(); } else return { theme: boxPick.id, i: boxPick.i, urgent: true }; }
+    if (boxPick) { if ($('#menu').hidden) { boxPick = null; boxSync(); } else return { theme: boxPick.id, i: boxPick.i, urgent: true, fromTop: true }; }
     if (cue) return { theme: cue, i: 0, urgent: true };
     const w = gameWant(), now = performance.now();
     // a new wish has to hold for a moment before the music follows it (a quick look at the mine doesn't change the tune)
@@ -203,7 +205,7 @@ const MUSIC = (() => {
       // a cue in the plan (dawn) plays once, then the plan moves on to what comes after it, as the game would
       const used = new Set();
       const pick = T => { let k = -1; plan.forEach((p, j) => { if (T >= p[0]) k = j; }); if (k < 0) return null; while (used.has(k) && k < plan.length - 1) k++; const [, th, n, urgent] = plan[k]; return { theme: th, i: n || 0, urgent: !!urgent }; };
-      const L = lane(e, e.duck, T => (plan ? pick(T) : L.done ? null : { theme: id, i, only }), done => { L.done = true; if (plan) plan.forEach((p, j) => { if (p[1] === done) used.add(j); }); });
+      const L = lane(e, e.duck, T => (plan ? pick(T) : L.done ? null : { theme: id, i, only, fromTop: true }), done => { L.done = true; if (plan) plan.forEach((p, j) => { if (p[1] === done) used.add(j); }); });
       L.next = 0.05; pumpLane(L, secs);
     },
   };

@@ -90,7 +90,7 @@ with sync_playwright() as p:
     check("the camp's crates opened at home", r['stash'] >= before + 2 and r['won'] == 1 and r['panel'] == 'haul', json.dumps(r))
     r = pg.evaluate('''(async () => { const B = __bv, A = BV_AUDIO.AUDIO, out = { before: A.status().theme };
       B.GAME.t = 0.8;
-      for (let i = 0; i < 40 && A.status().theme !== 'night'; i++) { while (B.STORY.shown) B.talkNext(); await new Promise(r => setTimeout(r, 400)); }
+      for (let i = 0; i < 40 && A.status().theme !== 'night'; i++) { while (B.STORY.shown) B.talkNext(); B.GAME.t = 0.8; B.applyTimeOfDay(0.8, 0); await new Promise(r => setTimeout(r, 400)); }
       out.night = A.status().theme; out.want = BV_AUDIO.MUSIC.want().theme;
       B.simulate(60); await new Promise(r => setTimeout(r, 4000));
       const s = A.status(); out.voices = s.voices; out.persist = s.persist; out.state = s.state; out.dropped = s.dropped;

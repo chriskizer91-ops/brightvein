@@ -599,10 +599,10 @@ canvas.addEventListener('pointermove', e => {
   p.x = e.clientX; p.y = e.clientY;
 });
 for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, e => { DIGCAM.ptrs.delete(e.pointerId); });
-canvas.addEventListener('wheel', e => { if (!digCamOn()) return; e.preventDefault(); digZoom(Math.exp(clamp(e.deltaY, -120, 120) * 0.0016), e.clientX, e.clientY); }, { passive: false });
+canvas.addEventListener('wheel', e => { if (!digCamOn()) return; e.preventDefault(); digZoom(Math.exp(clamp(e.deltaY, -120, 120) * 0.0016 * camK()), e.clientX, e.clientY); }, { passive: false });   // camera speed: Settings
 addEventListener('keydown', e => {
   if (!digCamOn() || e.target.closest && e.target.closest('input,textarea')) return;
-  const s = DIGCAM.d * 0.06, k = { ArrowLeft: [-s, 0], ArrowRight: [s, 0], ArrowUp: [0, s], ArrowDown: [0, -s], a: [-s, 0], d: [s, 0], w: [0, s], s: [0, -s] }[e.key];
+  const s = DIGCAM.d * 0.06 * camK(), k = { ArrowLeft: [-s, 0], ArrowRight: [s, 0], ArrowUp: [0, s], ArrowDown: [0, -s], a: [-s, 0], d: [s, 0], w: [0, s], s: [0, -s] }[e.key];
   if (k) { DIGCAM.wx += k[0]; DIGCAM.wy += k[1]; }
   if (e.key === '+' || e.key === '=') digZoom(0.85); if (e.key === '-') digZoom(1.18);
 });

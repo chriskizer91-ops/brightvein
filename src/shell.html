@@ -1,11 +1,11 @@
-<title>Brightvein Keep</title>
+<title>Brightvein</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Fira+Sans:wght@400;500;600;700&display=swap">
 <style>/*__CSS__*/</style>
 <div id="app">
-  <canvas id="view" aria-label="Brightvein Keep: the claim on its plateau"></canvas>
+  <canvas id="view" aria-label="Brightvein: the claim on its plateau"></canvas>
   <div id="labels" aria-hidden="true"></div>
 
   <header class="topbar">
@@ -48,8 +48,7 @@
   <div id="journal" class="journal" hidden role="button" tabindex="0" aria-label="The journal: this chapter's goals"></div>
   <div id="talk" class="talk" hidden role="dialog" aria-live="polite">
     <p id="talk-title" class="talk-title"></p>
-    <div class="talk-card"><div id="talk-por" class="talk-por"></div><div class="talk-body"><b id="talk-name"></b><p id="talk-text"></p><span class="talk-more" aria-hidden="true">▾</span></div></div>
-    <button type="button" id="talk-skip" class="btn talk-skip">Skip</button>
+    <div class="talk-card"><div id="talk-por" class="talk-por"></div><div class="talk-body"><b id="talk-name"></b><p id="talk-text"></p><span class="talk-more" aria-hidden="true">▾</span></div><button type="button" id="talk-skip" class="btn talk-skip">Skip scene</button></div>
   </div>
 
   <div id="buildbar" class="buildbar" hidden>
@@ -67,45 +66,96 @@
 
   <div id="menu" class="overlay" hidden>
     <div class="card menu-card" role="dialog" aria-labelledby="menu-h">
-      <h2 id="menu-h">Settings</h2>
-      <div class="row"><span>Visual detail</span><div class="seg" id="q-seg" role="group" aria-label="Visual detail"><button type="button" data-q="light">Light</button><button type="button" data-q="balanced">Balanced</button><button type="button" data-q="high">High</button></div></div>
-      <p class="small">Light turns off glow and softens shadows for smaller phones.</p>
-      <div class="row"><span>Game speed</span><div class="seg" id="spd-seg" role="group" aria-label="Game speed"><button type="button" data-s="1">1×</button><button type="button" data-s="2">2×</button><button type="button" data-s="4">4×</button></div></div>
-      <div class="row"><span>Sound</span><button type="button" class="btn" id="b-sound" aria-pressed="true">On</button></div>
-      <div class="row vol"><label for="vol-music">Music</label><input type="range" id="vol-music" min="0" max="100" step="1" value="70"></div>
-      <div class="row vol"><label for="vol-sfx">Effects</label><input type="range" id="vol-sfx" min="0" max="100" step="1" value="80"></div>
-      <p class="small" id="sound-note" hidden>This browser can't make sound, so the game plays silently.</p>
-      <details class="mbox" id="mbox">
-        <summary>Music box <span class="small">every tune in the game</span></summary>
-        <p class="small">Tap a tune to hear it. The game's own music comes back when you close the settings.</p>
-        <ul id="mb-list" class="mb-list"></ul>
-      </details>
-      <div class="row"><span>How to play</span><button type="button" class="btn" id="b-help">Show</button></div>
-      <div class="row"><span>New claim</span><button type="button" class="btn danger" id="b-reset">Start over</button></div>
-      <div class="confirm" id="reset-confirm" hidden><p>Start a new claim? Your town and people here will be lost.</p><div class="row"><button type="button" class="btn" id="reset-no">Keep my town</button><button type="button" class="btn danger" id="reset-yes">Start over</button></div></div>
-      <p class="small">Progress is saved in this browser: the claim, your people and your fleet. Training and expeditions keep going while you're away (up to 8 hours).</p>
-      <button type="button" class="btn primary wide" id="menu-close">Back to the claim</button>
+      <div class="mc-head"><h2 id="menu-h">Settings</h2><button type="button" class="x" id="menu-x" aria-label="Close">×</button></div>
+
+      <section class="mc-sec" aria-labelledby="mc-pic"><h3 id="mc-pic">Picture</h3>
+        <div class="row"><span>Detail</span><div class="seg" id="q-seg" role="group" aria-label="Detail"><button type="button" data-q="light">Light</button><button type="button" data-q="balanced">Balanced</button><button type="button" data-q="high">High</button></div></div>
+        <p class="small" id="q-note"></p>
+        <div class="row"><span>Text size</span><div class="seg" id="tz-seg" role="group" aria-label="Text size"><button type="button" data-z="0.9">Small</button><button type="button" data-z="1">Normal</button><button type="button" data-z="1.12">Large</button><button type="button" data-z="1.25">Larger</button></div></div>
+        <div class="row"><span>Less motion</span><button type="button" class="btn tog" id="calm-btn" aria-pressed="false">Off</button></div>
+        <p class="small"><span>No camera shake, no sliding cards, a still title screen.</span> <span id="calm-note"></span></p>
+      </section>
+
+      <section class="mc-sec" aria-labelledby="mc-play"><h3 id="mc-play">Playing</h3>
+        <div class="row"><label for="cam-rng">Camera speed <b id="cam-v" class="mc-v">1×</b></label><input type="range" id="cam-rng" min="40" max="250" step="10" value="100"></div>
+        <div class="row"><span>Game speed now</span><div class="seg" id="spd-seg" role="group" aria-label="Game speed now"><button type="button" data-s="1">1×</button><button type="button" data-s="2">2×</button><button type="button" data-s="3">3×</button><button type="button" data-s="4">4×</button></div></div>
+        <div class="row"><span>Fastest allowed</span><div class="seg" id="fast-seg" role="group" aria-label="Fastest game speed allowed"><button type="button" data-f="2">2×</button><button type="button" data-f="3">3×</button><button type="button" data-f="4">4×</button></div></div>
+        <div class="row"><span>Back to 1× when night falls</span><button type="button" class="btn tog" id="night-btn" aria-pressed="false">Off</button></div>
+        <div class="row"><span>Tips for new players</span><span class="mc-pair"><button type="button" class="btn tog" id="tips-btn" aria-pressed="true">On</button><button type="button" class="btn" id="tips-again">Show again</button></span></div>
+      </section>
+
+      <section class="mc-sec" aria-labelledby="mc-snd"><h3 id="mc-snd">Sound</h3>
+        <div class="row"><span>Sound</span><button type="button" class="btn tog" id="b-sound" aria-pressed="true">On</button></div>
+        <div class="row vol"><label for="vol-music">Music</label><input type="range" id="vol-music" min="0" max="100" step="1" value="70"></div>
+        <div class="row vol"><label for="vol-sfx">Effects</label><input type="range" id="vol-sfx" min="0" max="100" step="1" value="80"></div>
+        <p class="small" id="sound-note" hidden>This browser can't make sound, so the game plays silently.</p>
+        <details class="mbox" id="mbox">
+          <summary>Music box <span class="small">every tune in the game</span></summary>
+          <p class="small">Tap a tune to hear it. The game's own music comes back when you close the settings.</p>
+          <ul id="mb-list" class="mb-list"></ul>
+        </details>
+      </section>
+
+      <section class="mc-sec" aria-labelledby="mc-save"><h3 id="mc-save">Saving</h3>
+        <p class="small" id="save-where"></p>
+        <div class="row"><span>Autosave</span><div class="seg" id="as-seg" role="group" aria-label="Autosave"><button type="button" data-a="off">Off</button><button type="button" data-a="1">1 min</button><button type="button" data-a="2">2 min</button><button type="button" data-a="5">5 min</button></div></div>
+        <div class="mc-btns"><button type="button" class="btn" id="b-save-now">Save now</button><button type="button" class="btn" id="b-export">Carry to another device</button><button type="button" class="btn" id="b-import">Load from a code</button></div>
+        <p class="small">Claims are saved in this browser. To play the same claim on your phone and your computer, carry it across as a code. Training and expeditions keep going while you’re away, for up to 8 hours.</p>
+      </section>
+
+      <section class="mc-sec" aria-labelledby="mc-more"><h3 id="mc-more">More</h3>
+        <div class="mc-btns"><button type="button" class="btn" id="b-help">How to play</button><button type="button" class="btn" id="b-title">Title screen</button><button type="button" class="btn danger" id="b-reset">Start this claim over</button></div>
+        <div class="confirm" id="reset-confirm" hidden><p>Start this claim over? Its town and people will be lost. (Your other claims are safe.)</p><div class="row"><button type="button" class="btn" id="reset-no">Keep my town</button><button type="button" class="btn danger" id="reset-yes">Start over</button></div></div>
+      </section>
+      <div class="mc-foot"><button type="button" class="btn primary wide" id="menu-close">Back to the claim</button></div>
     </div>
   </div>
 
-  <div id="intro" class="overlay intro">
-    <div class="card intro-card">
-      <p class="eyebrow">A claim in Aethermoor</p>
-      <h1>Brightvein Keep</h1>
-      <p class="lede">A seam of raw sunstone has broken the surface on a high plateau under the Thinning. Your crew got here first. Dig the vein, charge the crystal in the sun, and keep the lights burning through the night, when the Wildlight wakes.</p>
-      <ul class="how">
-        <li><b>Lay out the claim.</b> Drag buildings around the grid. Where you put the yards and turrets is your defence.</li>
-        <li><b>By day</b> miners dig ore. Tenders lay it out in the sunning yards, where it charges into shards.</li>
-        <li><b>By night</b> shards light the town and power the turrets. Wildlight comes for the glow.</li>
-        <li><b>Inside the Keep</b> your people study: a room for each of Grit, Engineering, Agility, Rapport and Sowing. Time keeps counting while you're away.</li>
-        <li><b>Tap anyone</b> to give them a job, send them to study, kit them out, or send them down the cliff into the wilds.</li>
-        <li><b>At the Sky Dock</b> your fighting ship sets sail over Aethermoor to bring down raiders. Their shards come home to the claim.</li>
-      </ul>
-      <div class="intro-actions">
-        <button type="button" class="btn primary" id="b-start">Stake the claim</button>
-        <button type="button" class="btn" id="b-continue" hidden>Continue</button>
+  <div id="intro" class="overlay intro" hidden>
+    <div class="card intro-card" role="dialog" aria-labelledby="ix-h">
+      <p class="eyebrow">A sunstone claim in Aethermoor</p>
+      <h2 id="ix-h">How the claim works</h2>
+      <div class="ix-grid">
+        <figure class="ix"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="21" r="8" fill="#ffcf85" stroke="#2a1b2f" stroke-width="2"/><g stroke="#ffcf85" stroke-width="2.4" stroke-linecap="round"><path d="M24 5v4M24 33v4M8 21h4M36 21h4M12.7 9.7l2.8 2.8M32.5 29.5l2.8 2.8M12.7 32.3l2.8-2.8M32.5 12.5l2.8-2.8"/></g><path d="M8 42h32l-3-5H11z" fill="#c99a3c" stroke="#2a1b2f" stroke-width="2"/><path d="m18 39 2-3 2 3-2 2zM26 39l2-3 2 3-2 2z" fill="#ffb347"/></svg>
+          <figcaption><b>By day</b>Miners dig sunstone ore. Laid out in the sunning yards, it charges into shards: the claim’s power and its money.</figcaption></figure>
+        <figure class="ix"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 8a14 14 0 1 0 10 22A12 12 0 0 1 30 8z" fill="#cfd8ff" stroke="#2a1b2f" stroke-width="2"/><path d="M6 44l6-12 5 4 5-9 6 8 5-5 9 14z" fill="#4b3354" stroke="#2a1b2f" stroke-width="2"/><g fill="#ffd27a"><circle cx="16" cy="30" r="2"/><circle cx="28" cy="34" r="2"/><circle cx="21" cy="25" r="1.6"/></g></svg>
+          <figcaption><b>By night</b>Wildlight climb the cliffs toward your lights. Lens towers and the watch on the wall drive them off.</figcaption></figure>
+        <figure class="ix"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="17" cy="15" r="6" fill="#f2d2b0" stroke="#2a1b2f" stroke-width="2"/><path d="M6 40c0-8 5-13 11-13s11 5 11 13z" fill="#6b3a5e" stroke="#2a1b2f" stroke-width="2"/><circle cx="32" cy="17" r="5" fill="#e0b48c" stroke="#2a1b2f" stroke-width="2"/><path d="M23 40c0-7 4-11 9-11s9 4 9 11z" fill="#3f6a7a" stroke="#2a1b2f" stroke-width="2"/></svg>
+          <figcaption><b>Your people</b>Tap anyone to give them a job, train them in the Keep, kit them out, or send them into the wilds.</figcaption></figure>
+        <figure class="ix"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6v22" stroke="#8a5a34" stroke-width="2.4"/><path d="M24 8c8 2 12 8 12 16H24z" fill="#efe2c4" stroke="#2a1b2f" stroke-width="2"/><path d="M24 11c-6 2-9 7-9 13h9z" fill="#e0d2b2" stroke="#2a1b2f" stroke-width="2"/><path d="M7 30h34l-5 9H13z" fill="#8a5a34" stroke="#2a1b2f" stroke-width="2"/><path d="M4 43c6-3 10 3 16 0s10 3 16 0 6 1 8 0" fill="none" stroke="#9fd8ff" stroke-width="2"/></svg>
+          <figcaption><b>The skies</b>Sail from the Sky Dock to bring down raiders and the Baron’s claim-jumpers. Their shards come home.</figcaption></figure>
       </div>
-      <p class="small" id="loading">Raising the town…</p>
+      <p class="ix-next" id="ix-next">First, lay out the claim: drop in the buildings your crew brought, then drag them where you like. Time waits while you plan.</p>
+      <p class="small ix-controls" id="ix-controls" hidden></p>
+      <div class="intro-actions"><button type="button" class="btn primary" id="ix-go">Lay out the claim</button></div>
+    </div>
+  </div>
+
+  <div id="front" class="front" hidden>
+    <div class="tt-shade" aria-hidden="true"></div>
+    <div class="tt-head">
+      <p class="tt-eyebrow">A sunstone claim in Aethermoor</p>
+      <h1 class="tt-name">Brightvein</h1>
+      <div class="tt-rule" aria-hidden="true"><i></i></div>
+      <p class="tt-line">Dig the vein. Charge the crystal in the sun. Keep the lights burning when the Wildlight come up the cliffs.</p>
+    </div>
+    <nav class="tt-menu" aria-label="Title">
+      <button type="button" class="tt-btn primary" id="tt-continue" hidden><span class="tt-l">Continue</span><span class="tt-meta"></span></button>
+      <button type="button" class="tt-btn" id="tt-new"><span class="tt-l">New claim</span><span class="tt-meta">Stake a plateau of your own</span></button>
+      <button type="button" class="tt-btn" id="tt-claims"><span class="tt-l">Claims</span><span class="tt-meta"></span></button>
+      <div class="tt-row"><button type="button" class="tt-btn small" id="tt-settings"><span class="tt-l">Settings</span></button><button type="button" class="tt-btn small" id="tt-about"><span class="tt-l">About</span></button></div>
+    </nav>
+    <p class="tt-foot"><span class="tt-snd">Sound starts when you tap.</span> <span>Made by Chris</span></p>
+  </div>
+
+  <div id="fd-sheet" class="overlay fd-sheet" hidden><div class="card sheet-card" role="dialog" aria-modal="true"></div></div>
+
+  <div id="loading" class="loading" role="status" aria-live="polite">
+    <div class="ld-inner">
+      <svg class="ld-gem" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 33 18 20 37 7 18z" fill="#ffb347" stroke="#5a2a10" stroke-width="1.6"/><path d="M20 3 26 18 20 18zM7 18h13v19z" fill="#fff0c4" opacity=".7"/></svg>
+      <p class="ld-name">Brightvein</p>
+      <div class="ld-bar" id="ld-bar" role="progressbar" aria-label="Building the claim" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+      <p class="ld-line" id="ld-line">Raising the town…</p>
     </div>
   </div>
 </div>

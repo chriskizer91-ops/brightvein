@@ -270,7 +270,7 @@ function updateVisits(dt) {
     V.s.glow.material.uniforms.uScale.value = 0.6 * renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
   }
 }
-// the cast come ashore as people of the claim (they don't take beds: they sleep aboard)
+// the cast come ashore as people of the claim (guests: they don't count against the Keep's beds)
 function castArrive(ids) {
   const D = LAYOUT.dock;
   for (const id of ids) {
@@ -297,7 +297,7 @@ function storyTick(dt) {
   if (!started || !BUILD.setupDone) return;
   updateVisits(dt);
   actFrame(dt);   // the day's event card, the cast waiting at the Keep, the mood on the HUD (events.js, quests.js, mood.js)
-  if ((storyT -= dt) > 0 || STORY.shown || EVT.card || (SKY && SKY.on) || BUILD.on) return;
+  if ((storyT -= dt) > 0 || STORY.shown || EVT.card || (SKY && SKY.on) || BUILD.on || frontOpen()) return;   // not while the settings are open (title.js)
   storyT = 0.5;
   if (STORY.queue.length) return playScene(STORY.queue.shift());
   const C = CHAPTERS[STORY.ch]; if (!C) { journalHUD(); return; }
@@ -384,7 +384,7 @@ function showLine() {
 }
 function talkFrame(dt) {
   if (!STORY.shown || TALK.typing >= TALK.full.length) return;
-  TALK.typing = Math.min(TALK.full.length, TALK.typing + dt * 60);
+  TALK.typing = reducedMotion ? TALK.full.length : Math.min(TALK.full.length, TALK.typing + dt * 60);   // less motion: the words appear whole
   $('#talk-text').textContent = TALK.full.slice(0, Math.floor(TALK.typing));
 }
 function talkNext() {

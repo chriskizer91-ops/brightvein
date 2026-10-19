@@ -172,6 +172,14 @@ const shadowTex = radialTex('rgba(20,10,20,0.55)', 'rgba(20,10,20,0)', 64);
 const shadowGeo = new THREE.PlaneGeometry(1.1, 0.7).rotateX(-Math.PI / 2);
 const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false });
 const _cf = new THREE.Vector3(), _tmp = new THREE.Vector3();
+// everyone's soft shadow on the ground, drawn in one go rather than one each (main.js calls this before drawing)
+const SHADOWS = (() => { const m = new THREE.InstancedMesh(shadowGeo, shadowMat, 200); m.count = 0; m.renderOrder = 1; m.frustumCulled = false; scene.add(m); return m; })();
+const _sm = new THREE.Matrix4();
+function shadowsDraw() {
+  let n = 0;
+  for (const v of GAME.villagers) { const s = v.shadow; if (!s.visible || n >= 200) continue; _sm.makeTranslation(v.pos.x, v.pos.y + 0.03, v.pos.z); SHADOWS.setMatrixAt(n++, _sm); }
+  SHADOWS.count = n; SHADOWS.instanceMatrix.needsUpdate = true;
+}
 class Villager {
   constructor(d) {
     this.d = d;
@@ -182,7 +190,7 @@ class Villager {
     this.sprite = new THREE.Sprite(this.mat); this.sprite.center.set(0.5, 0.03); this.sprite.scale.set(1.5, 2.0, 1);
     this.sprite.userData.villager = this; scene.add(this.sprite);
     this.isprite = new THREE.Sprite(this.mat); this.isprite.center.set(0.5, 0.03); this.isprite.scale.set(1.5, 2.0, 1); this.isprite.visible = false; this.isprite.userData.villager = this; KSCENE.add(this.isprite);
-    this.shadow = new THREE.Mesh(shadowGeo, shadowMat); this.shadow.renderOrder = 1; scene.add(this.shadow);
+    this.shadow = new THREE.Mesh(shadowGeo, shadowMat); this.shadow.renderOrder = 1;   // not in the scene: drawn with everyone else's (shadowsDraw)
     this.pos = new THREE.Vector3(); this.face = new THREE.Vector2(0, 1); this.vel = new THREE.Vector2();
     this.plan = []; this.where = 'surface'; this.hidden = false; this.working = false; this.anim = Math.random() * 10; this.moving = false; this.replan = true;
     this.row = -1; this.col = 0; this.mirror = false; this.light = 1;
@@ -411,6 +419,11 @@ function assignJob(v, bid) {
 }
 function bedsOf(b) { return b && b.type === 'keep' ? DEFS.keep.beds[b.level] || 0 : 0; }
 function totalBeds() { return bedsOf(TOWN.b.keep); }
+// the cast are the claim's guests: they never take a settler's bed (a spare bunk, or a bedroll by the fire: keepAssign),
+// so only settlers count against the Keep's beds
+const isGuest = v => !!v.d.hero;
+function bedsUsed() { let n = 0; for (const v of GAME.villagers) if (!isGuest(v)) n++; return n; }
+const guestCount = () => GAME.villagers.length - bedsUsed();
 function findBed() { return 'keep'; }
 function addVillager(d, at) {
   const v = new Villager(d);

@@ -411,13 +411,38 @@ function buildClouds() {
   for (let i = 0; i < 14; i++) { const x = 30 + Math.random() * 68, y = 40 + Math.random() * 48, r = 18 + Math.random() * 26, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); }
   const puffTex = canvasTex(pc);
   const puffs = [];
-  worldMats.puff = new THREE.SpriteMaterial({ map: puffTex, transparent: true, depthWrite: false, opacity: 0.85, fog: true });
-  for (let i = 0; i < 26; i++) {
-    const ang = i / 26 * TAU + Math.random() * 0.2, r = 46 + Math.random() * 20;
-    const s = new THREE.Sprite(worldMats.puff);
-    s.position.set(Math.cos(ang) * r, -34 - Math.random() * 10, Math.sin(ang) * r * 0.85 + 2); s.scale.set(48 + Math.random() * 30, 22 + Math.random() * 10, 1);
-    s.userData.ang = ang; s.userData.r = r; scene.add(s); puffs.push(s);
+  // all of them in one draw: camera-facing cards that drift round the plateau in the shader (uDrift, from dressScene)
+  const N = 26, pg = new THREE.InstancedBufferGeometry(), q = new THREE.PlaneGeometry(1, 1), P = new Float32Array(N * 4), S = new Float32Array(N * 2);
+  pg.index = q.index; pg.setAttribute('position', q.attributes.position); pg.setAttribute('uv', q.attributes.uv);
+  for (let i = 0; i < N; i++) {
+    const ang = i / N * TAU + Math.random() * 0.2, r = 46 + Math.random() * 20;
+    P.set([ang, r, -34 - Math.random() * 10, 0], i * 4); S.set([48 + Math.random() * 30, 22 + Math.random() * 10], i * 2);
+    puffs.push({ ang, r });
   }
+  pg.setAttribute('iPuff', new THREE.InstancedBufferAttribute(P, 4)); pg.setAttribute('iSize', new THREE.InstancedBufferAttribute(S, 2)); pg.instanceCount = N;
+  const pm = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: null }, uColor: { value: new THREE.Color(0xffffff) }, uDrift: { value: 0 } }]),
+    transparent: true, depthWrite: false, fog: true,
+    vertexShader: `attribute vec4 iPuff; attribute vec2 iSize; uniform float uDrift; varying vec2 vUv;
+      #include <common>
+      #include <fog_pars_vertex>
+      void main() { vUv = uv; float a = iPuff.x + uDrift;
+        vec4 mvPosition = modelViewMatrix * vec4(cos(a) * iPuff.y, iPuff.z, sin(a) * iPuff.y * 0.85 + 2.0, 1.0);
+        mvPosition.xy += position.xy * iSize; gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: `uniform sampler2D map; uniform vec3 uColor; varying vec2 vUv;
+      #include <common>
+      #include <fog_pars_fragment>
+      void main() { vec4 t = texture2D(map, vUv); gl_FragColor = vec4(t.rgb * uColor, t.a * 0.85);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }`,
+  });
+  pm.uniforms.map.value = puffTex; pm.map = puffTex; pm.color = pm.uniforms.uColor.value;   // applyTimeOfDay tints it as it did the sprites; the fog bank borrows the picture (weather.js)
+  const pmesh = new THREE.Mesh(pg, pm); pmesh.frustumCulled = false; pmesh.name = 'puffs'; scene.add(pmesh);
+  worldMats.puff = pm;
   return { a, b, puffs };
 }
 // The Ironspire Peaks round the claim: iron-grey spires with ridges and gullies, rust in their streaks, snow on every

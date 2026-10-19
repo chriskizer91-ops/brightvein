@@ -49,12 +49,24 @@ File: `founder-absalom.png`
 
 > The claim’s assayer: an elderly gnome, kindly and a little mischievous. A white beard and bushy white brows, round spectacles, a tall rust-red gnome hat, a plum coat with brass buttons, a loupe in one eye and a big brass official stamp in his hand.
 
-## The Baron
+## The Baron, and act two’s visitors
+
+Until their pictures arrive, act two’s visitors get a bust drawn in code.
 
 ### Baron Ambrose Tallow
 File: `baron-tallow.png` (shown when his letters are read)
 
 > The claim-jumpers’ master, about 60, a candle-maker grown rich. Pale, waxy skin, silver hair slicked back, long mutton-chop whiskers, a polished and dangerous smile. A rust-red frock coat with black velvet lapels, a gold candle-flame pin, a lit candle in a brass holder held up beside his face.
+
+### Provost Lucan Marchbank
+File: `provost-marchbank.png` (act two: the Gilded Exchange’s man, in person and in his letters)
+
+> Provost of the Gilded Exchange, a counting-house in the coast cities, about 55. Pale, well-kept skin, neat silver hair parted on one side, small round gold spectacles, a thin polite smile that never reaches his grey eyes. A dove-grey frock coat buttoned high, a gold silk cravat with a coin-shaped pin, a slim ledger tucked under one arm.
+
+### Juno Ferrars
+File: `captain-ferrars.png` (act two: the Hollowcrest claim’s boss, across the gorge)
+
+> The boss of the rival Hollowcrest claim, about 30, brash and grinning. Warm brown skin, thick black hair in a high ponytail, brass flying goggles pushed up on her forehead, a confident sideways grin and a smudge of soot on one cheek. A battered brown leather flight jacket over a cream shirt, a green scarf, a prospector’s hammer on her shoulder.
 
 ## The settlers (36)
 

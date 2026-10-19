@@ -37,6 +37,9 @@ const CAST_NAMES = {
   fox: { name: 'Clem Fennick', title: 'The Waning Moon, of the Moon Faire' },
 };
 for (const [id, c] of Object.entries(CAST_NAMES)) WHO[id] = { name: c.name, hero: id };
+// what friends call someone: Seraphine, not Dame; Marchbank, not Provost
+const shortName = n => String(n).split(' ').find(w => !['Dame', 'Provost', 'Baron', 'Captain', 'Sir'].includes(w)) || String(n);
+const castFirst = id => shortName(CAST_NAMES[id].name);
 
 // the cast as crew: their stats, trade, trait and the gift they bring the whole claim while they're on it
 const CAST_CREW = {
@@ -250,10 +253,10 @@ function visitShip(kind, quiet) {
   const A = SKY.shipArt, M = { ...A.M, hull: A.M.hull.clone(), canvas: A.M.canvas.clone() };
   M.canvas.onBeforeCompile = A.M.canvas.onBeforeCompile; M.canvas.customProgramCacheKey = A.M.canvas.customProgramCacheKey;
   if (kind === 'faire') { M.hull.color.set(0x5f9aa0); M.canvas.color.set(0xe0a0dc); M.canvas.emissive.set(0x5a2050); }
-  else if (kind === 'exchange') { M.hull.color.set(0x9aa0aa); M.canvas.color.set(0xe8ecf2); M.canvas.emissive.set(0x30343c); }
+  else if (kind === 'exchange') { M.hull.color.set(0x5c626c); M.canvas.color.set(0xaab6c6); M.canvas.emissive.set(0x1c2a3a); }
   else { M.hull.color.set(0x4a4048); }
   const R = SHIPS.find(x => x.id === (kind === 'magpie' ? 'cutter' : 'brig')), s = buildShipAt(R, 'middle', { ...A, M });
-  const D = LAYOUT.dock, at = kind === 'faire' ? new THREE.Vector3(D.x - 34, 9, D.z - 18) : kind === 'exchange' ? new THREE.Vector3(D.x - 6, 15, D.z - 40) : new THREE.Vector3(D.x + 30, 7, D.z - 13);
+  const D = LAYOUT.dock, at = kind === 'faire' ? new THREE.Vector3(D.x - 34, 9, D.z - 18) : kind === 'exchange' ? new THREE.Vector3(D.x - 16, 10, D.z - 24) : new THREE.Vector3(D.x + 30, 7, D.z - 13);
   s.root.position.copy(at); s.root.rotation.y = kind === 'magpie' ? Math.PI / 2 : -Math.PI / 2;
   scene.add(s.root);
   VISIT.ships[kind] = { s, at, t: Math.random() * 10, arrive: quiet ? 1 : 0 };
@@ -320,7 +323,7 @@ function storyTick(dt) {
       STORY.done.push(C.id);
       daysLog(`${C.actEnd ? 'The end of act ' + C.actEnd + ': ' : 'Chapter done: '}${C.title}.`, 'story');
       toast(C.actEnd ? `<b>The end of act ${C.actEnd}.</b> ${esc(C.title)} is done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${CHAPTERS[STORY.ch + 1] ? '. The story goes on…' : '. More to come.'}`
-        : `<b>${esc(C.title)}</b>: chapter done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${(R.crew || []).length ? ` · ${R.crew.map(id => CAST_NAMES[id].name.split(' ')[0]).join(' and ')} join${R.crew.length > 1 ? '' : 's'} the crew` : ''}${(R.codex || []).length ? ' · new in the journal' : ''}.`);
+        : `<b>${esc(C.title)}</b>: chapter done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${(R.crew || []).length ? ` · ${R.crew.map(castFirst).join(' and ')} join${R.crew.length > 1 ? '' : 's'} the crew` : ''}${(R.codex || []).length ? ' · new in the journal' : ''}.`);
       AUDIO.play('chapter');
       STORY.ch++; STORY.started = false; STORY.at = null; storyT = 6;
       journalHUD(); saveGame();
@@ -365,6 +368,7 @@ function playScene(sc) {
   STORY.shown = sc; TALK.lines = sc.lines.filter(([k]) => WHO[k]); TALK.i = 0; TALK.after = sc.after || null;
   if (!TALK.lines.length) { STORY.shown = null; if (TALK.after) { const a = TALK.after; TALK.after = null; a(); } return; }
   GAME.talk = true; UI.close();
+  const dm = document.getElementById('dawnmini'); if (dm) dm.hidden = true;   // the dawn line would sit over the title
   const head = sc.heading || (sc.title ? `${sc.chapter ? `Chapter ${sc.chapter}` : 'Prologue'} · ${sc.title}` : '');
   const T = $('#talk-title'); T.textContent = head; T.hidden = !head;
   if (sc.act && head) { const s = document.createElement('small'); s.textContent = `Act ${sc.act}`; T.prepend(s); }
@@ -411,8 +415,10 @@ function journalHUD() {
   if (el.innerHTML !== html) el.innerHTML = html;
   el.hidden = false;
 }
-$('#journal').onclick = () => UI.open('journal');
-$('#journal').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); UI.open('journal'); } };
+// tapping it opens the journal: at the cast's page if someone is waiting for a word or a gift, else the story
+const journalOpen = () => UI.open('journal', { tab: questsWaiting().length || questsGiveReady() ? 'cast' : 'story' });
+$('#journal').onclick = journalOpen;
+$('#journal').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); journalOpen(); } };
 UI.jtab = 'story';
 UI.journal = function (body, ref) {
   if (ref && ref.tab) { UI.jtab = ref.tab; UI.cur.ref = null; }

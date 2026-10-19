@@ -14,7 +14,7 @@ function jumperArt(silver = false) {
   if (JUMP[key] || !SKY || !SKY.shipArt) return JUMP[key];
   const A = SKY.shipArt, M = { ...A.M, hull: A.M.hull.clone(), canvas: A.M.canvas.clone() };
   M.canvas.onBeforeCompile = A.M.canvas.onBeforeCompile; M.canvas.customProgramCacheKey = A.M.canvas.customProgramCacheKey;
-  if (silver) { M.hull.color.set(0x8d939c); M.canvas.color.set(0xe4e8ee); M.canvas.emissive.set(0x2a2e36); }
+  if (silver) { M.hull.color.set(0x5c626c); M.canvas.color.set(0xaab6c6); M.canvas.emissive.set(0x1c2a3a); }
   else { M.hull.color.set(0x9a8781); M.canvas.color.set(0xc8735c); M.canvas.emissive.set(0x7a3020); }
   return (JUMP[key] = { ...A, M });
 }

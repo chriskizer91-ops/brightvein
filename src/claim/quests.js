@@ -112,7 +112,7 @@ const QUESTS = {
     steps: [
       { text: 'Give Nib 2 Cut Glass for the mirrors', short: 'Give Nib 2 Cut Glass', give: { glass: 2 } },
       { text: 'Put two cutters to work in a Lens Workshop to silver them', short: 'Two cutters in a Lens Workshop', done: () => byType('shop').some(b => workersOf(b.id).length >= 2), prog: () => [Math.min(2, Math.max(0, ...byType('shop').map(b => workersOf(b.id).length))), 2] },
-      { text: 'Charge 150 shards in the sunning yards in a single day', short: 'Charge 150 shards in one day', done: () => ACT.dayCharge >= 150, prog: () => [Math.min(150, Math.floor(ACT.dayCharge)), 150] },
+      { text: 'Show the mirrors off: make 150 shards in a single day', short: 'Make 150 shards in one day', done: () => ACT.dayCharge >= 150, prog: () => [Math.min(150, Math.floor(ACT.dayCharge)), 150] },
     ],
     close: [
       ['tock', 'See? See the morning light? Caught! Every bit of it!'],
@@ -181,7 +181,7 @@ function questsDay() {
   if (ACT.offerDay != null && GAME.day - ACT.offerDay < 2) return;
   const id = Object.keys(QUESTS).find(questReady); if (!id) return;
   QST[id] = { state: 'offer', step: 0, day: GAME.day }; ACT.offerDay = GAME.day;
-  const first = esc(CAST_NAMES[id].name.split(' ')[0]);
+  const first = esc(castFirst(id));
   toast(`<b>${first}</b> wants a word, and is waiting at the Keep. Tap the Keep to hear ${first} out.`);
   AUDIO.play('chime');
 }
@@ -189,7 +189,7 @@ function questAccept(id, quiet = false) {
   const Q = QST[id], q = QUESTS[id]; if (!Q || Q.state !== 'offer') return false;
   const start = () => {
     Q.state = 'on'; Q.step = 0; Q.at = { ...ACT.tally }; Q.day = GAME.day;
-    daysLog(`${CAST_NAMES[id].name.split(' ')[0]}’s story began: ${q.title}.`, 'cast');
+    daysLog(`${castFirst(id)}’s story began: ${q.title}.`, 'cast');
     toast(`<b>${esc(q.who)}’s story · ${esc(q.title)}</b> is in the journal.`);
     questsCheck(); journalHUD(); UI.refresh(); saveGame();
   };
@@ -203,16 +203,18 @@ function questStepDone(id) {
   Q.step++; Q.at = { ...ACT.tally };
   AUDIO.play('goal');
   if (Q.step < q.steps.length) { toast(`<b>${esc(q.who)}’s story:</b> ${esc(S.short || S.text)} ✓`); journalHUD(); return; }
-  Q.state = 'done';
-  const finish = () => {
-    const r = q.reward() || {};
-    if (r.codex && !STORY.codex.includes(r.codex)) STORY.codex.push(r.codex);
-    daysLog(`${q.who}’s story is done: ${q.title}. ${q.rewardText}`, 'cast');
-    toast(`<b>${esc(q.who)}’s story · ${esc(q.title)}</b> is done. ${esc(q.rewardText)}`);
-    AUDIO.play('chapter'); journalHUD(); UI.refresh(); saveGame();
-  };
-  const sc = { lines: q.close, heading: `${q.who}’s story · ${q.title}`, after: finish };
+  Q.state = 'closing';   // the last scene plays, then the reward (a claim saved in between gets it when it loads)
+  const sc = { lines: q.close, heading: `${q.who}’s story · ${q.title}`, after: () => questFinish(id) };
   if (STORY.shown || EVT.card) STORY.queue.push(sc); else playScene(sc);
+}
+function questFinish(id) {
+  const Q = QST[id], q = QUESTS[id]; if (!Q || Q.state === 'done') return;
+  Q.state = 'done';
+  const r = q.reward() || {};
+  if (r.codex && !STORY.codex.includes(r.codex)) STORY.codex.push(r.codex);
+  daysLog(`${q.who}’s story is done: ${q.title}. ${q.rewardText}`, 'cast');
+  toast(`<b>${esc(q.who)}’s story · ${esc(q.title)}</b> is done. ${esc(q.rewardText)}`);
+  AUDIO.play('chapter'); journalHUD(); UI.refresh(); saveGame();
 }
 // hand over what a step asks for
 function questGive(id) {
@@ -231,10 +233,11 @@ function questsCheck() {
   }
 }
 
+const questsGiveReady = () => Object.entries(QST).some(([id, Q]) => { const S = Q.state === 'on' && QUESTS[id].steps[Q.step]; return !!(S && S.give && canGive(S.give) && castHere(id)); });
 // ---- the HUD: under the chapter's goals, the cast's current steps and anyone waiting for a word
 function questsHUD(withChapter) {
   const lines = [];
-  for (const id of questsWaiting()) lines.push(`<span class="q wait"><i>✦</i>${esc(CAST_NAMES[id].name.split(' ')[0])} wants a word at the Keep</span>`);
+  for (const id of questsWaiting()) lines.push(`<span class="q wait"><i>✦</i>${esc(castFirst(id))} wants a word at the Keep</span>`);
   for (const [id, Q] of Object.entries(QST)) {
     if (Q.state !== 'on' || !castHere(id)) continue;
     const S = QUESTS[id].steps[Q.step]; if (!S) continue;
@@ -258,7 +261,7 @@ function questsJournal(ui, body) {
       <p class="small"><b>${esc(C.perk)}.</b> ${esc(C.perkText)}${questDone(id) && PERK_RENEWED[id] ? ` <span class="good">Renewed: ${esc(PERK_RENEWED[id])}</span>` : ''}</p>`));
     if (!Q) {
       const left = v ? Math.max(1, (v.d.arrived ?? 0) + 3 - GAME.day) : 0;
-      info.append(ui.h(`<p class="small qwait">${v && QUEST_JOIN[id] && !STORY.done.includes(QUEST_JOIN[id]) ? 'Still settling in.' : `Settling in. ${esc(N.name.split(' ')[0])} will have something to ask${left > 1 ? ' in a day or two' : ' soon'}.`}</p>`));
+      info.append(ui.h(`<p class="small qwait">${v && QUEST_JOIN[id] && !STORY.done.includes(QUEST_JOIN[id]) ? 'Still settling in.' : `Settling in. ${esc(castFirst(id))} will have something to ask${left > 1 ? ' in a day or two' : ' soon'}.`}</p>`));
     } else if (Q.state === 'offer') {
       const b = ui.h(`<p><button type="button" class="btn primary">Hear ${esc(q.who)} out</button> <span class="small">${esc(q.who)} wants a word.</span></p>`);
       b.querySelector('button').onclick = () => questAccept(id); info.append(b);
@@ -299,7 +302,7 @@ function questMarker() {
   const show = wait.length && K && VIEW.mode === 'town' && !(SKY && SKY.on) && !BUILD.on && !STORY.shown && !EVT.card && !(UI.cur && UI.cur.kind === 'building' && UI.cur.ref === K);
   if (!show) { if (el) el.hidden = true; return; }
   if (!el) { el = document.createElement('button'); el.type = 'button'; el.id = 'qmark'; el.className = 'qmark'; el.onclick = () => selectBuilding(TOWN.b.keep); $('#app').append(el); }
-  const txt = `${CAST_NAMES[wait[0]].name.split(' ')[0]} wants a word${wait.length > 1 ? ` (+${wait.length - 1})` : ''}`;
+  const txt = `${castFirst(wait[0])} wants a word${wait.length > 1 ? ` (+${wait.length - 1})` : ''}`;
   if (el.textContent !== txt) el.textContent = txt;
   _qm.copy(K.worldPos(0, 15, 0)).project(camera);
   const vis = _qm.z < 1 && Math.abs(_qm.x) < 1.05 && Math.abs(_qm.y) < 1.05;
@@ -312,6 +315,7 @@ function questsSave() { return JSON.parse(JSON.stringify(QST)); }
 function questsLoad(s) {
   for (const k of Object.keys(QST)) delete QST[k];
   for (const [id, Q] of Object.entries(s || {})) if (QUESTS[id] && Q && Q.state) QST[id] = { state: Q.state, step: Q.step || 0, at: Q.at || { ...ACT.tally }, day: Q.day ?? GAME.day };
+  for (const [id, Q] of Object.entries(QST)) if (Q.state === 'closing') setTimeout(() => questFinish(id), 3000);
   // the cast from before arrival days were kept: they've been here a while
   for (const v of GAME.villagers) if (v.d.hero && v.d.arrived == null) v.d.arrived = GAME.day - 3;
 }

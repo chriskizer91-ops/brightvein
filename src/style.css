@@ -159,12 +159,19 @@ button { font: inherit; color: inherit; }
 
 /* ---------- act two and the claim's days: the mood on the HUD, the day's event card, the cast waiting at the Keep */
 .pill.mood { cursor: pointer; }
+.pill .mood-ic { display: none; }
+@media (max-width: 560px) {   /* narrow screens: the mood's face takes the place of the people icon, so the bar keeps its width */
+  #r-mood { display: none; }
+  #r-pop .ic { display: none; }
+  #r-pop .ic.mood-ic { display: block; }
+  #r-pop { cursor: pointer; }
+}
 .pill.mood b::after { font-size: 10px; margin-left: 2px; vertical-align: 2px; }
 .pill.mood.up b::after { content: "▲"; color: var(--good); }
 .pill.mood.down b::after { content: "▼"; color: var(--bad); }
 .evcard { position: absolute; inset: 0; z-index: 11; display: grid; place-items: center; padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
   background: radial-gradient(ellipse at 50% 45%, rgba(13,9,20,.35), rgba(13,9,20,.7)); animation: tin .3s ease-out both; }
-.ev-inner { width: min(calc(100vw - 32px), 460px); max-height: 100%; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; background: linear-gradient(180deg, #4a3242, var(--plum) 55%);
+.ev-inner { box-sizing: border-box; width: min(calc(100vw - 32px), 460px); max-height: 100%; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; background: linear-gradient(180deg, #4a3242, var(--plum) 55%);
   border: 1.5px solid var(--cream); border-radius: 16px; padding: 14px 16px 14px; box-shadow: 0 18px 50px rgba(0,0,0,.6), inset 0 0 0 4px rgba(42,27,47,.9), inset 0 0 0 5px rgba(241,228,198,.16); }
 .ev-inner .eyebrow { margin: 10px 0 2px; }
 .ev-inner h2 { margin: 0 0 6px; font-family: var(--f-display); color: var(--gold); font-size: 22px; line-height: 1.15; letter-spacing: .02em; text-wrap: balance; }
@@ -230,7 +237,7 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
   .ev-text, .ev-result p { font-size: 14px; }
   .ev-pic .pframe { width: 68px !important; height: 68px !important; }
 }
-@media (prefers-reduced-motion: reduce) { .evcard { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .evcard, .talk-card, .qmark { animation: none; } }
 
 /* ---------- labels over the 3D view */
 #labels { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }

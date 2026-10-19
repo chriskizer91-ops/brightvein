@@ -278,7 +278,7 @@ function tripHome(v, T) {
   eventsTrip(v);
 }
 // every frame (from storyTick): the day's event card, the cast waiting at the Keep, and the mood on the HUD
-function actFrame(rdt) { eventsFrame(); questMarker(); moodHUD(rdt); }
+function actFrame(rdt) { eventsFrame(); questMarker(); moodHUD(rdt); whaleFrame(rdt); }
 
 // ---- saving
 function actSave() { const { rods, checkT, lastRecruit, ...rest } = ACT; void rods; void checkT; void lastRecruit; return JSON.parse(JSON.stringify(rest)); }
@@ -295,4 +295,5 @@ function actLoad(s) {
 
 // ---- for tests (window.__bv is made at the end of main.js, after this file has run)
 queueMicrotask(() => { if (window.__bv) Object.assign(window.__bv, { ACT, MOOD, EVT, QST, QUESTS, EVENTS, CODEX, WARDEN, storyTick, lifeTick, actFrame, eventFire, eventChoose, eventClose, eventsNewDay,
-  questAccept, questGive, questsCheck, questReady, questsDay, moodTarget, moodFactors, moodAdd, moodBand, mineCrew, storyNight, wlHarmK, castGift, playScene, journalHUD, whoOf, dayWorkK, sinceCh }); });
+  questAccept, questGive, questsCheck, questReady, questsDay, moodTarget, moodFactors, moodAdd, moodBand, mineCrew, storyNight, wlHarmK, castGift, playScene, journalHUD, whoOf, dayWorkK, sinceCh,
+  VISIT, visitShip, WHALE, whalePass, whaleFrame, questMarker, moodHUD }); });

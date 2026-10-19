@@ -14,6 +14,14 @@ const evIlvl = () => Math.round(3 + STORY.ch * 1.4);
 const settlers = (f = () => true) => GAME.villagers.filter(v => !v.d.hero && !v.d.named && !v.d.exp && !v.d.sick && f(v));
 const freeBeds = () => totalBeds() - GAME.villagers.length;
 const dayEnd = () => GAME.day + 0.62;               // dusk, in claim days
+// people at the gate, not yet on the claim: off the settlers' roll (so their portraits match), never the same one twice
+function strangers(n) {
+  const keep = GAME.folkUsed, out = [];
+  GAME.folkUsed = [...(keep || [])];
+  for (let i = 0; i < n; i++) { const d = makePerson(mulberry((Math.random() * 1e9) | 0)); out.push(d); if (d.portrait) GAME.folkUsed.push(d.portrait); }
+  GAME.folkUsed = keep;
+  return out;
+}
 function pickTwo(list) { const a = pickOne(list), b = pickOne(list.filter(x => x !== a)); return b ? [a, b] : null; }
 
 // ---- work that goes faster or slower for a while (a festival, the sky-whale, a fever): every job, or one kind of job
@@ -61,7 +69,7 @@ const EVENTS = [
     } },
   { id: 'prospector', title: 'A prospector at the gate', min: 1, w: 1, cool: 7,
     make() {
-      const d = makePerson(mulberry((Math.random() * 1e9) | 0)), keys = ['G', 'E', 'A', 'R', 'S'], top = pickOne(keys), two = pickOne(keys.filter(k => k !== top));
+      const d = strangers(1)[0], keys = ['G', 'E', 'A', 'R', 'S'], top = pickOne(keys), two = pickOne(keys.filter(k => k !== top));
       d.stats[top] = 10; d.stats[two] = Math.max(d.stats[two], 8); d.trait = pickOne(['Skittish', 'Night owl']);
       const odd = d.trait === 'Skittish' ? 'jumps at shadows, and will run from Wildlight at the first glimmer' : 'only really wakes up after dark, and works slowly by day';
       const first = d.name.split(' ')[0], bed = freeBeds() > 0;
@@ -126,6 +134,7 @@ const EVENTS = [
     } },
   { id: 'skywhale', title: 'A sky-whale passes', min: 2, w: 0.7, cool: 14,
     make() {
+      whalePass();
       return { who: ['pip'], text: 'Pip rings the bell, but not the alarm one. Below the rim, through the cloud sea, a sky-whale is passing: as long as the plateau, slow as a sunset, singing one low note you can feel in your teeth.',
         choices: [
           { label: 'Everyone to the rim to watch', hint: 'An hour without work · mood +8 for a day', act: () => { workFor(0.06, 0, null, 'whale'); return res('The whole claim lines the rim. Nobody says anything for a long time. Marigold cries a bit and says it is the wind.', { mood: [8, 1, 'The sky-whale'] }, 'A sky-whale passed under the rim, and the whole claim watched.'); } },
@@ -173,7 +182,7 @@ const EVENTS = [
     } },
   { id: 'refugees', title: 'Folk from a dead claim', min: 5, w: 0.8, cool: 12,
     make() {
-      const fam = [makePerson(mulberry((Math.random() * 1e9) | 0)), makePerson(mulberry((Math.random() * 1e9) | 0))];
+      const fam = strangers(2);
       return { faces: fam, text: `${esc(fam[0].name)} and ${esc(fam[1].name)} come up the bridge with everything they own on their backs. Their claim was two valleys over. “The seam went grey,” one of them says. “All of it, in one night. Like the light just left.”`,
         choices: [
           { label: 'Take them in', hint: '+2 people · −15 food · mood +4 · codex', can: freeBeds() >= 2 && GAME.food >= 15, why: freeBeds() < 2 ? 'You need two free beds in the Keep' : 'You need 15 food', act: () => res('Marigold puts the big pot on. By supper they have jobs, and by bedtime, friends.', { people: fam, food: -15, mood: [4, 1, 'Took in folk from a dead claim'], codex: 'deadclaims' }, `${fam[0].name} and ${fam[1].name}, from a claim whose seam went grey, joined Brightvein.`) },
@@ -330,7 +339,7 @@ function evPicture(e, M) {
     faces.push([fr, p.name]);
   }
   if (!faces.length) for (const k of M.who || []) if (WHO[k]) faces.push([speakerPortrait(k, 84), whoOf(k).name]);
-  for (const [f, name] of faces.slice(0, 2)) { const fig = document.createElement('figure'); fig.append(f); const cap = document.createElement('figcaption'); cap.textContent = name.split(' ')[0]; fig.append(cap); box.append(fig); }
+  for (const [f, name] of faces.slice(0, 2)) { const fig = document.createElement('figure'); fig.append(f); const cap = document.createElement('figcaption'); cap.textContent = shortName(name); fig.append(cap); box.append(fig); }
   return box;
 }
 function eventFire(id) {
@@ -414,6 +423,33 @@ function eventsTrip(v) {
   GAME.shards += n; addToStash(it, true);
   toast(`Following the map from the wall, <b>${esc(v.d.name)}</b> dug up the X: ${SHARD} ${n} and ${itemTag(it)}. Nobody told Gerald.`);
   daysLog(`${v.d.name} followed the map in the wall and found the cache.`, 'event');
+}
+
+// ---- the sky-whale itself: a long pale shape swimming slowly past below the rim, half in the cloud sea, with a row of
+// glowing spots down its back. Made the first time it's needed, and only there while it passes.
+const WHALE = { g: null, t: -1, dur: 75, tail: null };
+function whaleMake() {
+  const g = new THREE.Group(), skin = new THREE.MeshStandardMaterial({ color: 0x55667e, roughness: 0.8, emissive: 0x141c2a, emissiveIntensity: 0.6 });
+  const belly = new THREE.MeshStandardMaterial({ color: 0xbfb8aa, roughness: 0.9 });
+  const glow = new THREE.MeshBasicMaterial({ color: 0xffc46a, toneMapped: false });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), skin); body.scale.set(30, 7.5, 8.5); g.add(body);
+  const under = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12, 0, TAU, Math.PI * 0.55, Math.PI * 0.45), belly); under.scale.set(29, 7.2, 8.2); g.add(under);
+  for (const s of [-1, 1]) { const fin = new THREE.Mesh(new THREE.ConeGeometry(2.2, 11, 4), skin); fin.position.set(8, -3, s * 8); fin.rotation.set(s * 1.2, 0, -0.5); fin.scale.set(1, 1, 0.3); g.add(fin); }
+  const tail = new THREE.Group(); tail.position.set(-29, 0, 0); g.add(tail);
+  for (const s of [-1, 1]) { const f = new THREE.Mesh(new THREE.ConeGeometry(3, 12, 4), skin); f.position.set(-5, 0, s * 5); f.rotation.set(s * 1.35, 0, 0.9); f.scale.set(1, 1, 0.25); tail.add(f); }
+  for (let i = 0; i < 9; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 6), glow); d.position.set(18 - i * 4.4, 6.4 - Math.abs(i - 3) * 0.35, (i % 2 ? 1 : -1) * 1.6); g.add(d); }
+  WHALE.tail = tail; g.visible = false; scene.add(g); return g;
+}
+function whalePass() { if (!WHALE.g) WHALE.g = whaleMake(); WHALE.t = 0; WHALE.g.visible = true; }
+function whaleFrame(rdt) {
+  if (WHALE.t < 0 || !WHALE.g) return;
+  WHALE.t += rdt; const k = WHALE.t / WHALE.dur;
+  if (k >= 1) { WHALE.t = -1; WHALE.g.visible = false; return; }
+  // across the north-west, beyond the rim, where the usual view over the claim can see it above the far wall
+  const x = lerp(-175, 70, k), z = lerp(-25, -175, k);
+  WHALE.g.position.set(x, -17 + Math.sin(WHALE.t * 0.4) * 1.5, z);
+  WHALE.g.rotation.set(0, Math.atan2(150, 245), Math.sin(WHALE.t * 0.4) * 0.05);   // nose (local +x) the way it swims
+  WHALE.tail.rotation.z = Math.sin(WHALE.t * 0.9) * 0.35;
 }
 
 // ---- the claim's days, for the journal: what happened, newest first

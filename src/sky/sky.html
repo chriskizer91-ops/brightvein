@@ -11,24 +11,42 @@
   </div>
 </section>
 
-<!-- the shipyard: your ships, their upgrades and crystal power, and setting sail -->
+<!-- the shipyard: the claim's six ships, buying them, the flagship, refits, looks, repairs, and setting sail -->
 <section id="port" class="screen" hidden>
-  <header class="port-top"><button id="btn-home" class="panel" type="button" aria-label="Back to the claim">← Claim</button><h1>Shipyard</h1><span id="port-shards" class="panel shards">◆ 0</span><button id="btn-skies" class="panel" type="button">Skies</button></header>
+  <header class="port-top"><button id="btn-home" class="panel" type="button" aria-label="Back to the claim">← Claim</button><h1>Shipyard</h1><span id="port-shards" class="panel shards">◆ 0</span><span id="port-mats" class="panel mats"></span><button id="btn-skies" class="panel" type="button">Skies</button></header>
   <p id="port-note" class="panel" aria-live="polite"></p>
   <div id="port-ships" class="panel" role="group" aria-label="Ships"></div>
   <section id="port-panel" class="panel">
     <h2 id="pp-name">Zephyr</h2>
     <p class="cls" id="pp-cls">Skiff · 8 m</p>
-    <p id="pp-blurb"></p>
-    <div id="pp-buy"><button id="btn-buy" class="buy" type="button">Buy</button><p id="pp-need"></p></div>
-    <h3>How she sails</h3>
-    <div id="pp-stats"></div>
-    <div id="pp-own">
-      <h3>Crystal power</h3>
-      <div class="power"><span>Sails</span><input id="pp-power" type="range" min="-2" max="2" step="1" value="0" aria-label="Crystal power, from sails to guns"><span>Guns</span></div>
-      <p id="pp-power-note"></p>
-      <h3>Upgrades</h3>
-      <div id="pp-mods"></div>
+    <div class="pp-tabs" role="group" aria-label="Show"><button type="button" data-tab="ship">Ship</button><button type="button" data-tab="refit">Refit</button><button type="button" data-tab="looks">Looks</button></div>
+    <div id="pp-ship">
+      <p id="pp-blurb"></p>
+      <div id="pp-buy"><button id="btn-buy" class="buy" type="button">Buy</button><p id="pp-need"></p></div>
+      <div id="pp-flag"><button id="btn-flag" class="buy" type="button">Make her the flagship</button></div>
+      <h3>How she sails</h3>
+      <div id="pp-stats"></div>
+      <div id="pp-own">
+        <h3>Condition</h3>
+        <div id="pp-wear"></div>
+        <div id="pp-repair"><button id="btn-repair" class="buy" type="button">Repair</button><p id="pp-repair-note"></p></div>
+        <h3>Crew</h3>
+        <p id="pp-crew" class="small"></p>
+        <h3>Crystal power</h3>
+        <div class="power"><span>Sails</span><input id="pp-power" type="range" min="-2" max="2" step="1" value="0" aria-label="Crystal power, from sails to guns"><span>Guns</span></div>
+        <p id="pp-power-note"></p>
+      </div>
+    </div>
+    <div id="pp-refit" hidden>
+      <p class="small">Each part has three levels. You can see them on her as they go on.</p>
+      <div id="pp-refit-list"></div>
+    </div>
+    <div id="pp-looks" hidden>
+      <p id="pp-looks-note" class="small"></p>
+      <h3>Hull paint</h3><div id="pp-paint" class="swatches"></div>
+      <h3>Sails</h3><div id="pp-sailc" class="swatches"></div>
+      <h3>Figurehead</h3><div id="pp-fig" class="swatches figs"></div>
+      <div id="pp-looks-buy" hidden><button id="btn-looks" class="buy" type="button">Keep these looks</button><button id="btn-looks-undo" class="plain" type="button">Put them back</button></div>
     </div>
     <div class="sail-out"><button id="btn-sail" class="big" type="button">Set sail</button></div>
   </section>
@@ -49,12 +67,18 @@
     <div class="row" id="row-sails"><dt>Sails</dt><span class="meter sails"><i id="h-sails"></i></span><dd id="n-sails">0</dd></div>
     <div class="row" id="row-crystals"><dt>Crystals</dt><span class="meter crystals"><i id="h-crystals"></i></span><dd id="n-crystals">0</dd></div>
     <div class="row" id="row-surge"><dt>Surge</dt><span class="meter surge"><i id="h-surge"></i></span><dd class="mouse-only">R</dd></div>
+    <div class="row" id="row-crew"><dt>Crew</dt><span class="meter crew"><i id="h-crew"></i></span><dd id="n-crew">0</dd></div>
   </dl>
+  <p id="crew-line"></p>
 </section>
-<div id="compass" class="panel" aria-live="off"><span id="heading">N</span><span id="wind" title="The wind: up the arrow is the way it blows, against your heading"><i id="wind-arrow">↑</i><b id="wind-n">0%</b></span></div>
+<!-- a raid's objective and its progress -->
+<section id="objective" class="panel" hidden><b id="obj-goal"></b><span id="obj-sub"></span><div id="obj-bars"></div><span class="meter" id="obj-meter" hidden><i></i></span></section>
+<!-- a boss: its name, its health and the phases it turns at -->
+<section id="bossbar" hidden><div class="bb-top"><b id="bb-name"></b><span id="bb-phase"></span></div><div class="bb-bar"><i id="bb-fill"></i><span id="bb-marks"></span></div><div class="bb-low"><span id="bb-sub"></span><span class="bb-two"><span id="bb-label2">Crystals</span><span class="meter"><i id="bb-fill2"></i></span></span></div></section>
+<div id="compass" class="panel" aria-live="off"><span id="heading">N</span><span id="wind" title="The wind: up the arrow is the way it blows, against your heading"><i id="wind-arrow">↑</i><b id="wind-n">0%</b></span><span id="goal-dir" hidden title="The way to the objective"><i id="goal-arrow">▲</i><b id="goal-d"></b></span></div>
 <button id="btn-pause" class="panel" type="button" aria-label="Pause">❚❚</button>
 <canvas id="minimap" aria-label="The map of Aethermoor: tap to make it bigger"></canvas>
-<div id="score" class="panel"><span class="wide">Raiders downed</span><span class="narrow">Downed</span>: <b id="score-n">0</b> · Wave <b id="wave-n">1</b> · <span class="shards">◆ <b id="voyage-n">0</b></span></div>
+<div id="score" class="panel"><span class="wide">Raiders downed</span><span class="narrow">Downed</span>: <b id="score-n">0</b><span class="wave-part"> · Wave <b id="wave-n">1</b></span> · <span class="shards">◆ <b id="voyage-n">0</b></span></div>
 <div id="tags" aria-hidden="true"></div>
 <div id="hurt" aria-hidden="true"></div>
 <div id="banner" aria-live="polite"><p id="banner-title"></p><p id="banner-line"></p></div>
@@ -63,7 +87,12 @@
 <div id="aim" aria-hidden="true"><svg viewBox="-23 -23 46 46">
   <circle r="14" fill="none" stroke="#ecdcb8" stroke-width="2" opacity="0.85"/><circle r="2.2" fill="#e2bd67"/>
   <path d="M-22 0h6M16 0h6M0 -22v6M0 16v6" stroke="#ecdcb8" stroke-width="2" opacity="0.85"/></svg></div>
-<div id="battery" class="shadow"><b id="battery-name">Bow guns</b> · <span id="battery-count">2</span><span class="meter"><i id="reload-bar"></i></span></div>
+<div id="hitmark" aria-hidden="true"><svg viewBox="-20 -20 40 40"><path d="M-14 -14l7 7M14 -14l-7 7M-14 14l7 -7M14 14l-7 -7" stroke-width="3" stroke-linecap="round"/></svg></div>
+<!-- the guns: the battery facing the aim, and how ready each of the four is -->
+<div id="battery" class="shadow"><b id="battery-name">Bow guns</b> · <span id="battery-count">2</span>
+  <div id="gunboard" aria-hidden="true"><span id="gb-port" class="gb side"><i></i></span><span class="gb-mid"><span id="gb-bow" class="gb end"><i></i></span><span id="gb-stern" class="gb end"><i></i></span></span><span id="gb-starboard" class="gb side"><i></i></span></div></div>
+<!-- the ship the guns are locked on to -->
+<div id="target" class="panel" hidden><b id="tg-name"></b> <span id="tg-d"></span><span class="meter hull"><i id="tg-hull"></i></span><span class="meter sails"><i id="tg-sails"></i></span><span class="meter crystals"><i id="tg-crystals"></i></span></div>
 <p id="warn" class="panel" hidden></p>
 <div id="stick" hidden><i></i></div>
 <div id="touch-buttons" class="touch-only">

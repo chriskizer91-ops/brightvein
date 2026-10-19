@@ -394,12 +394,18 @@ const MINE_FINDS = {
   },
   sunforgedChance: 0.002,  // per deep-seam find
 };
-// Raids (later: flown on the Lark). Each camp is a crate table.
+// Raids (src/sky/sites.js): each place is a crate table. A place raided again pays REPEAT (half) of it; a boss brought
+// down the first time adds a Lark part or a module for certain.
 const RAIDS = {
   camp:     { name: "Prospect camp", tier: "veteran",  crates: 2, ilvl: 4,  shards: [20, 40], materials: { brass: 2, glass: 1 } },
   outpost:  { name: "Jumper outpost", tier: "bearer",  crates: 3, ilvl: 9,  shards: [50, 90], masterwork: 0.15, materials: { brass: 3, glass: 2 } },
   airship:  { name: "Claim-jumper airship", tier: "bearer", crates: 3, ilvl: 12, shards: [60, 120], masterwork: 0.25, larkPart: 0.5, materials: { glass: 3, heartstone: 1 } },
-  citadel:  { name: "Claim-baron's citadel", tier: "champion", crates: 5, ilvl: 18, shards: [150, 300], masterwork: 0.6, sunforged: 0.05, materials: { glass: 4, heartstone: 3 } },
+  citadel:  { name: "Claim-baron's citadel", tier: "champion", crates: 5, ilvl: 18, shards: [150, 300], masterwork: 0.6, sunforged: 0.05, larkPart: 0.5, materials: { glass: 4, heartstone: 3 } },
+  survey:   { name: "Survey rig", tier: "bearer", crates: 3, ilvl: 16, shards: [90, 160], masterwork: 0.25, larkPart: 0.6, moduleExtra: 1, materials: { brass: 2, glass: 4 } },
+  dredge:   { name: "The Exchange's dredge", tier: "champion", crates: 5, ilvl: 22, shards: [260, 460], masterwork: 0.7, sunforged: 0.08, larkPart: 1, materials: { glass: 5, heartstone: 4 } },
+  convoy:   { name: "Brass Road convoy", tier: "veteran", crates: 2, ilvl: 8, shards: [70, 130], larkPart: 0.3, materials: { brass: 5, glass: 1 } },
+  storm:    { name: "Thinwatch strongbox", tier: "bearer", crates: 3, ilvl: 12, shards: [60, 120], masterwork: 0.25, materials: { glass: 3, heartstone: 2 } },
+  bounty:   { name: "A wanted captain's strongbox", tier: "champion", crates: 2, ilvl: 14, shards: [40, 80], masterwork: 0.35, larkPart: 0.6, materials: { brass: 2, heartstone: 1 } },
 };
 // Courier trade: buy Salvage–Tuned gear and modules with shards.
 const TRADE = { stock: 4, maxRarity: "tuned", pricePerIlvl: 6, rarityMult: { salvage: 1, tooled: 2, tuned: 4 } };
@@ -597,17 +603,23 @@ function createLoot(D, seed = Date.now()) {
   }
 
   // ---- raids
-  function raidCrates(raidId) {
-    const R = RAIDS[raidId], luck = DROPS.luck[R.tier] + 1, crates = [];
-    for (let i = 0; i < R.crates; i++) {
+  // opts.scale: a share of the table (a repeat raid, a convoy with barges lost); opts.first and opts.boss: the first
+  // time a boss is brought down, a Lark part or a module for certain
+  function raidCrates(raidId, opts = {}) {
+    const R = RAIDS[raidId] || RAIDS.camp, k = opts.scale ?? 1, luck = DROPS.luck[R.tier] + 1 + (opts.boss ? 0.5 : 0), crates = [];
+    const n = Math.max(1, Math.round(R.crates * k));
+    for (let i = 0; i < n; i++) {
       const roll = rng.next();
       if (roll < 0.25) crates.push(makeModule({ luck, ilvl: R.ilvl, from: R.name }));
       else crates.push(makeGear({ luck, ilvl: R.ilvl, rarity: rollRarity(luck, { min: DROPS.minRarity[R.tier] }), from: R.name }));
     }
-    if (R.larkPart && rng.chance(R.larkPart)) crates.push(makeModule({ lark: true, luck, ilvl: R.ilvl, from: R.name }));
-    if (R.masterwork && rng.chance(R.masterwork)) { const m = rng.pick(relicsOf("masterwork").filter(r => /Raid/.test(r.source))); crates.push(makeRelic(m.id, R.name)); }
-    if (R.sunforged && rng.chance(R.sunforged)) { const s = rng.pick(relicsOf("sunforged").filter(r => /Raid/.test(r.source))); if (s) crates.push(makeRelic(s.id, R.name)); }
-    return { items: crates, shards: rng.int(R.shards[0], R.shards[1]), materials: { ...(R.materials || {}) } };
+    for (let i = 0; i < (R.moduleExtra || 0) && k >= 0.99; i++) crates.push(makeModule({ luck, ilvl: R.ilvl, from: R.name }));
+    if (opts.first && opts.boss) crates.push(rng.chance(0.6) ? makeModule({ lark: true, luck, ilvl: R.ilvl, from: R.name }) : makeModule({ luck: luck + 0.5, ilvl: R.ilvl + 2, from: R.name }));
+    else if (R.larkPart && rng.chance(Math.min(1, R.larkPart * k))) crates.push(makeModule({ lark: true, luck, ilvl: R.ilvl, from: R.name }));
+    if (R.masterwork && rng.chance(R.masterwork * k * k)) { const m = rng.pick(relicsOf("masterwork").filter(r => /Raid/.test(r.source))); crates.push(makeRelic(m.id, R.name)); }
+    if (R.sunforged && k >= 0.99 && rng.chance(R.sunforged)) { const s2 = rng.pick(relicsOf("sunforged").filter(r => /Raid/.test(r.source))); if (s2) crates.push(makeRelic(s2.id, R.name)); }
+    const mats = {}; for (const [m, v] of Object.entries(R.materials || {})) { const x = Math.round(v * k); if (x > 0) mats[m] = x; }
+    return { items: crates, shards: Math.round(rng.int(R.shards[0], R.shards[1]) * k), materials: mats };
   }
 
   // ---- courier trade

@@ -1,45 +1,81 @@
-// sites.js: the claim-jumpers' places in the sky, to raid. Baron Tallow's crews hold rocks lifted on stolen sunstone
-// around Brightvein: a prospect camp, the Redspire outpost and the Chandlery, his citadel; and his supply galleon, the
-// Wickmoor, runs between them. Each is guarded by jumper ships, and the rocks by gun towers. Bring down the guards and
-// silence the guns and the place strikes its colours: its crates are yours to take home (the claim opens them, with
-// the Armory's raid tables, src/claim/loot.js RAIDS). A taken place is manned again after a few days on the claim.
-// Act two adds the Gilded Exchange's two: the Plumbline, a survey rig off Hollowcrest, and the Grindstone, a dredge
-// that drills under the claim's south cliff. They turn up in their chapters (ch: hidden in the Dock's list until then).
+// sites.js: the places to raid, and how they look. Baron Tallow's crews hold rocks lifted on stolen sunstone around
+// Brightvein: a prospect camp, the Redspire outpost and the Chandlery, his citadel; and his supply galleon, the
+// Wickmoor, runs between them. Act two adds the Gilded Exchange's two: the Plumbline, a survey rig off Hollowcrest, and
+// the Grindstone, a dredge that drills under the claim's south cliff. And two that aren't places to take: the Brass
+// Road convoy (bring the ore barges home) and the storm front (fly the Thinwatch's beacons before it closes).
+// Each place has its own objective and its own set piece or boss (raids.js runs them). Taken, a place is manned again
+// after a few days on the claim (regrow), and pays less the next time (REPEAT). A wanted jumper captain turns up on the
+// map now and then (makeBounty). The crates are opened at home with the Armory's raid tables (src/claim/loot.js RAIDS).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { intercept } from './guns.js';
 import { HOME } from './world.js';
 
+// a place raided again pays this much of the first time (crates, shards, chances), and the bosses don't come back
+export const REPEAT = 0.5;
 // x, z: where on the map (metres; HOME is Brightvein); y: the rock's top. size: its radius. guard: the jumper ships that
 // come out, wave by wave (captain: which ship in the wave leads it, or -1). crates: as the loot table's (RAIDS).
+// kind: how the raid runs (raids.js). stars: how hard, 1 to 5. ship: the smallest ship that should try it.
+// pays: what's in it, for the Dock's raid map. ch: hidden in the Dock's list until that chapter.
 export const SITES = [
-  { id: 'camp', loot: 'camp', name: "Tallow's prospect camp", short: 'Prospect camp', x: HOME.x - 2100, z: HOME.z - 1500, y: 600, size: 34,
-    line: 'Tents on a lifted rock, two skiffs on guard and one gun.', towers: 1, guard: [{ ids: ['skiff'], captain: -1 }, { ids: ['skiff', 'skiff'], captain: -1 }], crates: 2, regrow: 1, after: null },
-  { id: 'outpost', loot: 'outpost', name: 'The Redspire outpost', short: 'Redspire', x: HOME.x - 3700, z: HOME.z + 1700, y: 640, size: 52,
-    line: 'A red crag with a palisade, three gun towers and a cutter crew.', towers: 3, guard: [{ ids: ['cutter', 'skiff'], captain: -1 }, { ids: ['cutter', 'cutter'], captain: 0 }], crates: 3, regrow: 2, after: 'camp' },
-  { id: 'galleon', loot: 'airship', name: 'The supply galleon Wickmoor', short: 'The Wickmoor', x: HOME.x - 1300, z: HOME.z + 4200, y: 720, size: 0, moving: true,
-    line: 'Tallow\'s treasure ship, under escort. Shoot her sails and she strikes; sink her and her crates go down with her.', towers: 0,
-    guard: [{ ids: ['galleon', 'cutter', 'skiff'], captain: -1 }], crates: 3, regrow: 2, after: 'outpost' },
-  { id: 'citadel', loot: 'citadel', name: 'The Chandlery, Baron Tallow\'s citadel', short: 'The Chandlery', x: HOME.x + 2200, z: HOME.z + 4300, y: 760, size: 86,
-    line: 'A fortress of candle-works on a great lifted rock. Six gun towers, the Baron\'s frigate and his Man-o\'-war.', towers: 6,
-    guard: [{ ids: ['frigate', 'brig'], captain: 0 }, { ids: ['manowar', 'cutter', 'cutter'], captain: -1 }], crates: 5, regrow: 4, after: 'galleon' },
-  { id: 'survey', loot: 'outpost', name: 'The Plumbline, the Exchange\'s survey rig', short: 'The Plumbline', x: HOME.x + 3000, z: HOME.z - 1300, y: 660, size: 46, ch: 11, flag: 'silver',
-    line: 'A survey rig on a lifted rock off Hollowcrest: brass derricks, very long drills, two gun towers and an escort under silver sails.', towers: 2,
-    guard: [{ ids: ['cutter', 'cutter'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 3, regrow: 3, after: 'citadel' },
-  { id: 'dredge', loot: 'citadel', name: 'The Grindstone, the Exchange\'s dredge', short: 'The Grindstone', x: HOME.x + 500, z: HOME.z + 2700, y: 640, size: 0, moving: true, ch: 14,
-    line: 'A great dredge with a drill on her bow, cutting into the rock under the claim\'s south cliff, with a frigate and a brig to guard her. Shoot her sails and she strikes.', towers: 0,
-    guard: [{ ids: ['galleon', 'frigate', 'brig'], captain: -1 }], crates: 5, regrow: 6, after: 'survey' },
+  { id: 'camp', loot: 'camp', kind: 'rock', name: "Tallow's prospect camp", short: 'Prospect camp', x: HOME.x - 2100, z: HOME.z - 1500, y: 600, size: 34,
+    line: 'Tents on a lifted rock, two skiffs on guard and one gun.', goal: 'Silence the gun and the camp strikes its colours',
+    towers: 1, guard: [{ ids: ['skiff'], captain: -1 }, { ids: ['skiff', 'skiff'], captain: -1 }], crates: 2, regrow: 1, after: null, stars: 1, ship: 'skiff', pays: 'Gear and modules, Brass Scrap' },
+  { id: 'outpost', loot: 'outpost', kind: 'rock', spire: true, name: 'The Redspire outpost', short: 'Redspire', x: HOME.x - 3700, z: HOME.z + 1700, y: 640, size: 52,
+    line: 'A red crag with a palisade, three gun towers, a great gun on its spire and a cutter crew.', goal: 'Silence every gun, the great one on the spire too, and Redspire strikes',
+    towers: 3, guard: [{ ids: ['cutter', 'skiff'], captain: -1 }, { ids: ['cutter', 'cutter'], captain: 0 }], crates: 3, regrow: 2, after: 'camp', stars: 2, ship: 'cutter', pays: 'Better gear, a chance of a Masterwork' },
+  { id: 'galleon', loot: 'airship', kind: 'galleon', name: 'The supply galleon Wickmoor', short: 'The Wickmoor', x: HOME.x - 1300, z: HOME.z + 4200, y: 720, size: 0, moving: true,
+    line: 'Tallow\'s treasure ship, under escort, with a brig coming to help.', goal: 'Shoot her sails until she strikes. Sink her and her crates go down with her',
+    towers: 0, guard: [{ ids: ['galleon', 'cutter', 'skiff'], captain: -1 }, { ids: ['brig'], captain: -1 }], crates: 3, regrow: 2, after: 'outpost', stars: 2, ship: 'cutter', pays: 'A Lark part likely, Heartstone' },
+  { id: 'citadel', loot: 'citadel', kind: 'citadel', name: 'The Chandlery, Baron Tallow\'s citadel', short: 'The Chandlery', x: HOME.x + 2200, z: HOME.z + 4300, y: 760, size: 86,
+    line: 'A fortress of candle-works on a great lifted rock. Six gun towers, the Baron\'s frigate, and his own flagship somewhere under the rock.', goal: 'Silence the Chandlery’s guns and bring down Tallow’s flagship',
+    towers: 6, guard: [{ ids: ['frigate', 'brig'], captain: 0 }, { ids: ['cutter', 'cutter'], captain: -1 }], crates: 5, regrow: 4, after: 'galleon', stars: 4, ship: 'brig', pays: 'Five crates, a Masterwork likely, Heartstone' },
+  { id: 'survey', loot: 'survey', kind: 'rock', winches: true, name: 'The Plumbline, the Exchange\'s survey rig', short: 'The Plumbline', x: HOME.x + 3000, z: HOME.z - 1300, y: 660, size: 46, ch: 11, flag: 'silver', look: 'silver',
+    line: 'A survey rig on a lifted rock off Hollowcrest: brass derricks, very long drills, two gun towers and an escort under silver sails.', goal: 'Cut its three drill strings: shoot the winches on top of the derricks',
+    towers: 2, guard: [{ ids: ['cutter', 'cutter'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 3, regrow: 3, after: 'citadel', stars: 3, ship: 'brig', pays: 'Lark parts, modules, Cut Glass' },
+  { id: 'dredge', loot: 'dredge', kind: 'dredge', name: 'The Grindstone, the Exchange\'s dredge', short: 'The Grindstone', x: HOME.x + 500, z: HOME.z + 2700, y: 640, size: 0, moving: true, ch: 14, look: 'silver',
+    line: 'A great dredge with a drill on her bow, cutting into the cliff under the claim, with a frigate and a brig to guard her.', goal: 'Knock out her two drill engines before she’s through, then sink her',
+    towers: 0, guard: [{ ids: ['frigate', 'brig'], captain: -1 }, { ids: ['cutter', 'cutter', 'brig'], captain: -1 }], crates: 5, regrow: 6, after: 'survey', stars: 5, ship: 'frigate', pays: 'Five crates, a Lark part, a Masterwork likely' },
+  { id: 'convoy', loot: 'convoy', kind: 'convoy', name: 'The Brass Road convoy', short: 'The convoy', x: HOME.x - 3300, z: HOME.z + 2900, y: 700, size: 0, moving: true, ch: 3,
+    line: 'Three of the claim\'s ore barges, coming home up the Brass Road with jumpers waiting in the cloud.', goal: 'Bring the ore barges home to Brightvein',
+    towers: 0, guard: [{ ids: ['skiff', 'skiff'], captain: -1 }, { ids: ['cutter', 'skiff', 'skiff'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 2, regrow: 2, after: 'camp', stars: 2, ship: 'cutter', pays: 'More for every barge home, Brass Scrap' },
+  { id: 'storm', loot: 'storm', kind: 'storm', name: 'The storm front', short: 'The storm front', x: HOME.x + 3600, z: HOME.z + 900, y: 900, size: 0, moving: true, ch: 7,
+    line: 'A wall of Aether storm over the gorge, and a Thinwatch strongbox in a wreck at its eye. Its beacons still burn.', goal: 'Fly through the Thinwatch beacons before the front closes',
+    towers: 0, guard: [{ ids: ['skiff', 'skiff'], captain: -1 }], crates: 3, regrow: 2, after: 'outpost', stars: 3, ship: 'skiff', rings: 8, pays: 'Glass and Heartstone, a chance of a Masterwork' },
 ];
+
+// ---------- wanted: a jumper captain on the map for a big reward ----------
+const WANTED = [
+  ['Ottoline Grieve', 'the Rook'], ['Hollis Vane', 'Tinder'], ['Mags Corrie', 'the Red Hand'], ['Ezra Blackwick', 'the Snuffer of Lamps'],
+  ['Dellah Rusk', 'Six Sails'], ['Fenwick Marr', 'Old Iron'], ['Jessamy Coil', 'the Gull'], ['Barrow Twine', 'the Knot'],
+  ['Silas Embry', 'Ember'], ['Wren Halloway', 'the Quiet Gun'], ['Corbin Stave', 'the Plank'], ['Ida Sallow', 'Wax-Eyes'],
+];
+// a fresh bounty for this claim day and chapter: a captain in a ship that grows with the story, a place on the map, a
+// reward, and three days before she moves on
+export function makeBounty(day, ch, n = 0) {
+  const [name, nick] = WANTED[(day * 7 + n * 5) % WANTED.length];
+  const ship = ch >= 12 ? 'manowar' : ch >= 9 ? 'frigate' : ch >= 5 ? 'brig' : 'cutter';
+  const escorts = { cutter: ['skiff', 'skiff'], brig: ['cutter', 'skiff'], frigate: ['brig', 'cutter'], manowar: ['frigate', 'cutter', 'cutter'] }[ship];
+  const a = ((day * 2.39 + n) % 6.283), d = 2600 + ((day * 977) % 1400);
+  const reward = { cutter: 250, brig: 450, frigate: 800, manowar: 1400 }[ship];
+  return { name, nick, ship, escorts, x: HOME.x + Math.sin(a) * d, z: HOME.z + Math.cos(a) * d, until: day + 3, reward, n };
+}
+// the bounty as a raid site
+export function bountySite(B) {
+  return { id: 'bounty', loot: 'bounty', kind: 'bounty', name: `Wanted: ${B.name}, “${B.nick}”`, short: B.name, x: B.x, z: B.z, y: 760, size: 0, moving: true,
+    line: `${B.name}, called ${B.nick}, sails a jumper ${B.ship === 'manowar' ? 'Man-o\'-war' : B.ship} with ${B.escorts.length} escorts. The Thinwatch pays well for her.`,
+    goal: `Bring down ${B.name}`, towers: 0, guard: [{ ids: [B.ship, ...B.escorts], captain: 0 }], crates: 2, regrow: 0, stars: { cutter: 2, brig: 3, frigate: 4, manowar: 5 }[B.ship], ship: B.ship === 'cutter' ? 'cutter' : B.ship === 'brig' ? 'brig' : 'frigate', bounty: B, pays: `◆ ${B.reward} on her head, and her strongbox` };
+}
 
 const rnd = (a) => { const x = Math.sin(a * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 
 // ---------- the models: a rock lifted on sunstone, with the jumpers' camp on top ----------
-function materials() {
+export function materials() {
   const std = (o) => new THREE.MeshStandardMaterial({ roughness: 0.9, ...o });
   return {
     rock: std({ color: 0x8a7462, flatShading: true }),
     red: std({ color: 0xa4523a, flatShading: true }),
+    cliff: std({ color: 0x7c6a60, flatShading: true }),
     earth: std({ color: 0x7a6748 }),
     plank: std({ color: 0x8a6446, roughness: 0.85 }),
     dark: std({ color: 0x4a3426 }),
@@ -49,10 +85,13 @@ function materials() {
     stone: std({ color: 0xa69a8a, flatShading: true }),
     brass: std({ color: 0xd9a743, metalness: 0.85, roughness: 0.35 }),
     iron: std({ color: 0x3c3a3e, metalness: 0.6, roughness: 0.5 }),
+    steel: std({ color: 0x8a8e96, metalness: 0.8, roughness: 0.35, flatShading: true }),
     crystal: std({ color: 0xffb04a, emissive: 0xff7a1a, emissiveIntensity: 1.6, roughness: 0.2, flatShading: true }),
     flag: std({ color: 0xffffff, vertexColors: true, side: THREE.DoubleSide, roughness: 0.9 }),
     candle: std({ color: 0xefe2c2, roughness: 0.7 }),
     flame: new THREE.MeshBasicMaterial({ color: 0xffc86a, toneMapped: false }),
+    beacon: new THREE.MeshBasicMaterial({ color: 0x9fe7ff, toneMapped: false, transparent: true, opacity: 0.9 }),
+    beaconOn: new THREE.MeshBasicMaterial({ color: 0xffd27a, toneMapped: false, transparent: true, opacity: 0.55 }),
   };
 }
 
@@ -85,7 +124,7 @@ function flagGeo(w = 5, h = 3) {
   g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
   return g;
 }
-function colourFlag(flag, ours) {
+export function colourFlag(flag, ours) {
   const c = flag.geometry.attributes.color, p = flag.geometry.attributes.position, w = flag.userData.w, F = FLAGS[ours ? 'ours' : flag.userData.kind || 'jumpers'];
   for (let i = 0; i < c.count; i++) { const hoist = p.getX(i) < w * 0.2; c.setXYZ(i, ...(hoist ? F[0] : F[1])); }
   c.needsUpdate = true;
@@ -123,20 +162,29 @@ function shed(P, M, x, z, w, d, h, ry = 0) {
   const roof = new THREE.ConeGeometry(Math.hypot(w, d) * 0.56, h * 0.6, 4).rotateY(Math.PI / 4).scale(w / Math.hypot(w, d) * 1.42, 1, d / Math.hypot(w, d) * 1.42);
   P.add(roof, M.roof, x, h + h * 0.3, z, ry);
 }
-// a gun tower: four legs, a platform, and a brass gun that turns to follow you (a separate piece, so it can turn)
-function tower(group, P, M, x, z, h = 7) {
-  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) P.add(new THREE.BoxGeometry(0.4, h, 0.4), M.plank, x + dx * 1.3, h / 2, z + dz * 1.3);
-  P.add(new THREE.BoxGeometry(3.6, 0.4, 3.6), M.dark, x, h, z);
-  const head = new THREE.Group(); head.position.set(x, h + 0.2, z); group.add(head);
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 0.9, 10), M.iron); base.position.y = 0.45; base.castShadow = true; head.add(base);
-  const barrel = new THREE.Group(); barrel.position.y = 1.2; head.add(barrel);
-  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.45, 3.6, 10).rotateX(Math.PI / 2).translate(0, 0, 1.4), M.brass); tube.castShadow = true; barrel.add(tube);
-  const lens = new THREE.Mesh(new THREE.SphereGeometry(0.36, 8, 6).translate(0, 0, 3.2), M.crystal); barrel.add(lens);
-  return { head, barrel, local: V(x, h + 1.4, z) };
+// a gun tower: four legs, a platform, and a brass gun that turns to follow you (a separate piece, so it can turn).
+// y0 lifts the whole tower (the great gun on Redspire's spire); big makes the gun heavier-looking
+function tower(group, P, M, x, z, h = 7, { y0 = 0, big = 1, legs = true } = {}) {
+  if (legs) for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) P.add(new THREE.BoxGeometry(0.4, h, 0.4), M.plank, x + dx * 1.3, y0 + h / 2, z + dz * 1.3);
+  P.add(new THREE.BoxGeometry(3.6 * big, 0.4, 3.6 * big), M.dark, x, y0 + h, z);
+  const head = new THREE.Group(); head.position.set(x, y0 + h + 0.2, z); group.add(head);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.1 * big, 1.3 * big, 0.9 * big, 10), M.iron); base.position.y = 0.45 * big; base.castShadow = true; head.add(base);
+  const barrel = new THREE.Group(); barrel.position.y = 1.2 * big; head.add(barrel);
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.32 * big, 0.45 * big, 3.6 * big, 10).rotateX(Math.PI / 2).translate(0, 0, 1.4 * big), M.brass); tube.castShadow = true; barrel.add(tube);
+  const lens = new THREE.Mesh(new THREE.SphereGeometry(0.36 * big, 8, 6).translate(0, 0, 3.2 * big), M.crystal); barrel.add(lens);
+  return { head, barrel, local: V(x, y0 + h + 1.4 * big, z), big };
+}
+// a derrick's winch on the Plumbline: a drum of cable and a glowing governor; shoot it and the drill string falls
+function winch(group, M, x, y, z) {
+  const head = new THREE.Group(); head.position.set(x, y, z); group.add(head);
+  const drum = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 2.6, 12).rotateZ(Math.PI / 2), M.iron); drum.castShadow = true; head.add(drum);
+  for (const sx of [-1, 1]) { const cap = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 0.2, 12).rotateZ(Math.PI / 2), M.brass); cap.position.x = sx * 1.35; head.add(cap); }
+  const gov = new THREE.Mesh(new THREE.OctahedronGeometry(0.7, 0), M.crystal); gov.position.y = 1.5; head.add(gov);
+  return { head, barrel: gov, local: V(x, y + 0.4, z), big: 1, silent: true };
 }
 
 export function buildSite(def, M) {
-  const group = new THREE.Group(), P = pieces(), R = def.size, towers = [];
+  const group = new THREE.Group(), P = pieces(), R = def.size, towers = [], strings = [];
   const depth = buildRock(def, M, P);
   // a palisade round the edge, open towards the landing stage
   for (let i = 0; i < 40; i++) {
@@ -151,11 +199,12 @@ export function buildSite(def, M) {
     shed(P, M, 6, -6, 7, 5, 3.2, 0.3);
     for (let i = 0; i < 6; i++) P.add(new THREE.CylinderGeometry(0.45, 0.45, 1, 8), M.plank, 12 + (i % 3) * 1, 0.5, -2 + Math.floor(i / 3) * 1.1);
   } else if (def.id === 'outpost') {
-    // the red spire the outpost is named for, with a lookout on top
+    // the red spire the outpost is named for, with a lookout on top, and the great gun on the lookout
     P.add(new THREE.ConeGeometry(9, 34, 7), M.red, -14, 17, -10);
     P.add(new THREE.BoxGeometry(5, 3, 5), M.plank, -14, 28, -10);
     shed(P, M, 8, 10, 10, 7, 4, 0.2); shed(P, M, 14, -10, 8, 6, 3.6, -0.3); shed(P, M, -2, 18, 7, 6, 3.4, 0.9);
     tent(P, M, 20, 4, 3); tent(P, M, -20, 14, 2.8);
+    const t = tower(group, P, M, -14, -10, 0.4, { y0: 29.5, big: 1.7, legs: false }); t.spire = true; towers.push(t);
   } else if (def.id === 'citadel') {
     // the Chandlery: a stone keep with tall chimneys, candle-vats and a great candle burning on its roof
     P.add(new THREE.BoxGeometry(34, 16, 26), M.stone, 0, 8, 0);
@@ -167,13 +216,20 @@ export function buildSite(def, M) {
     P.add(new THREE.CylinderGeometry(2.4, 2.4, 9, 12), M.candle, 0, 28.5, -3);
     P.add(new THREE.ConeGeometry(1.1, 3.4, 8), M.flame, 0, 34.6, -3);
     for (let i = 0; i < 6; i++) P.add(new THREE.CylinderGeometry(3, 3, 3, 12), M.dark, 20 + (i % 3) * 7, 1.5, -40 + Math.floor(i / 3) * 7);
+    // the docks under the rock, where the Baron keeps his flagship: a great timber cradle hanging off the underside
+    for (const sx of [-1, 1]) P.add(new THREE.BoxGeometry(3, 3, 70), M.dark, sx * 16, -depth * 0.35, R * 0.15);
+    for (let i = 0; i < 5; i++) P.add(new THREE.BoxGeometry(36, 2, 2.4), M.plank, 0, -depth * 0.35 - 1, R * 0.15 - 28 + i * 14);
   } else if (def.id === 'survey') {
     // the Plumbline: three brass derricks with their drill strings hanging down past the rock, and a counting-house
     for (const [x, z, h] of [[-12, -8, 22], [10, -12, 26], [-2, 14, 20]]) {
       for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) P.add(new THREE.CylinderGeometry(0.22, 0.32, h, 5), M.brass, x + dx * 2.2 * 0.5, h / 2, z + dz * 2.2 * 0.5, 0, dz * 0.09, -dx * 0.09);
       for (let k = 1; k < 4; k++) P.add(new THREE.BoxGeometry(2.6 - k * 0.4, 0.18, 2.6 - k * 0.4), M.iron, x, h * k / 4, z);
-      P.add(new THREE.CylinderGeometry(0.16, 0.16, h + 26, 6), M.iron, x, h / 2 - 13, z);
-      P.add(new THREE.ConeGeometry(0.7, 2.4, 8), M.iron, x, -26.5, z, 0, Math.PI);
+      // the drill string, its own piece so it can fall when the winch is shot
+      const str = new THREE.Group(); str.position.set(x, 0, z); group.add(str);
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, h + 26, 6), M.iron); rod.position.y = h / 2 - 13; rod.castShadow = true; str.add(rod);
+      const bit = new THREE.Mesh(new THREE.ConeGeometry(0.7, 2.4, 8).rotateX(Math.PI), M.iron); bit.position.y = -26.5; str.add(bit);
+      strings.push(str);
+      if (def.winches) { const w = winch(group, M, x, h + 1.4, z); w.string = str; towers.push(w); }
     }
     shed(P, M, 14, 10, 12, 8, 5, 0.2); shed(P, M, -18, 10, 7, 6, 3.6, -0.4);
     P.add(new THREE.BoxGeometry(12.2, 0.6, 8.2), M.stone, 14, 0.3, 10, 0.2);
@@ -186,150 +242,61 @@ export function buildSite(def, M) {
   }
   P.build(group);
   // the flag, high on a pole
-  const poleH = def.id === 'citadel' ? 46 : def.id === 'outpost' ? 36 : 14, px = def.id === 'outpost' ? -14 : 0, pz = def.id === 'outpost' ? -10 : 0;
+  const poleH = def.id === 'citadel' ? 46 : def.id === 'outpost' ? 36 : 14, px = def.id === 'outpost' ? -10 : 0, pz = def.id === 'outpost' ? -6 : 0;
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, poleH, 6), M.dark); pole.position.set(px, poleH / 2, pz); group.add(pole);
   const flag = new THREE.Mesh(flagGeo(def.id === 'citadel' ? 9 : 5, def.id === 'citadel' ? 5 : 3), M.flag); flag.position.set(px, poleH - 2, pz); flag.userData.w = def.id === 'citadel' ? 9 : 5; flag.userData.kind = def.flag || 'jumpers'; group.add(flag);
-  return { group, towers, flag, depth };
+  return { group, towers, flag, depth, strings };
 }
 
-// ---------- a raid: the place, its guns and its guards ----------
-// raiders: the raider fleet (raiders.js); skies(): the current skies' settings
-export function makeSites(scene, bolts, smoke, raiders, skies) {
-  const M = materials(), models = new Map();
-  let cur = null;
-  const ZERO = V();
-  function modelFor(def) {
-    if (!models.has(def.id)) models.set(def.id, buildSite(def, M));
-    return models.get(def.id);
+// ---------- the Grindstone's set: the cliff she's cutting into, and her drill ----------
+// a cliff face rising out of the cloud, ~420 m across and 600 m tall, its face towards +z; a glowing wound where
+// the drill bites
+export function buildCliff(M) {
+  const group = new THREE.Group(), W = 420, H = 600, D = 160;
+  const g = new THREE.BoxGeometry(W, H, D, 18, 24, 2), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const n = (rnd(Math.round(x / 23) * 3.7 + Math.round(y / 25) * 1.3) - 0.5) * 30 + Math.sin(y / 40 + x / 90) * 12;
+    p.setXYZ(i, x + (rnd(y * 0.13 + z) - 0.5) * 10, y, z > 0 ? z + n : z);
   }
-  // start a raid on this place (def from SITES). Returns where the Captain sets out from, and heading.
-  function start(def) {
-    clear();
-    cur = { def, state: 'approach', wave: 0, guards: [], towers: [], taken: false, lost: false, center: V(def.x, def.y, def.z), timer: 0, prize: null, smokeT: 0 };
-    if (!def.moving) {
-      const m = modelFor(def);
-      m.group.position.copy(cur.center); m.group.rotation.y = rnd(def.size) * 6;
-      scene.add(m.group); m.group.updateMatrixWorld(true);
-      colourFlag(m.flag, false);
-      const S = skies();
-      cur.towers = m.towers.map((t) => ({ ...t, hp: (def.id === 'citadel' ? 420 : 260) * S.toughness, max: (def.id === 'citadel' ? 420 : 260) * S.toughness, ready: 2 + Math.random() * 2, alive: true,
-        world: t.local.clone().applyMatrix4(m.group.matrixWorld) }));
-      for (const t of cur.towers) { t.head.visible = true; t.head.rotation.set(0, 0, 0); }
-      cur.model = m;
-    } else {
-      // the galleon and her escort are out on their run already
-      spawnGuard(0);
-    }
-    const toward = Math.atan2(def.x - HOME.x, def.z - HOME.z);
-    return { pos: V(HOME.x + Math.sin(toward) * 900, 680, HOME.z + Math.cos(toward) * 900), heading: toward };
+  g.computeVertexNormals();
+  const rock = new THREE.Mesh(g, M.cliff); rock.position.set(0, -H / 2 + 120, 0); rock.receiveShadow = true; group.add(rock);
+  const wound = new THREE.Mesh(new THREE.SphereGeometry(11, 14, 10), M.crystal); wound.scale.z = 0.4; wound.position.set(0, 0, D / 2 + 6); group.add(wound);
+  group.userData.wound = wound;
+  return group;
+}
+// a dredge's drill: a fluted iron cone the length of a lens tower, with brass collars, turning on her bow
+export function buildDrill(M, len = 24, r = 5.5) {
+  const group = new THREE.Group();
+  const cone = new THREE.ConeGeometry(r, len, 18, 12, true).rotateX(Math.PI / 2).translate(0, 0, len / 2);
+  const p = cone.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(y, x) + z * 0.45, rr = Math.hypot(x, y) * (1 + 0.12 * Math.sin(a * 3));
+    p.setXYZ(i, Math.cos(a) * rr, Math.sin(a) * rr, z);
   }
-  // the guards come out: from round the rock towards the Captain (or, for the galleon, sailing her course)
-  function spawnGuard(i, foe) {
-    const w = cur.def.guard[i], c = cur.center;
-    const toFoe = foe ? Math.atan2(foe.pos.x - c.x, foe.pos.z - c.z) : 0;
-    w.ids.forEach((id, k) => {
-      if (cur.def.moving && id === 'galleon') {
-        const r = raiders.spawn('galleon', c.clone(), Math.atan2(HOME.x - c.x, HOME.z - c.z) + Math.PI / 2, false, false);
-        r.name = cur.def.short; cur.prize = r; cur.guards.push(r); return;
-      }
-      const a = (cur.def.moving ? toFoe + Math.PI : toFoe) + (k - (w.ids.length - 1) / 2) * 0.5, d = (cur.def.size || 60) + 120 + k * 30;
-      const pos = V(c.x + Math.sin(a) * d, c.y + 30 + k * 15, c.z + Math.cos(a) * d);
-      const r = raiders.spawn(id, pos, foe ? Math.atan2(foe.pos.x - pos.x, foe.pos.z - pos.z) : a, false, k === w.captain);
-      r.name = `Jumper ${k === w.captain ? 'captain\'s ' : ''}${r.R.cls}`;
-      cur.guards.push(r);
-    });
-  }
-  // where the place is now (the galleon moves)
-  const where = () => (cur.prize && !cur.prize.gone ? cur.prize.f.pos : cur.center);
-
-  // every frame. Returns what happened: 'guards' (the guards came out), 'wave' (more guards), 'tower' (a gun silenced),
-  // 'taken', 'lost' (the galleon sank or got away), or null
-  const aimP = V();
-  function update(dt, foe) {
-    if (!cur) return null;
-    const def = cur.def, d = where().distanceTo(foe.pos);
-    let ev = null;
-    if (cur.state === 'approach' && (d < 1300 || def.moving)) { cur.state = 'fight'; if (!def.moving) spawnGuard(0, foe); ev = 'guards'; }
-    // the gun towers turn and fire while you're in reach
-    const S = skies();
-    for (const t of cur.towers) {
-      if (!t.alive) {
-        if ((t.smokeT = (t.smokeT ?? 0) - dt) <= 0) { t.smokeT = 0.18; smoke.emit(t.world, V((Math.random() - 0.5) * 2, 3, (Math.random() - 0.5) * 2), 4, 2, 9, 0.15, 0.5); }
-        continue;
-      }
-      const td = t.world.distanceTo(foe.pos);
-      const yaw = Math.atan2(foe.pos.x - t.world.x, foe.pos.z - t.world.z) - cur.model.group.rotation.y;
-      t.head.rotation.y = yaw;
-      t.barrel.rotation.x = -Math.atan2(foe.pos.y - t.world.y, Math.hypot(foe.pos.x - t.world.x, foe.pos.z - t.world.z));
-      t.ready -= dt;
-      if (cur.state !== 'approach' && td < 1150 && t.ready <= 0 && !foe.down) {
-        // a volley of two (three from the Chandlery's heavier towers), each a little off
-        t.ready = 2.6 * S.reload * (0.85 + Math.random() * 0.3);
-        const from = t.world.clone().add(V(0, 0.4, 0)), e = td * 0.012 * S.aim + 1, n = def.id === 'citadel' ? 3 : 2;
-        for (let k = 0; k < n; k++) {
-          aimP.copy(intercept(from, ZERO, foe.aimAt(), foe.velocity, 430));
-          aimP.add(V(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(2 * e));
-          bolts.fire(from, aimP.sub(from).normalize(), 'chaser', 'raider', ZERO, (def.id === 'citadel' ? 1.25 : 0.9) * S.damage);
-        }
-      }
-    }
-    if (cur.state === 'fight') {
-      const live = cur.guards.filter((r) => !r.f.down && !r.gone);
-      if (def.moving) {
-        const P = cur.prize;
-        if (P && P.f.down) { cur.state = P.f.down.why === 'struck' ? 'taken' : 'lost'; ev = cur.state; cur.taken = cur.state === 'taken'; }
-        else if (P && (P.gone || P.escaped)) { cur.state = 'lost'; ev = 'lost'; }
-      } else if (!live.length) {
-        if (cur.wave + 1 < def.guard.length) { cur.wave++; cur.timer = 3; cur.state = 'between'; }
-        else if (!cur.towers.some((t) => t.alive)) { cur.state = 'taken'; cur.taken = true; ev = 'taken'; colourFlag(cur.model.flag, true); }
-      }
-    } else if (cur.state === 'between') {
-      if ((cur.timer -= dt) <= 0) { cur.state = 'fight'; spawnGuard(cur.wave, foe); ev = 'wave'; }
-    }
-    // the last gun silenced with the guards already down
-    if (cur.state === 'fight' && !def.moving && cur.wave + 1 >= def.guard.length && !cur.guards.some((r) => !r.f.down && !r.gone) && !cur.towers.some((t) => t.alive)) {
-      cur.state = 'taken'; cur.taken = true; ev = 'taken'; colourFlag(cur.model.flag, true);
-    }
-    // the chimneys of the Chandlery smoke
-    if (def.id === 'citadel' && (cur.smokeT -= dt) <= 0) {
-      cur.smokeT = 0.25;
-      const m = cur.model.group, p = V(-6 + Math.floor(Math.random() * 4) * 4, 41, 4).applyEuler(m.rotation).add(m.position);
-      smoke.emit(p, V(1.5, 4, 0.5), 9, 4, 22, 0.3, 0.45);
-    }
-    return ev;
-  }
-  // a shot from a to b: does it hit a gun tower (the Captain's shots), or the rock (anyone's)?
-  const seg = new THREE.Line3(), near = V();
-  function hitBy(a, b, owner) {
-    if (!cur || cur.def.moving) return null;
-    if (owner === 'player') for (const t of cur.towers) {
-      if (!t.alive) continue;
-      if (seg.set(a, b).closestPointToPoint(t.world, true, near).distanceTo(t.world) < 5) return { tower: t, at: near.clone() };
-    }
-    // the rock: inside its top's circle, between its top and its keel
-    const c = cur.center, R = cur.def.size, dx = b.x - c.x, dz = b.z - c.z, y = b.y - c.y;
-    if (y < 0.5 && y > -cur.model.depth && Math.hypot(dx, dz) < R * (1 + y / cur.model.depth * 0.9)) return { rock: true, at: b.clone() };
-    return null;
-  }
-  function damageTower(t, dmg) {
-    t.hp -= dmg;
-    if (t.hp <= 0 && t.alive) { t.alive = false; t.barrel.visible = false; bolts.burst(t.world, 0xff8a3a, 50, 2); return true; }
-    return false;
-  }
-  // keep the Captain's ship out of the rock
-  function keepOut(foe) {
-    if (!cur || cur.def.moving) return;
-    const c = cur.center, R = cur.def.size + 6, dx = foe.pos.x - c.x, dz = foe.pos.z - c.z, h = Math.hypot(dx, dz), y = foe.pos.y - c.y;
-    if (h < R && y < 10 && y > -cur.model.depth * 0.8) { foe.pos.y = c.y + 10; foe.vy = Math.max(0, foe.vy); }
-  }
-  function clear() {
-    if (cur?.model) scene.remove(cur.model.group);
-    cur = null;
-  }
-  return {
-    start, update, hitBy, damageTower, keepOut, clear, where,
-    get cur() { return cur; },
-    get towersLeft() { return cur ? cur.towers.filter((t) => t.alive).length : 0; },
-    get guardsLeft() { return cur ? cur.guards.filter((r) => !r.f.down && !r.gone).length + (cur.state === 'approach' || cur.state === 'between' ? 1 : 0) : 0; },
-  };
+  cone.computeVertexNormals();
+  const bit = new THREE.Mesh(cone, M.steel); bit.castShadow = true;
+  const spin = new THREE.Group(); spin.add(bit); group.add(spin);
+  for (const [z, rr] of [[0.3, r * 1.08], [len * 0.3, r * 0.8]]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.45, 6, 20), M.brass); ring.position.z = z; group.add(ring); }
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.1, r * 1.25, 3, 16).rotateX(Math.PI / 2), M.iron); collar.position.z = -1.2; group.add(collar);
+  group.userData.spin = spin;
+  return group;
+}
+// the drill engines on a dredge's flanks: brass housings on outriggers, a sunstone furnace glowing on top
+export function buildEngine(M) {
+  const g = new THREE.Group();
+  const house = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 5, 12), M.brass); house.castShadow = true; g.add(house);
+  const top = new THREE.Mesh(new THREE.OctahedronGeometry(1.8, 0), M.crystal); top.position.y = 3.6; g.add(top);
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(5, 0.8, 1.4), M.iron); arm.position.x = -3; g.add(arm);
+  g.userData.top = top;
+  return g;
+}
+// a Thinwatch beacon: a ring of brass with a light at its heart; it turns gold once flown through
+export function buildBeacon(M, r = 30) {
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 1.3, 8, 40), M.brass); g.add(ring);
+  const glow = new THREE.Mesh(new THREE.TorusGeometry(r, 2.6, 6, 40), M.beacon); g.add(glow);
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2, c = new THREE.Mesh(new THREE.OctahedronGeometry(2.6, 0), M.crystal); c.position.set(Math.cos(a) * r, Math.sin(a) * r, 0); g.add(c); }
+  g.userData.glow = glow;
+  return g;
 }

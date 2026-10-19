@@ -100,7 +100,7 @@ const QUESTS = {
     rewardText: 'The Gannet joins the fleet (or, if you have a cutter, toughens her up), and voyages bring home a fifth more shards while Barnabus is here.',
     reward() {
       let note = 'The Gannet joins the fleet';
-      if (FLEET) { const s = FLEET.data.ships.cutter; if (!s.owned) s.owned = true; else { s.mods.armour = Math.min(3, s.mods.armour + 1); s.mods.canvas = Math.min(3, s.mods.canvas + 1); note = 'Your cutter gets the Gannet’s armour and canvas'; } FLEET.save(); }
+      if (FLEET) { const s = FLEET.data.ships.cutter; if (!s.owned) { s.owned = true; s.name = 'Gannet'; } else { s.refit.hull = Math.min(3, s.refit.hull + 1); s.refit.sails = Math.min(3, s.refit.sails + 1); note = 'Your cutter gets the Gannet’s armour and canvas'; } FLEET.save(); if (SKY && SKY.shipArt) dockMoor(); }
       return { codex: 'gannet', note };
     } },
   tock: { title: 'Mirrors on Poles', who: 'Nib',

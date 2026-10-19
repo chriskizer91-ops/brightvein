@@ -7,7 +7,7 @@
 //   torn sails slow the ship and make it turn badly
 //   cracked crystals make it climb badly and sink, and at zero force it down out of the fight
 //   at zero hull it goes down
-// Upgrades bought in port (mods.js) scale the speed, speeding up, turning and climbing. The wind helps a ship sailing
+// Refits bought in the Shipyard and the pilot (refit.js) scale the speed, speeding up, turning and climbing. The wind helps a ship sailing
 // with it and holds back one sailing into it, and a Surge pours the crystals into the sails for a few seconds.
 import * as THREE from 'three';
 import { THINNING } from './world.js';
@@ -24,9 +24,10 @@ export const windHelp = (heading) => WIND.strength * Math.cos(heading - WIND.dir
 // A Surge: 60% more top speed for 3 seconds, then 15 seconds to build up again
 export const SURGE = { boost: 0.6, time: 3, recharge: 15 };
 
-// `tune` scales top speed, speeding up, turning and climbing (upgrades, and the raiders sailing a little slower)
+// `tune` scales top speed, speeding up, turning and climbing (refits, the pilot, and the raiders sailing a little
+// slower); `guard` is how much of a hit on the hull lands (the bosun's hull crew); `surge` is this ship's own Surge
 export function makeFlyer(ship, stats, start, tune = {}) {
-  const T = { speed: 1, accel: 1, turn: 1, climb: 1, ...tune };
+  const T = { speed: 1, accel: 1, turn: 1, climb: 1, guard: 1, ...tune }, SG = { ...SURGE, ...(tune.surge || {}) };
   const H = handling(stats), pace = T.speed;
   const full = { hull: stats.hull, sails: stats.sails, crystals: stats.crystals };
   const s = {
@@ -36,8 +37,9 @@ export function makeFlyer(ship, stats, start, tune = {}) {
     down: null, // how it's going down, once it is: 'hull' or 'crystals', and for how long
     aimY: 0, // how far below its deck to aim at it (the middle of its hull)
     surge: { on: 0, charge: 1 }, // seconds of Surge left, and how built up the next one is (1 = ready)
+    SG, T,
   };
-  s.startSurge = () => { if (s.down || s.surge.charge < 1) return false; s.surge.on = SURGE.time; s.surge.charge = 0; return true; };
+  s.startSurge = () => { if (s.down || s.surge.charge < 1) return false; s.surge.on = SG.time; s.surge.charge = 0; return true; };
   s.aimAt = () => s.pos.clone().setY(s.pos.y + s.aimY);
   ship.root.rotation.order = 'YXZ';
   s.frac = (k) => s.health[k] / full[k];
@@ -46,7 +48,8 @@ export function makeFlyer(ship, stats, start, tune = {}) {
   s.repair = (k) => { for (const p in full) s.health[p] = Math.min(full[p], s.health[p] + full[p] * k); };
   s.strikes = false; // a treasure ship strikes her colours (gives up) with no sails left, or a quarter of her hull
   s.hit = (part, damage) => {
-    if (s.down) return;
+    if (s.down || s.invuln) return;
+    if (part === 'hull') damage *= T.guard;
     s.health[part] = Math.max(0, s.health[part] - damage);
     if (s.health.hull <= 0) s.down = { why: 'hull', t: 0, roll: Math.random() < 0.5 ? -1 : 1 };
     else if (s.health.crystals <= 0) s.down = { why: 'crystals', t: 0, roll: Math.random() < 0.5 ? -1 : 1 };
@@ -58,8 +61,8 @@ export function makeFlyer(ship, stats, start, tune = {}) {
     if (s.down) return sink(dt);
     const sf = s.frac('sails'), cf = s.frac('crystals');
     const surging = s.surge.on > 0;
-    if (surging) s.surge.on = Math.max(0, s.surge.on - dt); else s.surge.charge = Math.min(1, s.surge.charge + dt / SURGE.recharge);
-    const vmax = H.vmax * pace * (0.3 + 0.7 * sf) * (1 + windHelp(s.heading)) * (surging ? 1 + SURGE.boost : 1);
+    if (surging) s.surge.on = Math.max(0, s.surge.on - dt); else s.surge.charge = Math.min(1, s.surge.charge + dt / SG.recharge);
+    const vmax = H.vmax * pace * (0.3 + 0.7 * sf) * (1 + windHelp(s.heading)) * (surging ? 1 + SG.boost : 1);
     const turnRate = H.turn * T.turn * (0.45 + 0.55 * sf), climbRate = H.climb * T.climb * (0.25 + 0.75 * cf);
     s.sail = c.sailTo != null ? clamp(c.sailTo, 0, 1) : clamp(s.sail + (c.sail ?? 0) * dt * 0.5, 0, 1);
     const target = (surging ? 1 : s.sail) * vmax;

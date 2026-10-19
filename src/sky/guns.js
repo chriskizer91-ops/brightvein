@@ -87,10 +87,11 @@ export function makeBolts(scene, max = 400) {
   const bolts = [], sparks = [];
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), FWD = V(0, 0, 1);
   const spark = (p, v, life, size, color) => { if (sparks.length < GMAX - max) sparks.push({ p: p.clone(), v: v.clone(), life, max: life, size, c: new THREE.Color(color) }); };
-  function fire(from, dir, kind, owner, inherit, weight = 1) {
+  // spreadK widens or tightens the spread (good gunners aim truer)
+  function fire(from, dir, kind, owner, inherit, weight = 1, spreadK = 1) {
     if (bolts.length >= max) return;
-    const K = KINDS[kind], color = new THREE.Color(BOLT_COLORS[owner] ?? BOLT_COLORS.player);
-    const d = dir.clone().add(V((Math.random() - 0.5) * K.spread * 2, (Math.random() - 0.5) * K.spread * 2, (Math.random() - 0.5) * K.spread * 2)).normalize();
+    const K = KINDS[kind], color = new THREE.Color(BOLT_COLORS[owner] ?? BOLT_COLORS.player), sp = K.spread * spreadK;
+    const d = dir.clone().add(V((Math.random() - 0.5) * sp * 2, (Math.random() - 0.5) * sp * 2, (Math.random() - 0.5) * sp * 2)).normalize();
     bolts.push({ p: from.clone(), prev: from.clone(), v: d.multiplyScalar(K.speed).add(inherit ?? V(0, 0, 0)), life: K.life, K, owner, damage: K.damage * weight,
       color, head: color.clone().lerp(new THREE.Color(0xffffff), 0.3) });
     spark(from, inherit ?? V(0, 0, 0), 0.18, 9 * K.size, owner === 'raider' ? 0xff8a5a : 0xffd27a);
@@ -129,19 +130,21 @@ export function makeBolts(scene, max = 400) {
 }
 
 // A ship's gunnery: reload clocks per battery, and firing the battery that faces the aim point.
-// `reload` stretches or shortens the reload, `damage` makes each shot heavier or lighter (upgrades, crystal power, and
-// the raiders' slower crews)
-export function makeGunnery(ship, { reload: slow = 1, damage = 1 } = {}) {
+// `reload` stretches or shortens the reload, `damage` makes each shot heavier or lighter (refits, crystal power, the
+// gunners, and the raiders' slower crews), `aim` tightens or widens the spread. A battery with both kinds of gun (rail
+// swivels over broadside ports) reloads at the broadsides' pace and aims by them.
+export function makeGunnery(ship, { reload: slow = 1, damage = 1, aim: spreadK = 1 } = {}) {
   const B = gunsOf(ship), ready = { bow: 0, stern: 0, port: 0, starboard: 0 }, weight = damage * (GUN_WEIGHT[ship.recipe.id] ?? 1);
   const world = new THREE.Vector3(), dirW = new THREE.Vector3(), nm = new THREE.Matrix3();
-  const reload = (b) => (B[b][0] ? KINDS[B[b][0].kind].reload * slow : 1);
+  const kindOf = (b) => (B[b].some((g) => g.kind === 'broadside') ? 'broadside' : 'chaser');
+  const reload = (b) => (B[b][0] ? KINDS[kindOf(b)].reload * slow : 1);
   return {
-    B, ready, reload,
+    B, ready, reload, weight, kindOf,
     count: (b) => B[b].length,
     update(dt) { for (const k in ready) ready[k] = Math.max(0, ready[k] - dt); },
-    // the middle gun of a battery, in the world: where it is, which way it points, and its kind
+    // the middle gun of a battery's main kind, in the world: where it is, which way it points, and its kind
     muzzle(b) {
-      const g = B[b][B[b].length >> 1]; if (!g) return null;
+      const main = B[b].filter((g) => g.kind === kindOf(b)), g = main[main.length >> 1]; if (!g) return null;
       nm.getNormalMatrix(ship.body.matrixWorld);
       return { p: g.p.clone().applyMatrix4(ship.body.matrixWorld), d: g.d.clone().applyMatrix3(nm).normalize(), K: KINDS[g.kind] };
     },
@@ -160,7 +163,7 @@ export function makeGunnery(ship, { reload: slow = 1, damage = 1 } = {}) {
         world.copy(g.p).applyMatrix4(ship.body.matrixWorld);
         dirW.copy(g.d).applyMatrix3(nm).normalize();
         const K = KINDS[g.kind], want = aim.clone().sub(world).normalize();
-        bolts.fire(world, clampToArc(want, dirW, K.yaw, K.pitch), g.kind, owner, inherit, weight);
+        bolts.fire(world, clampToArc(want, dirW, K.yaw, K.pitch), g.kind, owner, inherit, weight, spreadK);
       }
       ready[b] = reload(b);
       return B[b].length;

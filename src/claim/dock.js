@@ -2,7 +2,8 @@
 // The Captain's fighting ship rides off the north rim, at the end of a tall boarding bridge that climbs over the wall
 // and runs out over the drop, under a gantry crane. From here she sets sail over Aethermoor (src/sky/): the claim's
 // time stands still while she's away, and the shards she wins come home to the claim's own purse. The courier Lark
-// keeps her mast; the Dock is for the fleet. Ships, upgrades and the choice of skies live in the shipyard.
+// keeps her mast; the Dock is for the fleet. Ships, refits, looks and the choice of skies live in the Shipyard
+// (src/sky/port.js); the crew, repairs, raids and bounties in yard.js, which has the Dock's panel.
 const DOCK = { b: null, ship: null, lines: null, t: 0, deck: 4.0 };
 let SKY = null, FLEET = null;
 const DOCK_DEF = { name: 'Sky Dock', max: 1, cost: [0, 0], levels: ['Boarding bridge and gantry'],
@@ -97,7 +98,7 @@ function dockBerth(s) {
 }
 async function dockMoor() {
   if (!SKY) return;
-  const R = SHIPS.find(s => s.id === FLEET.data.flying), s = await SKY.shipFor(R);
+  const R = yardShip(FLEET.data.flying), s = await SKY.shipFor(R);
   if (SKY.on) return;                                  // sailed off while she was being built
   if (DOCK.ship && DOCK.ship !== s) DOCK.ship.root.removeFromParent();
   DOCK.ship = s;
@@ -128,10 +129,11 @@ function dockUpdate(dt) {
     s.update(dt, { calm: true });
     // the claim's light is brighter than the skies', and it blooms: her sails and crystals are dimmed a little here
     s.glow.material.uniforms.uScale.value = 0.6 * renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
-    A.M.canvas.emissiveIntensity = 0.02 + TOD.night * 0.1;
+    (s.M || A.M).canvas.emissiveIntensity = 0.02 + TOD.night * 0.1 + (s.paint && s.paint.glowSails ? 0.08 : 0);
     A.M.canvas.userData.time.value += dt;
     A.M.gem.emissiveIntensity = 0.45 + TOD.night * 0.3 + Math.sin(DOCK.t * 2.4) * 0.08;
   }
+  yardTick(dt);
 }
 
 // ----------------------------------------------------------------- setting up, sailing out, coming home
@@ -142,12 +144,27 @@ function setupDock(save) {
   modelDock(b); b.show(1);
   DOCK.b = b;
   FLEET = makeProgress({ wallet: { get: () => GAME.shards, set: n => { GAME.shards = n; } }, load: () => save && save.sky, store: () => saveGame() });
-  SKY = makeSky({ renderer, canvas, progress: FLEET, onLeave: dockHome, sound: (k, at) => AUDIO.play(k, at) });
+  SKY = makeSky({ renderer, canvas, progress: FLEET, onLeave: dockHome, sound: (k, at) => AUDIO.play(k, at), claim: dockLink() });
   SKY.art.then(() => setTimeout(dockMoor, 50)).catch(e => console.error(e));
+}
+// what the skies need from the claim: the crew, the claim's day (repairs), what the Shipyard has opened, the stores
+const DOCK_MATS = ['brass', 'glass', 'heartstone'];
+function dockLink() {
+  const afford = c => GAME.shards >= (c.shards || 0) && DOCK_MATS.every(k => (GAME.mats[k] || 0) >= (c[k] || 0));
+  return {
+    crew: id => yardCrewFor(id), crewNames: id => yardCrewNames(id),
+    now: () => GAME.day + GAME.t,
+    at: () => ({ ch: STORY.ch, keep: TOWN.b.keep ? TOWN.b.keep.level : 1 }),
+    mats: () => GAME.mats,
+    afford,
+    pay: c => { if (!afford(c)) return false; GAME.shards -= c.shards || 0; for (const k of DOCK_MATS) if (c[k]) GAME.mats[k] -= c[k]; return true; },
+    sound: k => AUDIO.play(k),
+  };
 }
 function openSky(mode, opts) {
   if (!SKY || SKY.on) return;
   if (BUILD.on) return;
+  if (mode === 'voyage' || mode === 'raid') yardSailing();
   UI.close(); FOLLOW.v = null; VIEW.tween = null;
   controls.enabled = false; kcontrols.enabled = false;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
@@ -157,58 +174,16 @@ function dockHome(r) {
   controls.enabled = VIEW.mode === 'town'; kcontrols.enabled = VIEW.mode === 'keep';
   clock.getDelta();
   dockMoor();
+  yardHome(r);
   // Barnabus's gift (the old skyman): a tenth more shards from every voyage
   if (r && r.got && castPerk('quill')) { const extra = Math.round(r.got * (castGift('quill', 1.1, 1.2) - 1)); GAME.shards += extra; r.got += extra; }   // a fifth, once his story's done (quests.js)
-  // a raid: the place is ours for now, and its crates are opened at home
-  if (r && r.raid && r.raid.taken) {
-    const R = FLEET.data.raids[r.raid.id]; R.won++; R.day = GAME.day;
-    const before = GAME.stash.length, haul = LOOT.raidCrates(r.raid.loot);
-    addHaul({ ...haul, items: [] });
-    const items = haul.items.map(it => addToStash(it, true, { pos: DOCK.b.group.position.clone(), line: `From the crates of ${r.raid.name}` }));
-    toast(`<b>${esc(r.raid.name)}</b> is taken. The crates hold ${SHARD} ${haul.shards} and ${items.length} find${items.length > 1 ? 's' : ''}.`);
-    void before;
-    setTimeout(() => UI.open('haul', { name: r.raid.name, items, shards: haul.shards, got: r.got }), 600);
-  } else if (r && r.ship) {
-    toast(r.lost ? `<b>The ${esc(r.ship)} went down.</b> Her crew brought her home${r.got ? ` with ${SHARD} ${r.got} shards` : ''}.`
+  // a raid: the place is ours for now (or the convoy is in, or the strongbox is ours), and its crates are opened at home
+  if (r && r.raid && r.raid.taken) yardRaidHome(r);
+  else if (r && r.ship) {
+    toast(r.lost ? `<b>The ${esc(r.ship)} went down.</b> Her crew brought her home${r.got ? ` with ${SHARD} ${r.got} shards` : ''}. She needs a long stay at the dock.`
       : r.got ? `<b>The ${esc(r.ship)} is home</b> with ${SHARD} ${r.got} shards for the claim${r.downed ? `, and ${r.downed} raider${r.downed > 1 ? 's' : ''} downed` : ''}.` : `<b>The ${esc(r.ship)} is home.</b>`);
     AUDIO.play('chime');
   }
   saveGame();
 }
-// the Dock's panel
-UI.dock = function (body) {
-  const d = FLEET.data, R = SHIPS.find(s => s.id === d.flying), sk = SKIES[d.skies], owned = SHIPS.filter(s => d.ships[s.id].owned).length;
-  body.append(this.h(`<h2>${esc(DOCK_DEF.name)}</h2><p class="sub">The ${esc(R.name)} · ${esc(R.cls)} · ${R.length} m</p><p>${esc(DOCK_DEF.blurb)}</p>`));
-  const chips = [`<span class="chip">Skies: ${esc(sk.name)}</span>`, `<span class="chip ${d.best[d.skies] ? 'amber' : ''}">${d.best[d.skies] ? `Best: wave ${d.best[d.skies]}` : 'No waves beaten yet'}</span>`,
-    `<span class="chip">${owned} ship${owned > 1 ? 's' : ''} of ${SHIPS.length}</span>`];
-  if (d.voyages) chips.push(`<span class="chip">${d.voyages} voyage${d.voyages > 1 ? 's' : ''} · ${d.downed} raiders downed</span>`);
-  body.append(this.h(`<div class="stats-row">${chips.join('')}</div>`));
-  const acts = this.h(`<div class="stats-row"><button type="button" class="btn primary" id="dk-sail">Set sail</button><button type="button" class="btn" id="dk-yard">Shipyard</button><button type="button" class="btn" id="dk-skies">Skies</button></div>`);
-  acts.querySelector('#dk-sail').onclick = () => openSky('voyage');
-  acts.querySelector('#dk-yard').onclick = () => openSky('port');
-  acts.querySelector('#dk-skies').onclick = () => openSky('title');
-  body.append(acts);
-  body.append(this.h(`<p class="small">On patrol, raiders come in waves; after each one, sail on or come home with the shards. While she's out, the claim waits: nobody works and night won't fall until she's home.</p>`));
-  // the jumpers' places, to raid
-  body.append(this.h(`<h3>Raids on the claim-jumpers</h3>`));
-  const list = document.createElement('div'); list.className = 'list';
-  for (const s of SITES) {
-    if (s.ch && STORY.ch < s.ch && !(d.raids[s.id] && d.raids[s.id].won)) continue;   // act two's places turn up in their chapters
-    const st = d.raids[s.id], after = s.after && SITES.find(x => x.id === s.after), locked = after && !d.raids[after.id].won;
-    const wait = st.won ? s.regrow - (GAME.day - st.day) : 0;
-    const el = document.createElement('button'); el.type = 'button'; el.className = 'li raid';
-    el.append(this.h(`<span class="rk">${locked ? '?' : st.won ? '⚑' : '◆'}</span><span><span class="nm">${esc(locked ? 'Somewhere out there' : s.name)}</span><span class="jb">${esc(locked ? `Take ${after.short} first.` : s.line)}</span></span><span class="side">${locked ? '' : wait > 0 ? `Manned again in ${wait} day${wait > 1 ? 's' : ''}` : `${s.crates} crates · Raid`}</span>`));
-    el.disabled = !!locked || wait > 0;
-    el.onclick = () => openSky('raid', { site: s.id });
-    list.append(el);
-  }
-  body.append(list);
-};
-// what a raid brought home
-UI.haul = function (body, h) {
-  body.append(this.h(`<h2>The crates from ${esc(h.name)}</h2><p class="sub">${SHARD} ${h.shards} shards in the crates${h.got ? `, and ${SHARD} ${h.got} gathered on the way` : ''}. Everything else is in the stash.</p>`));
-  const list = document.createElement('div'); list.className = 'list';
-  for (const it of h.items) list.append(this.itemRow(it, '', () => UI.open('item', { it, back: () => UI.open('haul', h) })));
-  body.append(list);
-  this.back(body, 'To the Sky Dock', () => UI.open('dock'));
-};
+// the Dock's panel, the crew picker, the raid map and the haul are in yard.js

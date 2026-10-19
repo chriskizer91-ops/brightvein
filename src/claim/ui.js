@@ -187,7 +187,7 @@ const UI = {
       const F = ROOM_FIXED[key];
       body.append(this.h(`<h2>${esc(F.name)}</h2><p>${esc(F.blurb)}</p>`));
       if (key === 'dorm') body.append(this.h(`<div class="stats-row"><span class="chip">${GAME.villagers.length} of ${totalBeds()} beds taken</span></div>`));
-      const here = GAME.villagers.filter(v => v.isprite.visible && v.where === 'home');
+      const here = keepHere(key);   // who is in this room now (keeplife.js)
       if (here.length && key !== 'lookout') { body.append(this.h(`<h3>Here now</h3>`)); const box = document.createElement('div'); box.className = 'workers'; for (const v of here) { const el = document.createElement('button'); el.type = 'button'; el.className = 'wslot'; el.append(miniSprite(v)); el.append(this.h(`<b>${esc(v.d.name.split(' ')[0])}</b>`)); el.onclick = () => UI.open('villager', v); box.append(el); } body.append(box); }
       return;
     }

@@ -6,11 +6,8 @@ controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
 controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
 controls.zoomToCursor = true;
 const VIEW = { mode: 'town', tween: null };
-const kcontrols = new OrbitControls(kcam, canvas);
-kcontrols.enabled = false; kcontrols.enableDamping = true; kcontrols.dampingFactor = 0.08; kcontrols.screenSpacePanning = true; kcontrols.zoomToCursor = true;
-kcontrols.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
-kcontrols.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
-kcontrols.minAzimuthAngle = -0.5; kcontrols.maxAzimuthAngle = 0.5; kcontrols.minPolarAngle = 1.15; kcontrols.maxPolarAngle = 1.85;
+// the Keep view has its own pan and zoom, face on (keep.js); this keeps its target for the sound's listener
+const kcontrols = { enabled: false, target: new THREE.Vector3(0, 6, 0), update() { } };
 function viewLimits(mode) {
   if (mode === 'build') { controls.minDistance = 30; controls.maxDistance = 170; controls.minPolarAngle = 0.12; controls.maxPolarAngle = 1.1; controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; return; }
   if (mode === 'town') { controls.minDistance = 12; controls.maxDistance = 150; controls.minPolarAngle = 0.25; controls.maxPolarAngle = 1.32; controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; }
@@ -30,11 +27,7 @@ function setView(mode) {
 }
 function focusOn(p) { if (VIEW.mode === 'mine') { if (p.y < -1) { digFocus(p); return; } setView('town'); } const off = camera.position.clone().sub(controls.target); const dist = Math.min(off.length(), 40); off.setLength(dist); VIEW.tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt: new THREE.Vector3(p.x, Math.min(0, p.y), p.z), tp: new THREE.Vector3(p.x, Math.min(0, p.y), p.z).add(off), mode: VIEW.mode }; }
 function updateCamera(dt) {
-  if (VIEW.mode === 'keep') {
-    const t = kcontrols.target, before = t.clone();
-    t.x = clamp(t.x, -KW / 2 - 2, KW / 2 + 2); t.y = clamp(t.y, 1, KEEPV.H + 3); t.z = clamp(t.z, -2, 2);
-    kcam.position.add(t.clone().sub(before)); kcontrols.update(); return;
-  }
+  if (VIEW.mode === 'keep') { keepCamUpdate(dt); return; }
   if (VIEW.mode === 'mine' && !VIEW.tween && !BUILD.on) { digCamUpdate(dt); return; }
   const T = VIEW.tween;
   if (T) {
@@ -384,8 +377,8 @@ function frame() {
   } else for (const v of GAME.villagers) { v.sprite.position.copy(v.pos); v.frame(0); }
   benchFrame(rdt, gdt);   // the bench, the modules, the rare-find beams (bench.js)
   if (BUILD.on) updatePlaceCtl();
-  updateRings(); updateInterior();
-  if (VIEW.mode === 'keep') { buildInterior(); setInteriorLights(); }
+  if (VIEW.mode === 'keep') buildInterior();
+  updateRings(); updateInterior(rdt, gdt);
   const now = performance.now() / 1000;
   for (const b of BUILDINGS) b.update(now, gdt || rdt * 0.25);
   FX.update(rdt * (GAME.paused ? 0.2 : Math.min(GAME.speed, 2)));
@@ -393,6 +386,7 @@ function frame() {
   dressScene(rdt, gdt);
   dockUpdate(rdt); updateLife(rdt, TOD.night); storyTick(rdt); talkFrame(rdt);
   updateCamera(rdt); digFrameUpdate(rdt, gdt);
+  if (VIEW.mode === 'keep') keepLookUpdate(rdt, gdt);   // after the camera moves: the lamplight is placed in its view
   nightsDraw(rdt); weatherDraw(rdt);
   updateHUD(rdt); updateLabels();
   AUDIO.ambience(TOD.night, !GAME.paused);
@@ -537,7 +531,8 @@ function simulate(seconds, step = 0.1) {
 function skipTo(t, step = 0.25) { let guard = 0; while (Math.abs(GAME.t - t) > step / DAY_LEN * 1.5 && guard++ < 20000) simulate(step, step); }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
 window.__bv = { DIG, CAGE, ROOMK, digQuick, digSetHead, digTick, recruit: recruitArrives, digOrder, digUpgrade, digCancel, digWhyNot, digDiggable, digIncident, digMerge, digSave, digFrame, DIGCAM, roomAt, digAt, digAutoCrew, DLOOK, GLOW, pickDig,
-  JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin,
+  JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies,
+  KCAM, KLIFE, KGLOW, KSCENE, keepTick, frame, keepLookUpdate, keepCamUpdate, frameKeep, pickKeep, keepAssign, kpath, keepDrawCalls, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin,
   NIGHT, WEATHER, WEATHERS, WL_KINDS, WALL, KEEP_LIMITS, BUY, DEFS, byType, autoAssign, findSpot, layoutChanged, planNight, forceWeather, lightningStrike, wallHit, nightReport, showDawn, skipTo, phaseChange, camShake, OUTLINE, cliffAt,
   showBanner, bossBar, nightLookout, BOLT, wallSetLevel, wallMatrices, snuffLamp, FX };
 // the bench and the fittings, for tests (bench.js, fittings.js, finds.js)

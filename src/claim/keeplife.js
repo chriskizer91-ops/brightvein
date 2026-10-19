@@ -350,5 +350,8 @@ function keepRestPlan(v) {
   return [...exitSteps(v), walkTo(v, homeEntry(v)), { type: 'enter' }, { type: 'wait', t: 25 + Math.random() * 35 }];
 }
 
+// who is in a room now (for its panel): those in their place there, or on their way to it
+function keepHere(key) { return GAME.villagers.filter(v => v.inside && v.isprite.visible && v.kin && v.kin.goal && v.kin.goal.room === key); }
+
 // ----------------------------------------------------------------- the test hook: a few frames of life without drawing
 function keepTick(sec = 1, step = 0.1) { for (let t = 0; t < sec; t += step) keepLifeUpdate(step, step); }

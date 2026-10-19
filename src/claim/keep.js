@@ -61,6 +61,8 @@ function updateStudies(dt, away = false) {
 }
 function announceStudy(ups) {
   for (const u of ups) {
+    // in the Keep view, a burst of sparks over them (keeplook.js)
+    if (VIEW.mode === 'keep' && KEEPX.fx && u.v.kin && u.v.kin.c) KEEPX.fx.sparks(u.v.kin.c.clone().setY(u.v.kin.c.y + 0.9), u.to >= STAT_MAX ? 40 : 18, u.to >= STAT_MAX ? 0xffe08a : 0xffc070, u.to >= STAT_MAX ? 3 : 2);
     const first = esc(u.v.d.name.split(' ')[0]);
     if (u.to >= STAT_MAX) { toast(`<b>${first}</b> has mastered ${STAT_NAMES[u.k]}: <b>${esc(STUDY[u.k].perk)}</b>. ${esc(STUDY[u.k].perkText)}.`); AUDIO.play('levelup'); }
     else { toast(`<b>${first}</b>'s ${STAT_NAMES[u.k]} is now <b>${u.to}</b>.`); AUDIO.play('statup'); }
@@ -102,7 +104,7 @@ function keepCamPose() {
 function keepClamp() {
   const C = KCAM, t = kcamT(), a = innerWidth / innerHeight, wide = innerWidth >= 900 && !!UI.cur;
   C.wd = clamp(C.wd, 7, keepMaxDist());
-  const hh = C.wd * t, hw = hh * a, x0 = -KW / 2 - 4, x1 = KW / 2 + 4 + (wide ? hw * 0.6 : 0), y0 = -2, y1 = keepTop() + 1.5;
+  const hh = C.wd * t, hw = hh * a, x0 = -KW / 2 - 4, x1 = KW / 2 + 4 + (wide ? hw * 1.2 : 0), y0 = -2, y1 = keepTop() + 1.5;
   C.wx = x1 - x0 < hw * 2 ? (x0 + x1) / 2 : clamp(C.wx, x0 + hw * 0.7, x1 - hw * 0.7);
   C.wy = y1 - y0 < hh * 2 ? clamp(C.wy, y1 - hh, y0 + hh) : clamp(C.wy, y0 + hh * 0.7, y1 - hh * 0.7);
 }
@@ -129,8 +131,9 @@ function keepFocus(x, y, halfW) {
     const top = 60, bot = box && box.top > 100 ? box.top : innerHeight - 70, ny = 1 - (top + bot) / innerHeight;
     C.wy = y - ny * C.wd * t; return;
   }
-  const hw = C.wd * t * a, freeR = C.wx + hw * (1 - 2 * ((box ? innerWidth - box.left : 400) + 20) / innerWidth);
-  if (x + halfW > freeR) C.wx += x + halfW - freeR + 0.3;
+  // the panel sits on the right: if what was tapped is under it, slide the Keep left until it's in the middle of the rest
+  const hw = C.wd * t * a, left = box ? box.left : innerWidth - 400, ndcR = (left - 20) / innerWidth * 2 - 1;
+  if ((x + halfW - C.wx) / hw > ndcR) C.wx = x - ((left / 2) / innerWidth * 2 - 1) * hw;
 }
 function keepFocusRoom(key) { const R = KEEPV.rooms[key]; if (R) keepFocus(R.cx, R.y0 + CH / 2, R.key === 'attic' ? 6 : RH); }
 canvas.addEventListener('pointerdown', e => {

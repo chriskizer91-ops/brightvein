@@ -3,7 +3,7 @@ import sys, os, json
 from playwright.sync_api import sync_playwright
 out=sys.argv[1]; w=int(sys.argv[2]) if len(sys.argv)>2 else 1280; h=int(sys.argv[3]) if len(sys.argv)>3 else 800
 code=sys.argv[4] if len(sys.argv)>4 else ''; wait=int(sys.argv[5]) if len(sys.argv)>5 else 2500
-root='/home/claude/brightvein'
+root=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # this checkout (works in worktrees too)
 def route(r):
     u=r.request.url
     if 'cdn.jsdelivr.net/npm/three@0.160.0/' in u:
@@ -13,7 +13,7 @@ def route(r):
     else: r.continue_()
 with sync_playwright() as p:
     b=p.chromium.launch(args=['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist'])
-    pg=b.new_page(viewport={'width':w,'height':h}, device_scale_factor=1)
+    pg=b.new_page(viewport={'width':w,'height':h}, device_scale_factor=1); pg.set_default_timeout(240000)
     errs=[]
     pg.on('console',lambda m: print('console:',m.type,m.text[:300]) if m.type in ('error','warning') or m.text.startswith('DBG') else None)
     pg.on('pageerror',lambda e: print('PAGEERROR',e))

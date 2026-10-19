@@ -300,6 +300,7 @@ with sync_playwright() as p:
     check('students walk in and are shown at work in their study', all(v['n'] >= 1 and v['at'] == v['n'] for v in r['rooms'].values()), json.dumps(r['rooms']) + ' late: ' + json.dumps(r['late']))
     # nights: a Bright Night brings a boss with a health bar, and it can be brought down; dawn brings the report
     r = pg.evaluate('''(() => { const B = __bv, out = {};
+      if (B.GAME.t > 0.6 || B.GAME.t < 0.05 || B.WL.night) B.skipTo(0.3);   // a slow run can leave a night under way: see it out first
       B.NIGHT.grudge = null; B.GAME.nights = 4; B.forceWeather('clear', 'clear');
       B.skipTo(0.62); out.banner = !document.getElementById('nightbanner').hidden && document.getElementById('nightbanner').textContent;
       out.plan = B.NIGHT.plan && B.NIGHT.plan.n; out.bright = B.NIGHT.plan && B.NIGHT.plan.bright;

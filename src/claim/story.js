@@ -216,7 +216,7 @@ const CHAPTERS = [
       ['tock', 'I know a brig. I know a frigate. I know a shipyard. You know where the shards are.'],
       ['halcyon', 'And when the Chandlery is dark, its lights will still need keeping.'],
     ],
-    goals: [GOAL.ship(['brig', 'frigate'], 'Own a Brig or a Frigate (Shipyard)'), GOAL.raid('citadel', 'Take the Chandlery')],
+    goals: [GOAL.ship(['brig', 'frigate', 'galleon', 'manowar'], 'Own a Brig, or anything bigger (Shipyard)'), GOAL.raid('citadel', 'Take the Chandlery')],
     close: [
       ['tallow', 'Very well. The plateau is yours. You will find, as I did, that light is a hungry thing to keep. — A. T.'],
       ['hesper', 'The Chandlery’s dark. The Ironspire’s ours.'],

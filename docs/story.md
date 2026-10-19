@@ -27,7 +27,7 @@ Two things want the claim's light:
 | 5 | The Wickmoor | Tallow's supply galleon. Torvald Pike, a smith, wants the forge it was carrying. | Capture the Wickmoor; 400 shards | Torvald joins |
 | 6 | The Moon Faire | The Faire's painted ship tours in for a festival night, with its four Moons: Mirabel Quell (New), Rowan Thorne (Full), Hazel Brightwater (Waxing) and Clem Fennick (Waning). The Faire is an old travelling tradition by now, centuries older than its current troupe. | Light the sun beacon (Keep level 3); the festival night | Clem stays |
 | 7 | The Deep Seam | The vein runs on below the lower gallery, and hums at night. A Brightmaw climbs the shaft. At dawn Dame Seraphine Vael, the last knight of the Thinwatch, comes up the bridge: she has hunted their kind across the Ironspire. | Open the deep seam; a night with it open | 200 shards; Seraphine joins |
-| 8 | The Chandlery | Every crew Tallow has left is at his citadel. | Own a Brig or a Frigate; take the Chandlery | 400 shards; the end of act one |
+| 8 | The Chandlery | Every crew Tallow has left is at his citadel. | Own a Brig or bigger; take the Chandlery | 400 shards; the end of act one |
 
 ## Act two: the heart under the claim
 

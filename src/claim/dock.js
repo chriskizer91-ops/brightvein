@@ -92,8 +92,13 @@ function dockClear(x, z, pad = 0) { const D = LAYOUT.dock; return x > D.x - 9 - 
 // amidships (so from the lawn the gantry doesn't hide her)
 function dockAt() { const L = LAYOUT.dock; return { x: L.x, z: L.z }; }
 // where a ship rides at the bridge: her centre, and how far aft of it the bridge meets her
+// Ships are built at their true size (a Man-o'-war is 90 m, more than the plateau is wide), so at the Dock the big ones
+// are shown smaller, as a diorama would: up to a Brig's 25 m as they are, and beyond that only a third of each extra
+// metre (a Frigate looks 30 m, a Galleon 37, a Man-o'-war 48). The same ship object flies and sits in the shipyard,
+// so openSky puts her back to full size before the skies take her.
+const dockScaleOf = R => { const L = R.length || 25; return L <= 25 ? 1 : (25 + (L - 25) * 0.35) / L; };
 function dockBerth(s) {
-  const D = dockAt(), half = s.hull.deckHalf(0), aft = s.recipe.length * 0.26;
+  const k = dockScaleOf(s.recipe), D = dockAt(), half = s.hull.deckHalf(0) * k, aft = s.recipe.length * 0.26 * k;
   return { pos: new THREE.Vector3(D.x + aft, DOCK.deck, D.z - 7.4 - 1.0 - half), half, aft };
 }
 async function dockMoor() {
@@ -105,13 +110,14 @@ async function dockMoor() {
   const D = dockAt(), { pos, half, aft } = dockBerth(s);
   s.root.position.copy(pos);
   s.root.rotation.set(0, Math.PI / 2, 0);
+  s.root.scale.setScalar(dockScaleOf(R));
   s.root.userData.dock = true;
   scene.add(s.root);
   // the mooring lines, bow and stern, from the bollards to her rail, sagging a little
   if (DOCK.lines) { scene.remove(DOCK.lines); DOCK.lines.geometry.dispose(); }
   const geos = [];
   for (const s2 of [-1, 1]) {
-    const a = new THREE.Vector3(D.x + s2 * 1.1, 5.1, D.z - 7.0), c = new THREE.Vector3(D.x + aft + s2 * R.length * 0.32, DOCK.deck + 0.9, s.root.position.z + half * 0.9);
+    const a = new THREE.Vector3(D.x + s2 * 1.1, 5.1, D.z - 7.0), c = new THREE.Vector3(D.x + aft + s2 * R.length * 0.32 * dockScaleOf(R), DOCK.deck + 0.9 * dockScaleOf(R), s.root.position.z + half * 0.9);
     const m = a.clone().lerp(c, 0.5); m.y -= 0.8;
     geos.push(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a, m, c), 16, 0.05, 5, false));
   }
@@ -165,6 +171,7 @@ function openSky(mode, opts) {
   if (!SKY || SKY.on) return;
   if (BUILD.on) return;
   if (mode === 'voyage' || mode === 'raid') yardSailing();
+  if (DOCK.ship) DOCK.ship.root.scale.setScalar(1);       // full size again for the skies and the shipyard
   UI.close(); FOLLOW.v = null; VIEW.tween = null;
   controls.enabled = false; kcontrols.enabled = false;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();

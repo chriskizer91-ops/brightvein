@@ -23,7 +23,8 @@ with sync_playwright() as p:
 
     # the story: the prologue opened when the claim started, and closes after the first night; the settlers came off
     # the roll, so each has a portrait to match their sprite
-    pg.wait_for_timeout(1500)
+    # the first frame after a simulated night compiles a lot of shaders, which is slow in software: wait for it
+    pg.wait_for_function('__bv.STORY.started', timeout=240000)
     r = pg.evaluate('''(async () => { const B = __bv, out = { ch0: B.STORY.ch, shown: !!B.STORY.shown };
       for (let i = 0; i < 40 && B.STORY.ch === 0; i++) { while (B.STORY.shown) B.talkNext(); await new Promise(r => setTimeout(r, 700)); }
       out.ch = B.STORY.ch; out.title = B.CHAPTERS[B.STORY.ch].title;
@@ -85,6 +86,46 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1200)
     r = pg.evaluate('({ stash: __bv.GAME.stash.length, won: __bv.FLEET.data.raids.camp.won, panel: __bv.UI.cur && __bv.UI.cur.kind })')
     check("the camp's crates opened at home", r['stash'] >= before + 2 and r['won'] == 1 and r['panel'] == 'haul', json.dumps(r))
+    # nights: a Bright Night brings a boss with a health bar, and it can be brought down; dawn brings the report
+    r = pg.evaluate('''(() => { const B = __bv, out = {};
+      B.renderer.setAnimationLoop(null);
+      B.NIGHT.grudge = null; B.GAME.nights = 4; B.forceWeather('clear', 'clear');
+      B.skipTo(0.62); out.banner = !document.getElementById('nightbanner').hidden && document.getElementById('nightbanner').textContent;
+      out.plan = B.NIGHT.plan && B.NIGHT.plan.n; out.bright = B.NIGHT.plan && B.NIGHT.plan.bright;
+      for (let i = 0; i < 200 && !(B.WL.night && B.WL.night.boss); i++) B.simulate(1, 0.1);
+      const f = B.WL.night && B.WL.night.boss; out.boss = !!f && f.boss && f.name; out.hp = f && Math.round(f.hp);
+      out.bar = !document.getElementById('bossbar').hidden && document.getElementById('bossbar').textContent;
+      const stash = B.GAME.stash.length, shards = B.GAME.shards;
+      if (f) { f.hurt(1e6, 'lark'); B.simulate(1, 0.1); }
+      out.dead = !!f && f.dead; out.killed = B.WL.night && B.WL.night.bossKilled; out.loot = B.GAME.stash.length - stash; out.bonus = Math.round(B.GAME.shards - shards);
+      B.skipTo(0.975);
+      const d = document.getElementById('dawn'); out.dawn = !!d && !d.hidden && d.textContent.slice(0, 80); out.last = B.NIGHT.last && B.NIGHT.last.bossKilled;
+      return out; })()''')
+    check('a Bright Night names itself at dusk', bool(r['banner']) and r['bright'] and r['plan'] == 5, json.dumps({k: r[k] for k in ('banner', 'plan', 'bright')}))
+    check('a Bright Night brings a boss with a health bar', bool(r['boss']) and bool(r['bar']), json.dumps({k: r[k] for k in ('boss', 'hp', 'bar')}))
+    check('the boss can be brought down, and leaves something good', r['dead'] and r['killed'] and r['loot'] >= 1 and r['bonus'] >= 60, json.dumps({k: r[k] for k in ('dead', 'killed', 'loot', 'bonus')}))
+    check('the dawn report comes up', bool(r['dawn']) and r['last'], json.dumps({k: r[k] for k in ('dawn', 'last')}))
+    # the wall: a section knocked down shows a gap, is saved, and the watch mends it by day
+    r = pg.evaluate('''(() => { const B = __bv, s = B.WALL.segs[10], out = {};
+      B.wallHit(s, 2); out.broken = s.broken; B.saveGame(); const sv = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
+      out.saved = sv.night && sv.night.broken[10] === 1 && sv.night.wall[10] < 0.5;
+      B.GAME.shards = Math.max(B.GAME.shards, 300); if (!B.workersOf('wall').length) { const v = B.GAME.villagers.find(x => !x.d.exp); B.assignJob(v, 'wall'); }
+      B.skipTo(0.45); out.mended = !s.broken; out.hp = Math.round(s.hp * 100);
+      return out; })()''')
+    check('a broken wall section is saved, and mended by day', r['broken'] and r['saved'] and r['mended'], json.dumps(r))
+    # weather: each kind can be forced, shows in the clock, and is saved
+    r = pg.evaluate('''(() => { const B = __bv, out = {};
+      for (const k of Object.keys(B.WEATHERS)) { B.forceWeather(k, 'fog'); B.applyTimeOfDay(B.GAME.t, 0); B.saveGame(); const sv = B.loadSave();
+        out[k] = sv.weather && sv.weather.today === k && sv.weather.next === 'fog' && document.getElementById('wx').textContent.includes(B.WEATHERS[k].name); }
+      B.forceWeather('fog'); B.applyTimeOfDay(0.3, 0); out.fogFar = Math.round(B.scene.fog.far);
+      B.forceWeather('clear'); B.applyTimeOfDay(0.3, 0); out.clearFar = Math.round(B.scene.fog.far);
+      return out; })()''')
+    check('each weather can be forced, shown and saved', all(r[k] for k in ('clear', 'overcast', 'rain', 'fog', 'storm')), json.dumps(r))
+    check('fog closes in', r['fogFar'] < 400 < r['clearFar'], json.dumps(r))
+    # an Aether storm: a Lightning Rod catches a bolt and turns it into shards
+    r = pg.evaluate('''(() => { const B = __bv; B.forceWeather('storm'); B.GAME.shards += 100; const rod = B.addBuilding('rod', null, null, 1, { hint: [0, 10] }); const s0 = B.GAME.shards;
+      const hit = B.lightningStrike(new B.THREE.Vector3(rod.L.x + 4, 0, rod.L.z + 2)); return { kind: hit.kind, gain: Math.round(B.GAME.shards - s0), caught: rod.caught || 0 }; })()''')
+    check('a Lightning Rod catches a bolt and turns it into shards', r['kind'] == 'rod' and r['gain'] >= 12 and r['caught'] == 1, json.dumps(r))
     extra = os.environ.get('SMOKE_EXTRA')
     if extra: print(pg.evaluate(extra))
     b.close()

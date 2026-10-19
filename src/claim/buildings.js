@@ -496,23 +496,27 @@ const _wm = new THREE.Matrix4(), _wq = new THREE.Quaternion(), _we = new THREE.E
 function wallMatrices() {
   const { logs, tips, blocks, merl, caps } = WALL.mesh;
   WALL.segs.forEach((s, i) => {
-    const hpK = s.broken ? 0.18 : 1;
+    const hpK = s.broken ? 0.18 : 1, dmg = s.broken ? 1 : 1 - s.hp;
     s.logs.forEach((l, k) => {
-      const x = lerp(s.a[0], s.b[0], l.t) - Math.sin(s.ang) * l.tz, z = lerp(s.a[1], s.b[1], l.t) + Math.cos(s.ang) * l.tz, h = l.h * s.k1 * hpK;
-      _we.set(l.tilt, 0, l.tilt * 0.5); _wq.setFromEuler(_we);
+      // a battered palisade: the weakest logs lean out of line, then snap off to stumps
+      const weak = hash2(i * 13 + k, 77), down = !s.broken && dmg > 0.3 && weak < (dmg - 0.3) * 1.3, lean = dmg > 0.12 && weak < dmg + 0.25 ? (hash2(i, k * 5 + 1) - 0.5) * dmg * 0.9 : 0;
+      const x = lerp(s.a[0], s.b[0], l.t) - Math.sin(s.ang) * l.tz, z = lerp(s.a[1], s.b[1], l.t) + Math.cos(s.ang) * l.tz, h = l.h * s.k1 * hpK * (down ? 0.28 : 1);
+      _we.set(l.tilt + lean, 0, l.tilt * 0.5 + lean * 0.6); _wq.setFromEuler(_we);
       _wm.compose(_wp.set(x, 0, z), _wq, _ws.set(1, Math.max(0.001, h), 1)); logs.setMatrixAt(i * 8 + k, _wm);
-      _wm.compose(_wp.set(x, h, z), _wq, _ws.set(1, Math.max(0.001, s.k1 * hpK), 1)); tips.setMatrixAt(i * 8 + k, _wm);
+      _wm.compose(_wp.set(x, h, z), _wq, _ws.set(1, Math.max(0.001, s.k1 * hpK * (down ? 0 : 1)), 1)); tips.setMatrixAt(i * 8 + k, _wm);
     });
     _we.set(0, -s.ang, 0); _wq.setFromEuler(_we);
-    const h = 2.8 * s.k2 * hpK;
+    const h = 2.8 * s.k2 * hpK * (1 - dmg * 0.1);
     _wm.compose(_wp.set(s.mx, 0, s.mz), _wq, _ws.set(s.len + 0.25, Math.max(0.001, h), 1.1)); blocks.setMatrixAt(i, _wm);
-    _wm.compose(_wp.set(s.mx, h, s.mz), _wq, _ws.set(s.len + 0.35, Math.max(0.001, 0.25 * s.k2), 1.3)); caps.setMatrixAt(i, _wm);
+    _wm.compose(_wp.set(s.mx, h, s.mz), _wq, _ws.set(s.len + 0.35, Math.max(0.001, 0.25 * s.k2 * (dmg > 0.6 ? 0 : 1)), 1.3)); caps.setMatrixAt(i, _wm);
     for (let k = 0; k < 3; k++) {
-      const t = (k + 0.5) / 3, x = lerp(s.a[0], s.b[0], t) + Math.sin(s.ang) * 0.35, z = lerp(s.a[1], s.b[1], t) - Math.cos(s.ang) * 0.35;
-      _wm.compose(_wp.set(x, h + 0.2 * s.k2, z), _wq, _ws.set(0.7, Math.max(0.001, 0.6 * s.k2 * (s.broken ? 0 : 1)), 0.45)); merl.setMatrixAt(i * 3 + k, _wm);
+      // merlons knocked off one by one as a stone section takes harm
+      const t = (k + 0.5) / 3, x = lerp(s.a[0], s.b[0], t) + Math.sin(s.ang) * 0.35, z = lerp(s.a[1], s.b[1], t) - Math.cos(s.ang) * 0.35, gone = s.broken || dmg > 0.3 + hash2(i, k) * 0.5;
+      _wm.compose(_wp.set(x, h + 0.2 * s.k2, z), _wq, _ws.set(0.7, Math.max(0.001, 0.6 * s.k2 * (gone ? 0 : 1)), 0.45)); merl.setMatrixAt(i * 3 + k, _wm);
     }
   });
   for (const m of Object.values(WALL.mesh)) m.instanceMatrix.needsUpdate = true;
+  wallDamageDraw();   // cracks and rubble (nights.js)
 }
 function wallSetLevel(lv, animate) {
   WALL.level = lv;

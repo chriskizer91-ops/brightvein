@@ -6,7 +6,7 @@
 //   jester, ranger, herbal, fox: the Moon Faire's four performers (New, Full, Waxing and Waning Moon)
 const HERO_LOOKS = {
   io: {
-    name: 'Io', title: 'the Witch', faceLight: 0.3, hairBias: -0.3,
+    name: 'Tamsin Vey', title: 'the lamp-witch', faceLight: 0.3, hairBias: -0.3,
     skin: '#f4d2b4', eyes: '#7a4a2a', lashes: true, glasses: true, glassesCol: '#6a4038',
     hair: '#4a3029', hairStyle: 'wavy', fringe: 'parted', hairLen: 1,
     hat: 'witch', hatCol: '#a3205c', hatBand: '#3a2229', hatTip: -1, horns: 'ram', hornCol: '#f2dcc0', hatBadge: 'moon',
@@ -19,7 +19,7 @@ const HERO_LOOKS = {
     beard: false, scarf: null, satchel: false,
   },
   sol: {
-    name: 'Sol', title: 'the Warden', faceLight: 0.3, hairBias: -0.3,
+    name: 'Brisa Hale', title: 'sword of the Brass Road', faceLight: 0.3, hairBias: -0.3,
     skin: '#eab48a', eyes: '#d89a2a', lashes: true, freckles: true,
     hair: '#cc5320', hairStyle: 'shag', hairLen: 1, fringe: 'swept', braid: -1, braidTie: '#e0aa48',
     shirt: '#efe6d2', over: 'none', overCol: '#efe6d2', belt: '#5a3420',
@@ -32,7 +32,7 @@ const HERO_LOOKS = {
     beard: false, glasses: false, scarf: null, satchel: false,
   },
   halcyon: {
-    name: 'Dame Halcyon', title: 'the elf knight', faceLight: 0.3, hairBias: -0.3,
+    name: 'Dame Seraphine Vael', title: 'knight of the Thinwatch', faceLight: 0.3, hairBias: -0.3,
     skin: '#f2dcc8', eyes: '#5ab4f0', lashes: true,
     hair: '#e4e0dc', hairStyle: 'bob', fringe: 'parted', braid: 1, braidTie: '#c09040',
     hat: 'helm', hatCol: '#2c282c', helmTrim: '#c09040', plume: ['#2a6a72', '#e8ecef', '#1e4a52'],
@@ -46,7 +46,7 @@ const HERO_LOOKS = {
     beard: false, glasses: false, scarf: null, satchel: false,
   },
   quill: {
-    name: 'Quill', title: 'the old skyman', faceLight: 0.3, hairBias: -0.3,
+    name: 'Barnabus Teague', title: 'the old skyman', faceLight: 0.3, hairBias: -0.3,
     skin: '#dca07a', eyes: '#5a4030', brows: true,
     hair: '#dcd8d0', hairStyle: 'crop', fringe: 'swept', beard: 'full', beardCol: '#e8e4dc',
     hat: 'captain', hatCol: '#2c3556', feather: '#f2f0ea',
@@ -58,7 +58,7 @@ const HERO_LOOKS = {
     glasses: false, scarf: null, satchel: false,
   },
   brann: {
-    name: 'Brann', title: 'the smith', faceLight: 0.3, hairBias: -0.3,
+    name: 'Torvald Pike', title: 'the smith', faceLight: 0.3, hairBias: -0.3,
     skin: '#e0a070', eyes: '#4a3020', brows: true,
     hair: '#4a2c1e', hairStyle: 'shag', fringe: 'short', beard: 'full', beardCol: '#3a2218',
     build: 'big',
@@ -69,7 +69,7 @@ const HERO_LOOKS = {
     glasses: false, scarf: null, satchel: false, hat: null,
   },
   tock: {
-    name: 'Tock', title: 'the gnome shipwright', faceLight: 0.3, hairBias: -0.3,
+    name: 'Nib Tolliver', title: 'the gnome shipwright', faceLight: 0.3, hairBias: -0.3,
     gnome: true, skin: '#f0c8a0', eyes: '#3a2a20',
     hair: '#f4eee2', hairStyle: 'bald', beard: true, ears: 'elf',
     hat: 'gnome', hatCol: '#2e3c80', hatBand: '#6a3a1e', hatStars: '#e8c060', hatTip: 'star', hatGoggles: true,
@@ -79,7 +79,7 @@ const HERO_LOOKS = {
     glasses: false, scarf: null, satchel: false,
   },
   jester: {
-    name: 'The Jester', title: 'the New Moon', faceLight: 0.3, hairBias: -0.3,
+    name: 'Mirabel Quell', title: 'the New Moon', faceLight: 0.3, hairBias: -0.3,
     skin: '#f0d0bc', eyes: '#3a2a30', lashes: true, facePaint: '#2a1a26',
     hair: '#201a22', hairStyle: 'long', fringe: 'blunt',
     hat: 'jester', hatCol: '#2a2430', pomCol: '#3e3448', veil: ['#6a2058', '#9a2040', '#c08a2a', '#6a2058', '#4a4020'],
@@ -92,7 +92,7 @@ const HERO_LOOKS = {
     beard: false, glasses: false, scarf: null, satchel: false,
   },
   ranger: {
-    name: 'The Ranger', title: 'the Full Moon', faceLight: 0.3, hairBias: -0.3,
+    name: 'Rowan Thorne', title: 'the Full Moon', faceLight: 0.3, hairBias: -0.3,
     skin: '#f0c4a0', eyes: '#4a5a6a', glasses: true, glassesCol: '#2a2228',
     hair: '#8088a6', hairStyle: 'updo', fringe: 'swept', headband: '#2a50a8',
     shirt: '#241c24', neck: 'off', sleeves: 'short',
@@ -103,7 +103,7 @@ const HERO_LOOKS = {
     beard: false, scarf: null, satchel: false,
   },
   herbal: {
-    name: 'The Herbal Witch', title: 'the Waxing Moon', faceLight: 0.3, hairBias: -0.3,
+    name: 'Hazel Brightwater', title: 'the Waxing Moon', faceLight: 0.3, hairBias: -0.3,
     skin: '#f2cfb0', eyes: '#6a4020', lashes: true, glasses: true, glassesCol: '#6a3a30',
     hair: '#8a5634', hairStyle: 'wavy', fringe: 'swept',
     hat: 'witch', hatCol: '#a81c34', hatBand: '#7a1426', hatTip: -1, horns: 'small', hornCol: '#f2dcc0', hatBadge: 'buckle',
@@ -116,7 +116,7 @@ const HERO_LOOKS = {
     beard: false, scarf: null, satchel: false,
   },
   fox: {
-    name: 'The Fox', title: 'the Waning Crescent', faceLight: 0.3, hairBias: -0.3,
+    name: 'Clem Fennick', title: 'the Waning Moon', faceLight: 0.3, hairBias: -0.3,
     skin: '#f2c8a4', eyes: '#5a3a20', glasses: true, glassesCol: '#5a3020',
     hair: '#a8582e', hairStyle: 'curlyLong', ears: 'fox', earCol: '#5a3226', earInner: '#f4dcc4',
     shirt: '#2f6a6e', sleeves: 'puff', neck: 'low', collar: 'choker',

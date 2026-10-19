@@ -15,7 +15,7 @@
 - *Brightvein*: a sunstone claim on a plateau under the Thinning, in Aethermoor (Chris's D&D world). Fallout Shelter's staffed rooms and people with stats, Clash of Clans' base building and defence, and the airship game's skies.
 - Its own story (`docs/story.md`): the claim, the Wildlight, Baron Tallow and his claim-jumpers are Brightvein's. Visitors arrive in its chapters (Tamsin and Brisa on the Nightjar, Barnabus and Nib, Torvald, the Moon Faire's four, Dame Seraphine of the Thinwatch) and can stay as special crew.
 - Design notes: `docs/design.md` (the whole game), `docs/keep.md` (the Keep and study), the claude.ai project docs `brightvein-design.md` and `brightvein-keep-design.md`.
-- Look: HD-2D. A lit 3D diorama with pixel-art people as camera-facing sprites. People are hand-pixeled in code (`src/claim/pixel.js`): 24 × 32 frames, 5 columns (stand, step A, step B, work up, work down) × 3 rows (facing you, facing away, facing left; right is mirrored).
+- Look: HD-2D. A lit 3D diorama with pixel-art people as camera-facing sprites. People are hand-pixeled in code (`src/claim/pixel.js`): 48 × 64 frames, 10 columns (stand, walk × 4, work × 3, idle × 2: a breath and a blink) × 3 rows (facing you, facing away, facing left; right is mirrored). `drawPortrait` draws a bust for anyone without a painted portrait. `python3 test/people.py --check` draws every look and must pass.
 - Desktop first (Chris, October 18), but phones must keep working: touch controls and the Light detail setting.
 - Chris tries things on his phone. Every step should end with something he can open there. Write anything Chris reads in plain words.
 - When new art is needed, write the picture prompts as markdown files in `docs/art-requests/` for Chris to generate.

@@ -574,6 +574,7 @@ function updateLabels() {
   if (SEL.villager && !SEL.villager.hidden) want.push({ key: 'sel', html: esc(SEL.villager.d.name), pos: _pp.copy(SEL.villager.pos).add(new THREE.Vector3(0, 2.3, 0)).clone(), cls: '' });
   if (BUILD.on && BUILD.sel && !BUILD.pending) want.push({ key: 'bsel', html: `${esc(BUILD.sel.name)} <small>${BUILD.sel.tile ? 'drag to move' : 'fixed'}</small>`, pos: new THREE.Vector3(BUILD.sel.L.x, { lens: 9, keep: 13, mast: 16, shop: 8, garden: 4.5, yard: 3.5, ballista: 3.5 }[BUILD.sel.type] || 5, BUILD.sel.L.z), cls: 'build' });
   for (const b of Object.values(TOWN.b)) if (b.building) want.push({ key: 'b' + b.id, html: `Building <small>${Math.max(0, Math.ceil(b.doneAt - performance.now() / 1000))}s</small>`, pos: b.worldPos(0, 6, 0), cls: 'build' });
+  { const J = GAME.bench.job, s = J && benchShop(); if (s && !s.building) want.push({ key: 'bench', html: `At the bench <small>${Math.min(99, Math.floor(J.t / J.need * 100))}%</small>`, pos: s.worldPos(0, 8.5, 0), cls: 'build' }); }   // Odile at work (bench.js)
   }
   const seen = new Set();
   const W = innerWidth, H = innerHeight;

@@ -55,7 +55,12 @@ function rareToast(it, line) {
 
 // ----------------------------------------------------------------- an item's numbers, as rows that can be compared
 const JOB_OF = { hall: 'keep' };
-const jobTitle = j => { const t = JOB_OF[j] || j; return t === 'wall' ? 'the watch' : (DEFS[t] && DEFS[t].job ? DEFS[t].job.title.toLowerCase() : t); };
+// who a job's people are, and where they work, in words
+const JOB_FOLK = { keep: 'clerks', head: 'miners', yard: 'tenders', shop: 'cutters', garden: 'gardeners', lens: 'lens crews', wall: 'the watch', mast: 'the Lark’s crew' };
+const JOB_AT = { keep: 'as a clerk', head: 'in the mine', yard: 'in the yards', shop: 'at the workshop', garden: 'in the greenhouse', lens: 'on the lens towers', wall: 'on the watch', mast: 'on the Lark' };
+const jobTitle = j => { const t = JOB_OF[j] || j; return JOB_FOLK[t] || (DEFS[t] && DEFS[t].job ? DEFS[t].job.title.toLowerCase() : t); };
+const jobAt = j => JOB_AT[JOB_OF[j] || j] || 'at work';
+const listWords = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0] || '';
 const STAT_WORDS = { G: v => `+${v} Grit`, E: v => `+${v} Engineering`, A: v => `+${v} Agility`, R: v => `+${v} Rapport`, S: v => `+${v} Sowing`, allStats: v => `+${v} to every GEARS stat`,
   guard: v => `+${v}% guard`, hp: v => `+${v} health`, out: v => `+${v}% output at its job`, night: v => `+${v}% work after dark`, nerve: v => `+${v} nerve`,
   vsWild: v => `+${v}% damage to Wildlight`, vsJumper: v => `+${v}% damage to claim-jumpers`, speed: v => `${v > 0 ? '+' : ''}${v}% move speed`, upkeep: v => `eats ${v}% less` };
@@ -91,7 +96,7 @@ function itemNumbers(it, v) {
   }
   if (s.guard) add('guard', 'Guard', s.guard, '%');
   if (s.hp) add('hp', 'Health', s.hp);
-  if (s.out) add('out', s.outJob ? `Output as ${jobTitle(s.outJob)}` : 'Output at any job', s.out, '%');
+  if (s.out) add('out', s.outJob ? `Output ${jobAt(s.outJob)}` : 'Output at any job', s.out, '%');
   for (const k of 'GEARS') if (s[k]) add(k, STAT_NAMES[k], s[k]);
   if (s.night) add('night', 'Work after dark', s.night, '%');
   if (s.speed) add('speed', 'Move speed', s.speed, '%');
@@ -122,7 +127,7 @@ function bestFor(it) {
   if (isModuleItem(it)) { out.push(`Fits ${homeOf(it)}`); return out; }
   const { base } = itemBase(it), s = itemStats(it), w = itemWeapon(it);
   const jobs = new Set(); if (s.outJob) jobs.add(s.outJob); for (const j of (base && base.jobs) || []) jobs.add(JOB_OF[j] || j);
-  if (jobs.size) out.push(`For ${[...jobs].map(jobTitle).join(', ')}${s.out ? ` (+${s.out}% output${s.outJob ? ' as ' + jobTitle(s.outJob) : ''})` : ''}`);
+  if (jobs.size) out.push(`For ${listWords([...jobs].map(jobTitle))}${s.out && s.outJob ? ` (+${s.out}% ${jobAt(s.outJob)})` : ''}`);
   const st = [...'GEARS'].filter(k => s[k] > 0).sort((a, b) => s[b] - s[a]);
   if (st.length && !jobs.size) { const k = st[0]; out.push(`Good for ${STAT_NAMES[k]} work: ${{ G: 'miners and the watch', E: 'cutters and menders', A: 'lens crews and the Lark', R: 'clerks', S: 'tenders and gardeners' }[k]}`); }
   if (w) {
@@ -281,8 +286,8 @@ UI.stashTab = function (body, list) {
   // the filters
   const count = k => k === 'all' ? GAME.stash.length : GAME.stash.filter(it => it.slot === k).length;
   const fl = this.h(`<div class="stash-f"><div class="tabs chips" role="group" aria-label="Show">${STASH_SLOTS.filter(([k]) => k === 'all' || count(k)).map(([k, n]) => `<button type="button" data-s="${k}" aria-pressed="${F.slot === k}">${n} <em>${count(k)}</em></button>`).join('')}</div>
-    <div class="stash-row"><span class="small">Grade</span><div class="seg mini" role="group" aria-label="Grade">${['Any', 'Tuned+', 'Calibrated+', 'Signed+'].map((n, i) => `<button type="button" data-r="${i}" aria-pressed="${F.rar === i}">${n}</button>`).join('')}</div>
-    <span class="small">Sort</span><div class="seg mini" role="group" aria-label="Sort">${[['new', 'Newest'], ['grade', 'Grade'], ['level', 'Level'], ['slot', 'Slot']].map(([k, n]) => `<button type="button" data-o="${k}" aria-pressed="${F.sort === k}">${n}</button>`).join('')}</div></div></div>`);
+    <div class="stash-row"><span class="sg"><span class="small">Grade</span><span class="seg mini" role="group" aria-label="Grade">${['Any', 'Tuned+', 'Calibrated+', 'Signed+'].map((n, i) => `<button type="button" data-r="${i}" aria-pressed="${F.rar === i}">${n}</button>`).join('')}</span></span>
+    <span class="sg"><span class="small">Sort</span><span class="seg mini" role="group" aria-label="Sort">${[['new', 'Newest'], ['grade', 'Grade'], ['level', 'Level'], ['slot', 'Slot']].map(([k, n]) => `<button type="button" data-o="${k}" aria-pressed="${F.sort === k}">${n}</button>`).join('')}</span></span></div></div>`);
   for (const b of fl.querySelectorAll('[data-s]')) b.onclick = () => { F.slot = b.dataset.s; UI.refresh(); };
   for (const b of fl.querySelectorAll('[data-r]')) b.onclick = () => { F.rar = +b.dataset.r; UI.refresh(); };
   for (const b of fl.querySelectorAll('[data-o]')) b.onclick = () => { F.sort = b.dataset.o; UI.refresh(); };

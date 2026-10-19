@@ -195,8 +195,9 @@ function benchFrame(rdt, gdt) {
   const J = GAME.bench.job, b = J && benchShop();
   if (b && gdt > 0) {
     b.busy = 1;
-    if ((BENCH.fxT -= rdt) <= 0) { BENCH.fxT = 0.11; FX.sparks(benchPos(), 3, Math.random() < 0.3 ? 0xffe0a0 : 0xffa040, 1.7); }
-    if ((BENCH.hamT -= gdt) <= 0) { BENCH.hamT = 0.75; AUDIO.play('anvil', benchPos()); }
+    if ((BENCH.fxT -= rdt) <= 0) { BENCH.fxT = 0.09; FX.sparks(benchPos(), 4, Math.random() < 0.3 ? 0xffe0a0 : 0xffa040, 2.2); FX.mote(benchPos().add(new THREE.Vector3(0, 0.3, 0)), 0xffc070); }
+    // the hammer: a ring and a shower of sparks with every blow
+    if ((BENCH.hamT -= gdt) <= 0) { BENCH.hamT = 0.75; const p = benchPos(); AUDIO.play('anvil', p); FX.sparks(p.clone().setY(p.y + 0.2), 16, 0xfff0c0, 3.2); }
   }
   // the progress bar in the bench's panel, without redrawing the panel
   if (J && UI.cur && UI.cur.kind === 'bench' && (BENCH.uiT -= rdt) <= 0) {
@@ -373,7 +374,7 @@ function benchAttunePane(pane) {
   const box = document.createElement('div'); box.className = 'attune';
   for (const [k, A] of Object.entries(D.ATTUNE)) {
     const e = fitted ? `Its whole effect ${Math.round((A.fitted - 1) * 100)}% stronger${A.nightOnly ? ' at night' : ''}` : statWords(hand ? A.hand : A.other);
-    const card = this.h(`<div class="att att-${k}"><b>${esc(A.name)}</b><p class="small">${esc(A.text)}</p><p>${esc(e)}</p><button type="button" class="btn primary" ${cant || GAME.bench.job ? 'disabled' : ''}>Attune · ${costText(c)}</button></div>`);
+    const card = this.h(`<div class="att att-${k}"><b>${esc(A.name)}</b><p class="small">${esc(A.text)}</p><p>${esc(e)}</p><button type="button" class="btn primary" ${cant || GAME.bench.job ? 'disabled' : ''}>Attune to the ${k} · ${costText(c)}</button></div>`);
     card.querySelector('button').onclick = () => { benchAttune(it, k); UI.refresh(); };
     box.append(card);
   }

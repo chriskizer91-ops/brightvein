@@ -115,7 +115,9 @@ function mineFindHere() {
   UI.refresh();
 }
 function wildlightDrop(f) {
-  const foe = GAME.nights >= 6 && Math.random() < 0.25 ? 'flarehound' : 'glimmer';
+  // what it was decides what it drops (loot.js DROPS): a Glimmer now and then, a Flarehound always, a Lodestar the thing
+  // glowing in its chest (sometimes a Masterwork), a Brightmaw its hoard. Without a kind, the old rule.
+  const foe = f.kind && D.FOES[f.kind] ? f.kind : GAME.nights >= 6 && Math.random() < 0.25 ? 'flarehound' : 'glimmer';
   const r = LOOT.foeDrops(foe, { night: Math.max(1, GAME.nights), deep: TOWN.b.head.level >= 2 });
   if (r.items.length) FX.sparks(f.pos.clone().setY(1), 18, 0xfff0c0, 2);
   addHaul(r, f.pos.clone().setY(Math.max(0, f.pos.y)));

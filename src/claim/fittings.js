@@ -249,7 +249,9 @@ function propGeo() {
   PG.disc = new THREE.CircleGeometry(1, 20); PG.oct = new THREE.OctahedronGeometry(1, 0); PG.dish = new THREE.SphereGeometry(1, 16, 6, 0, TAU, 0, 0.75);
   PG.dish.scale(1, 0.45, 1);
   // polished mirror metal: bright where it catches the sky, but not a glowing lamp
-  PG.mirror = trackEnv(new THREE.MeshStandardMaterial({ color: 0xcfd8de, metalness: 0.95, roughness: 0.18, side: THREE.DoubleSide }), 0.9);
+  PG.mirror = trackEnv(new THREE.MeshStandardMaterial({ color: 0xd6e0e6, metalness: 0.8, roughness: 0.3, side: THREE.DoubleSide }), 0.6);
+  // and clear glass for the props' lenses (the towers' own lenses glow; these shouldn't)
+  PG.pglass = trackEnv(new THREE.MeshStandardMaterial({ color: 0x9fc8d0, metalness: 0.1, roughness: 0.2, transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide }), 0.25);
   return PG;
 }
 // a prop is a list of parts: [shape, material, x, y, z, sx, sy, sz, rx, ry, rz]
@@ -268,9 +270,10 @@ const PROPS = {
   sorter: () => [['cone', 'iron', 0, 1.25, 0, 0.6, 0.8, 0.6, Math.PI], ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, c]) => ['box', 'oakDark', a * 0.38, 0.45, c * 0.38, 0.08, 0.9, 0.08]), ['oct', 'crystal', 0.3, 0.12, 0.2, 0.12, 0.1, 0.12], ['oct', 'crystal', -0.25, 0.1, -0.15, 0.1, 0.09, 0.1]],
   props: () => [['box', 'iron', -0.5, 0.9, 0, 0.12, 1.8, 0.12], ['box', 'iron', 0.5, 0.9, 0, 0.12, 1.8, 0.12], ['box', 'iron', 0, 1.82, 0, 1.3, 0.14, 0.16], ['box', 'iron', 0, 0.95, 0, 0.08, 1.4, 0.08, 0, 0, 0.62]],
   // the sunning yards
-  mirror: () => [['box', 'iron', 0, 0.06, 0, 0.6, 0.12, 0.6], ['cyl', 'iron', 0, 0.75, 0, 0.06, 1.4, 0.06], ['dish', 'mirror', 0, 1.55, 0, 0.85, 0.85, 0.85, -0.7, 0, 0], ['ring', 'brass', 0, 1.62, -0.06, 0.82, 0.82, 0.82, Math.PI / 2 - 0.7], ['oct', 'crystal', 0, 1.8, 0.32, 0.08, 0.12, 0.08]],
-  gimbal: () => [['cyl', 'iron', 0, 0.6, 0, 0.06, 1.2, 0.06], ['ring', 'brass', 0, 1.6, 0, 0.55, 0.55, 0.55], ['ring', 'copper', 0, 1.6, 0, 0.46, 0.46, 0.46, Math.PI / 2], ['disc', 'lens', 0, 1.6, 0, 0.36, 0.36, 0.36, -0.5], ['oct', 'crystal', 0, 1.6, 0, 0.08, 0.08, 0.08]],
-  cloudlens: () => [['cyl', 'oakDark', 0, 1.1, 0, 0.07, 2.2, 0.07], ['ring', 'brass', 0, 2.3, 0, 0.5, 0.5, 0.5, Math.PI / 2 - 0.5], ['disc', 'lens', 0, 2.3, 0, 0.47, 0.47, 0.47, -Math.PI / 2 - 0.5], ['sph', 'cream', 0.3, 2.85, 0, 0.26, 0.16, 0.2], ['sph', 'cream', -0.1, 2.92, 0, 0.3, 0.18, 0.22]],
+  // a round mirror in a brass frame, tipped up to the sun, with a crystal held at its focus
+  mirror: () => [['box', 'iron', 0, 0.06, 0, 0.6, 0.12, 0.6], ['cyl', 'iron', 0, 0.85, 0, 0.06, 1.6, 0.06], ['box', 'iron', 0, 1.62, -0.05, 0.9, 0.08, 0.08], ['cyl', 'brass', 0, 1.7, -0.03, 0.88, 0.07, 0.88, Math.PI / 2 - 0.8], ['disc', 'mirror', 0, 1.73, 0.0, 0.8, 0.8, 0.8, -0.8], ['ring', 'brass', 0, 1.73, 0.0, 0.84, 0.84, 0.84, -0.8], ['cyl', 'brass', 0, 1.92, 0.19, 0.022, 0.55, 0.022, 0.8], ['oct', 'crystal', 0, 2.1, 0.38, 0.1, 0.15, 0.1]],
+  gimbal: () => [['cyl', 'iron', 0, 0.6, 0, 0.06, 1.2, 0.06], ['ring', 'brass', 0, 1.6, 0, 0.55, 0.55, 0.55], ['ring', 'copper', 0, 1.6, 0, 0.46, 0.46, 0.46, Math.PI / 2], ['disc', 'pglass', 0, 1.6, 0, 0.36, 0.36, 0.36, -0.5], ['oct', 'crystal', 0, 1.6, 0, 0.08, 0.08, 0.08]],
+  cloudlens: () => [['cyl', 'oakDark', 0, 1.1, 0, 0.07, 2.2, 0.07], ['ring', 'brass', 0, 2.3, 0, 0.5, 0.5, 0.5, Math.PI / 2 - 0.5], ['disc', 'pglass', 0, 2.3, 0, 0.47, 0.47, 0.47, -Math.PI / 2 - 0.5], ['sph', 'cream', 0.3, 2.85, 0, 0.26, 0.16, 0.2], ['sph', 'cream', -0.1, 2.92, 0, 0.3, 0.18, 0.22]],
   jars: () => [['box', 'oak', 0, 0.1, 0, 1.3, 0.2, 0.5], ...[-0.42, 0, 0.42].flatMap(x => [['cyl', 'glass', x, 0.55, 0, 0.17, 0.7, 0.17], ['oct', 'crystal', x, 0.52, 0, 0.1, 0.24, 0.1], ['cyl', 'copper', x, 0.94, 0, 0.18, 0.08, 0.18]]), ['box', 'copper', 0, 1.0, 0, 1.0, 0.03, 0.03]],
   // the Lens Workshop
   wheel: () => [['box', 'oakDark', -0.35, 0.5, 0, 0.1, 1.0, 0.5], ['box', 'oakDark', 0.35, 0.5, 0, 0.1, 1.0, 0.5], ['cyl', 'stone', 0, 1.1, 0, 0.5, 0.14, 0.5, 0, 0, Math.PI / 2], ['cyl', 'iron', 0, 1.1, 0, 0.06, 0.8, 0.06, 0, 0, Math.PI / 2], ['box', 'oak', 0, 0.06, 0, 0.9, 0.12, 0.7]],
@@ -283,7 +286,7 @@ const PROPS = {
   // the wall's bolt thrower when it stands on the ground (the wall itself is drawn in wallProps)
   ballista: () => [['box', 'oakDark', 0, 0.4, 0, 0.3, 0.8, 0.3], ['box', 'oak', 0, 0.9, 0.2, 0.18, 0.14, 1.3], ['box', 'iron', 0, 0.92, 0.6, 1.4, 0.08, 0.08, 0, 0.3]],
 };
-const PROP_MAT = k => k === 'mirror' ? PG.mirror : k === 'steel' ? MAT.iron : k === 'gold' ? MAT.brass : MAT[k] || MAT.brass;
+const PROP_MAT = k => k === 'mirror' ? PG.mirror : k === 'pglass' ? PG.pglass : k === 'steel' ? MAT.iron : k === 'gold' ? MAT.brass : MAT[k] || MAT.brass;
 function addProp(group, kind, x, y, z, ry = 0, s = 1) {
   const P = propGeo(), list = (PROPS[kind] || PROPS.jars)(), holder = new THREE.Group(); holder.position.set(x, y, z); holder.rotation.y = ry; holder.scale.setScalar(s); group.add(holder);
   const meshes = [];
@@ -320,9 +323,9 @@ function lensProps(b, L) {
   const P = propGeo(), add = (parent, geo, mat, x, y, z, s, r = [0, 0, 0]) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(...s); m.rotation.set(...r); m.castShadow = true; m.userData.building = b; parent.add(m); b.lensProps.push(m); return m; };
   for (const it of L) {
     const k = it.kind;
-    if (k === 'fresnel') { add(b.tilt, P.ring, MAT.brass, 0, 0, 0.62, [0.95, 0.95, 0.95]); add(b.tilt, P.ring, MAT.brass, 0, 0, 0.66, [0.7, 0.7, 0.7]); add(b.tilt, P.disc, MAT.lens, 0, 0, 0.64, [0.9, 0.9, 0.9]); }
+    if (k === 'fresnel') { add(b.tilt, P.ring, MAT.brass, 0, 0, 0.62, [0.95, 0.95, 0.95]); add(b.tilt, P.ring, MAT.brass, 0, 0, 0.66, [0.7, 0.7, 0.7]); add(b.tilt, P.disc, P.pglass, 0, 0, 0.64, [0.9, 0.9, 0.9]); }
     else if (k === 'shutter') { add(b.tilt, P.ring, MAT.iron, 0, 0, 0.42, [0.9, 0.9, 2.2]); for (let i = 0; i < 6; i++) add(b.tilt, P.box, MAT.iron, Math.cos(i * 1.047) * 0.82, Math.sin(i * 1.047) * 0.82, 0.42, [0.26, 0.12, 0.06], [0, 0, i * 1.047]); }
-    else if (k === 'prism') { add(b.head, P.oct, MAT.lens, 0, 2.75, 0, [0.32, 0.5, 0.32]); add(b.head, P.cyl, MAT.brass, 0, 2.3, 0, [0.06, 0.4, 0.06]); }
+    else if (k === 'prism') { add(b.tilt, P.oct, P.pglass, 0, -0.95, 0.75, [0.3, 0.42, 0.3]); add(b.tilt, P.ring, MAT.brass, 0, -0.95, 0.75, [0.32, 0.32, 0.32], [Math.PI / 2, 0, 0]); add(b.tilt, P.box, MAT.brass, 0, -0.55, 0.62, [0.06, 0.5, 0.06]); }
     else if (k === 'hood') add(b.tilt, P.cone, MAT.copper, 0, 0, 0.75, [0.95, 0.9, 0.95], [-Math.PI / 2, 0, 0]);
     else if (k === 'bigLens') { add(b.tilt, P.ring, MAT.brass, 0, 0, 0.9, [1.35, 1.35, 1.35]); add(b.tilt, P.disc, MAT.crystal, 0, 0, 0.88, [1.25, 1.25, 1.25]); }
   }
@@ -388,13 +391,13 @@ function fitFrame(rdt) {
 UI.socketBlock = function (body, b) {
   const max = socketMax(b); if (!max) return;
   const n = socketCount(b), L = socketsAt(b), have = L.filter(Boolean).length;
-  body.append(this.h(`<h3>Module sockets · ${have} of ${n} fitted${n < max ? ` · ${b === WALLB || b.type !== 'keep' ? 'each level opens one' : 'the Keep opens more as it rises'}` : ''}</h3>`));
+  body.append(this.h(`<h3>${b === 'lark' ? 'Parts' : 'Module sockets'} · ${have} of ${n} fitted${n < max ? ` · ${b === WALLB || b.type !== 'keep' ? 'each level opens one' : 'the Keep opens more as it rises'}` : ''}</h3>`));
   const box = document.createElement('div'); box.className = 'sockets';
   for (let i = 0; i < max; i++) {
     const it = L[i], el = document.createElement('button'); el.type = 'button';
     if (i >= n) { el.className = 'sock locked'; el.disabled = true; const lv = b === WALLB ? i + 1 : b.type === 'keep' ? [1, 2, 3, 3][i] : i + 1; el.append(this.h(`<span class="lk">◆</span><span>Level ${lv}</span>`)); }
     else if (it) { const R = rarityOf(it); el.className = 'sock full'; el.style.setProperty('--rc', R.color); el.append(itemPicture(it, 44)); el.append(this.h(`<span class="sn" style="color:${R.color}">${esc(moduleDef(it).name)}${it.overhaul ? ' +' + it.overhaul : ''}</span><span class="se">${esc(moduleEffect(it))}${seized(it) ? ' · seized in the storm' : ''}</span>`)); el.onclick = () => UI.open('item', { it, back: () => UI.open(b === 'lark' ? 'lark' : 'building', b) }); el.setAttribute('aria-label', `${moduleDef(it).name}: ${moduleEffect(it)}`); }
-    else { el.className = 'sock empty'; el.append(this.h(`<span class="plus">+</span><span>Fit a module</span>`)); el.onclick = () => UI.open('fit', { b, i }); }
+    else { el.className = 'sock empty'; el.append(this.h(`<span class="plus">+</span><span>${b === 'lark' ? 'Fit a part' : 'Fit a module'}</span>`)); el.onclick = () => UI.open('fit', { b, i }); }
     box.append(el);
   }
   body.append(box);

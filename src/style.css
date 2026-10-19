@@ -456,7 +456,10 @@ button { font: inherit; color: inherit; }
 .nr span { color: var(--cream-2); } .nr em { font-style: normal; font-size: 11px; opacity: .8; }
 .nr b { font-variant-numeric: tabular-nums; color: var(--cream); }
 .power-line { margin-top: 8px !important; color: var(--amber-2) !important; font-weight: 600; }
-.stars-list li { display: flex; justify-content: space-between; gap: 10px; }
+.stars-list li { display: flex; align-items: baseline; gap: 6px; }
+.stars-list li > span:first-of-type { flex: 1; }
+.li.trait-li { grid-template-columns: 1fr auto; }
+.stash-row .sg { display: inline-flex; align-items: center; gap: 6px; }
 .mark-line { margin-top: 8px; font-size: 13px; }
 .mark-line b { color: #d7b6ff; }
 .traits.best li::before { content: "➤ "; color: var(--gold); font-size: 11px; }

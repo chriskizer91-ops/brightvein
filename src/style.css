@@ -240,3 +240,57 @@ button { font: inherit; color: inherit; }
 .li.raid .rk { font-size: 18px; color: var(--amber-2); text-align: center; }
 .li.raid[disabled] { opacity: .55; cursor: default; }
 .li.raid .side { font-size: 12px; color: var(--amber-2); text-align: right; max-width: 9em; }
+
+/* ---------- a person's card: portrait, GEARS, the paper doll and their kit */
+@media (min-width: 900px) { .panel.wide { width: 640px; } }
+@media (max-width: 899px) { .panel.wide { max-height: min(82vh, 760px); } }
+.sheet { display: grid; gap: 12px; }
+.sh-head { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+.sh-id h2 { font-size: 24px; margin: 0 40px 4px 0; }
+.sh-id .eyebrow { margin: 0 0 2px; }
+.sh-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0; }
+.sh-id .small { margin: 2px 0; }
+.sh-where { color: var(--amber-2) !important; }
+.pframe { position: relative; flex: none; border-radius: 12px; overflow: hidden; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 38%, #6b4a6e, #2a1b2f 72%); border: 2px solid var(--gold);
+  box-shadow: 0 0 0 3px var(--plum), 0 0 0 4px rgba(230,185,85,.45), 0 8px 22px rgba(0,0,0,.5); }
+.pframe img, .pframe canvas { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; }
+.pframe canvas.crop { width: 86%; height: auto; margin-top: 14%; }
+.pframe::after { content: ""; position: absolute; inset: 0; border-radius: 10px; box-shadow: inset 0 0 18px rgba(0,0,0,.55); pointer-events: none; }
+.sh-cols { display: grid; grid-template-columns: 250px 1fr; gap: 14px; align-items: start; }
+@media (max-width: 560px) { .sh-cols { grid-template-columns: 1fr; } }
+.doll { display: grid; grid-template-columns: 62px 1fr 62px; grid-template-rows: 70px 70px 70px; gap: 6px; align-items: center; justify-items: center;
+  grid-template-areas: "hand head offhand" "hands fig rig" "boots fig charm"; padding: 8px; border-radius: 14px;
+  background: radial-gradient(ellipse at 50% 70%, rgba(255,173,74,.18), transparent 62%), rgba(0,0,0,.22); border: 1px solid rgba(241,228,198,.16); }
+.doll-fig { grid-area: fig; align-self: end; position: relative; }
+.doll-fig canvas { image-rendering: pixelated; display: block; filter: drop-shadow(0 6px 4px rgba(0,0,0,.45)); }
+.doll-fig::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: -3px; height: 10px; border-radius: 50%; background: rgba(0,0,0,.35); z-index: -1; }
+.dslot { width: 60px; height: 68px; display: grid; justify-items: center; align-content: center; gap: 1px; padding: 3px 2px; border-radius: 10px; cursor: pointer;
+  --rc: rgba(241,228,198,.35); border: 1.5px solid var(--rc); background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--rc) 22%, transparent), rgba(0,0,0,.3) 70%); }
+.dslot:hover { filter: brightness(1.15); }
+.dslot.empty { border-style: dashed; background: rgba(0,0,0,.18); }
+.dslot .plus { font-size: 20px; color: var(--cream-2); line-height: 44px; height: 44px; }
+.dslot .dl { font-size: 10px; color: var(--cream-2); line-height: 1; }
+.dslot img, .dslot canvas { width: 44px; height: 44px; image-rendering: pixelated; object-fit: contain; }
+.s-hand { grid-area: hand; } .s-offhand { grid-area: offhand; } .s-head { grid-area: head; } .s-rig { grid-area: rig; } .s-hands { grid-area: hands; } .s-boots { grid-area: boots; } .s-charm { grid-area: charm; }
+.sh-stats h3:first-child { margin-top: 0; }
+.srow { display: grid; grid-template-columns: 20px 92px 1fr 46px; gap: 8px; align-items: center; font-size: 13px; margin: 5px 0; }
+.srow .sk { font-family: var(--f-display); color: var(--gold); font-weight: 700; font-size: 15px; text-align: center; }
+.srow .sbar { position: relative; height: 10px; border-radius: 5px; background: rgba(241,228,198,.1); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,.4); }
+.srow .sbar i { position: absolute; top: 0; bottom: 0; }
+.srow .sbar i.sb-own { left: 0; background: linear-gradient(90deg, #cbb99c, #f1e4c6); border-radius: 5px 0 0 5px; }
+.srow .sbar i.sb-more { background: linear-gradient(90deg, #e8922e, #ffcf85); }
+.srow .sbar em { position: absolute; top: -2px; bottom: -2px; width: 2px; background: rgba(230,185,85,.8); }
+.srow .sv { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.srow .sv small { color: var(--amber-2); font-weight: 500; margin-left: 2px; font-size: 11px; }
+.srow .sv b { color: var(--gold); margin-left: 3px; }
+.sh-fight { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--cream-2); }
+.sh-fight b { color: var(--cream); font-variant-numeric: tabular-nums; }
+.sh-kit { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 6px; }
+.kit { display: grid; grid-template-columns: 36px 1fr; gap: 8px; align-items: center; text-align: left; padding: 5px 8px; border-radius: 10px; border: 1px solid rgba(241,228,198,.14); background: rgba(0,0,0,.16); cursor: pointer; }
+.kit img, .kit canvas { width: 36px; height: 36px; image-rendering: pixelated; object-fit: contain; }
+.kit .nm { display: block; font-weight: 600; font-size: 13px; line-height: 1.2; }
+.kit .jb { display: block; font-size: 11.5px; color: var(--cream-2); line-height: 1.3; }
+.ipic { object-fit: contain; }
+.ihead > img, .ihead > canvas { width: 88px; height: 88px; border-radius: 12px; padding: 4px; image-rendering: pixelated;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--rc, #cbb99c) 28%, transparent), rgba(0,0,0,.3) 72%); border: 1.5px solid var(--rc, rgba(241,228,198,.3)); }

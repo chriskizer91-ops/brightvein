@@ -17,6 +17,26 @@ function miniSprite(v, w = 36, h = 48, col = 0, row = 0) {
   return c;
 }
 const SHORT_STAT = { G: 'Grit', E: 'Eng', A: 'Agility', R: 'Rapport', S: 'Sowing' };
+// a person's portrait in a gilt frame: the cast's painted ones, a drawn bust for everyone else (or, failing that, the
+// head and shoulders of their sprite, close up)
+function portraitOf(v, size = 128) {
+  const wrap = document.createElement('div'); wrap.className = 'pframe'; wrap.style.width = wrap.style.height = size + 'px';
+  const src = v.d.hero && ART.cast && ART.cast[v.d.hero];
+  if (src) { const im = new Image(); im.src = src; im.alt = ''; wrap.append(im); return wrap; }
+  try {
+    if (typeof drawPortrait === 'function') { const c = document.createElement('canvas'); drawPortrait({ ...v.d.look }, c); if (c.width > 1) { wrap.append(c); return wrap; } }
+  } catch (e) { console.warn(e); }
+  const c = document.createElement('canvas'), hh = Math.round(PX.FH * 0.6); c.width = PX.FW; c.height = hh;
+  c.getContext('2d').drawImage(v.canvas, 0, 0, PX.FW, hh, 0, 0, PX.FW, hh);
+  c.className = 'crop'; wrap.append(c);
+  return wrap;
+}
+// an item's picture: its painted one where there is one (assets/items), otherwise its pixel icon
+function itemPicture(it, size = 48) {
+  const { relic } = itemBase(it), src = ART.items && (ART.items[it.base] || (relic && relic.base && ART.items[relic.base]));
+  if (src) { const im = new Image(); im.src = src; im.alt = ''; im.className = 'ipic'; im.width = size; im.height = size; return im; }
+  const c = itemIcon(it, 64); c.style.width = c.style.height = size + 'px'; return c;
+}
 const stars = s => s >= 9 ? '★★★' : s >= 6 ? '★★' : '★';
 const UI = {
   cur: null, tab: 'crew',
@@ -26,6 +46,7 @@ const UI = {
   render() {
     const c = this.cur, body = $('#panel-body'), panel = $('#panel'), key = c && c.kind + (c.ref != null && typeof c.ref !== 'object' ? c.ref : c.ref && (c.ref.id || c.ref.d?.id || c.ref.v?.d?.id || c.ref.it?.uid || c.ref.room || ''));
     const keep = this.lastKey === key ? panel.scrollTop : 0;
+    panel.classList.toggle('wide', !!c && c.kind === 'villager');
     this.lastKey = key;
     body.innerHTML = '';
     requestAnimationFrame(() => { panel.scrollTop = keep; });
@@ -108,17 +129,7 @@ const UI = {
   },
   villager(body, v) {
     const d = v.d, b = v.jobB, E = d.exp;
-    const top = document.createElement('div'); top.className = 'portrait';
-    top.append(miniSprite(v, 72, 96));
-    const title = d.title || (b ? b.def.job.title : E ? 'Out in the wilds' : 'Settler, looking for work');
-    top.append(this.h(`<div><h2>${esc(d.name)}</h2><p class="sub">${esc(title)}</p><span class="chip amber trait">${esc(d.trait)}</span></div>`));
-    body.append(top);
-    body.append(this.h(`<p class="small">${esc(TRAITS[d.trait] || '')}</p><h3>Stats</h3>`));
-    const g = document.createElement('div'); g.className = 'gears';
-    for (const k of ['G', 'E', 'A', 'R', 'S']) { const s = statOf(v, k), base = d.stats[k]; g.append(this.h(`<div class="gear"><span class="k">${k}</span><span>${STAT_NAMES[k]}</span><span class="bar"><i style="width:${Math.min(100, s * 8.3)}%"></i></span><span class="v">${s}${s > base ? '*' : ''}</span></div>`)); }
-    body.append(g);
-    const ms = [...'GEARS'].filter(k => mastered(v, k));
-    if (ms.length) body.append(this.h(`<div class="stats-row">${ms.map(k => `<span class="chip amber" title="${esc(STUDY[k].perkText)}">Master: ${esc(STUDY[k].perk)}</span>`).join('')}</div>`));
+    this.sheet(body, v);
     if (d.study) {
       const S = d.study, r = GAME.rooms[S.room], k = r.type;
       body.append(this.h(`<h3>${S.role === 'tutor' ? 'Teaching' : 'Studying'} in the ${esc(STUDY[k].name)}</h3>`));
@@ -130,7 +141,6 @@ const UI = {
       stop.onclick = () => { endStudy(v); toast(`<b>${esc(d.name.split(' ')[0])}</b> leaves the ${esc(STUDY[k].name)}.`); UI.refresh(); };
       see.onclick = () => { setView('keep'); UI.open('room', S.room); };
       body.append(r2);
-      this.gearBlock(body, v);
       return;
     }
     if (E) {
@@ -138,14 +148,12 @@ const UI = {
       const r = this.h(`<div class="stats-row"><button type="button" class="btn primary">See their log</button></div>`); r.querySelector('button').onclick = () => UI.open('exp', v); body.append(r);
       return;
     }
-    const where = v.hidden ? (v.where === 'home' ? 'Asleep in the Keep' : 'Indoors') : v.where === 'mine' ? 'Down the mine' : v.where === 'ship' ? 'Aboard the Lark' : v.working ? 'At work' : v.fighting ? 'Fighting Wildlight' : 'Out and about';
-    body.append(this.h(`<h3>Job</h3><p>${b ? `<b>${esc(b.def.job.title)}</b> at the ${esc(b.name || b.def.name)}` : 'No job yet.'} <span class="small">· ${where}</span></p>`));
+    body.append(this.h(`<h3>Job</h3><p>${b ? `<b>${esc(b.def.job.title)}</b> at the ${esc(b.name || b.def.name)}` : 'No job yet.'}</p>`));
     const row = this.h(`<div class="stats-row"><button type="button" class="btn" id="vj">${b ? 'Change job' : 'Give a job'}</button><button type="button" class="btn" id="vs">Study</button><button type="button" class="btn" id="vf">${FOLLOW.v === v ? 'Stop following' : 'Follow'}</button></div>`);
     row.querySelector('#vj').onclick = () => UI.open('jobs', v);
     row.querySelector('#vs').onclick = () => UI.open('studyRooms', v);
     row.querySelector('#vf').onclick = () => { FOLLOW.v = FOLLOW.v === v ? null : v; if (FOLLOW.v && v.where === 'mine') setView('mine'); UI.refresh(); };
     body.append(row);
-    this.gearBlock(body, v);
     const can = expOut().length < expLimit();
     const ex = this.h(`<div class="upgrade"><p><b>The wilds.</b> Send ${esc(d.name.split(' ')[0])} down the rope stair to look for ore, food and gear. Kit them out first.</p><button type="button" class="btn primary" ${can ? '' : 'disabled'}>Get ready to set out</button>${can ? '' : `<p class="small">${expOut().length} already out. The Keep allows ${expLimit()} at once; raise it for more.</p>`}</div>`);
     ex.querySelector('button').onclick = () => UI.open('prep', v);
@@ -246,13 +254,81 @@ const UI = {
     for (const l of A.lines) { const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; el.style.gridTemplateColumns = '40px 1fr'; el.append(miniSprite(l.v, 30, 40)); el.append(this.h(`<span><span class="jb" style="color:var(--cream);font-size:13.5px">${esc(l.text)}</span></span>`)); el.onclick = () => UI.open(l.v.d.exp ? 'exp' : 'villager', l.v); list.append(el); }
     body.append(list);
   },
+  // A person's card: portrait, name and trade; their five GEARS stats, with what training and gear add; a paper doll of
+  // the seven gear slots round their figure; how they fight; and what they carry.
+  sheet(body, v) {
+    const d = v.d, b = v.jobB, E = d.exp, g = gearOf(v), F = fightOf(v);
+    const title = d.title || (b ? b.def.job.title : E ? 'Out in the wilds' : d.study ? 'Studying in the Keep' : 'Settler, looking for work');
+    const where = E ? 'In the wilds' : d.study ? 'In the Keep' : v.hidden ? (v.where === 'home' ? 'Asleep in the Keep' : 'Indoors') : v.where === 'mine' ? 'Down the mine' : v.where === 'ship' ? 'Aboard the Lark' : v.working ? 'At work' : v.fighting ? 'Fighting Wildlight' : 'Out and about';
+    const card = document.createElement('div'); card.className = 'sheet';
+    // the header
+    const head = document.createElement('div'); head.className = 'sh-head';
+    head.append(portraitOf(v, 116));
+    const ms = [...'GEARS'].filter(k => mastered(v, k));
+    head.append(this.h(`<div class="sh-id"><p class="eyebrow">${esc(title)}</p><h2>${esc(d.name)}</h2>
+      <div class="sh-tags"><span class="chip amber" title="${esc(TRAITS[d.trait] || '')}">${esc(d.trait)}</span>${ms.map(k => `<span class="chip good" title="${esc(STUDY[k].perkText)}">${esc(STUDY[k].perk)}</span>`).join('')}</div>
+      <p class="small">${esc(TRAITS[d.trait] || '')}</p><p class="small sh-where">${esc(where)}</p></div>`));
+    card.append(head);
+    const cols = document.createElement('div'); cols.className = 'sh-cols';
+    // the paper doll: their figure, big, with the gear slots round it
+    const doll = document.createElement('div'); doll.className = 'doll';
+    const fig = document.createElement('div'); fig.className = 'doll-fig'; fig.append(miniSprite(v, 108, 144)); doll.append(fig);
+    for (const slot of GEAR_SLOTS) {
+      const it = d.gear[slot], el = document.createElement('button'); el.type = 'button'; el.className = 'dslot s-' + slot + (it ? '' : ' empty');
+      if (it) { const R = rarityOf(it); el.style.setProperty('--rc', R.color); el.append(itemPicture(it, 44)); el.title = `${it.name} (${R.name})`; el.setAttribute('aria-label', `${SLOT_LABEL[slot]}: ${it.name}`); }
+      else { el.append(this.h(`<span class="plus">+</span>`)); el.setAttribute('aria-label', `Equip ${SLOT_LABEL[slot]}`); }
+      el.append(this.h(`<span class="dl">${esc(SLOT_LABEL[slot])}</span>`));
+      el.onclick = () => UI.open('equip', { v, slot });
+      doll.append(el);
+    }
+    cols.append(doll);
+    // the stats: what they were born with (cream), what their trait, training and gear add (amber), mastery at 10
+    const st = document.createElement('div'); st.className = 'sh-stats';
+    st.append(this.h(`<h3>GEARS</h3>`));
+    for (const k of 'GEARS') {
+      const s = statOf(v, k), base = d.stats[k], extra = Math.max(0, s - base);
+      st.append(this.h(`<div class="srow" title="${esc(STAT_NAMES[k])}: ${base} of their own${extra ? `, +${extra} from trait and gear` : ''}${mastered(v, k) ? '. Mastered.' : ''}">
+        <span class="sk">${k}</span><span class="sn">${esc(STAT_NAMES[k])}</span>
+        <span class="sbar"><i class="sb-own" style="width:${Math.min(100, base / 16 * 100)}%"></i><i class="sb-more" style="left:${Math.min(100, base / 16 * 100)}%;width:${Math.min(100 - base / 16 * 100, extra / 16 * 100)}%"></i><em style="left:${10 / 16 * 100}%"></em></span>
+        <span class="sv">${s}${extra ? `<small>+${extra}</small>` : ''}${mastered(v, k) ? '<b>★</b>' : ''}</span></div>`));
+    }
+    // how they fight
+    const w = g.weapon, wa = F.aspect && D.ASPECTS[F.aspect];
+    const fight = [`<span><b>${Math.round(F.dps)}</b> damage a second</span>`, `<span><b>${maxHpOf(v)}</b> health</span>`];
+    if (g.guard) fight.push(`<span><b>${g.guard}%</b> guard</span>`);
+    fight.push(`<span>${F.ranged ? `<b>${Math.round(F.range)} m</b> reach` : 'Close in'}</span>`);
+    if (wa) fight.push(`<span style="color:${wa.color || 'inherit'}">${esc(wa.name)}</span>`);
+    st.append(this.h(`<h3>In a fight${w ? ` · ${esc(w.name)}` : ' · bare-handed'}</h3><div class="sh-fight">${fight.join('')}</div>`));
+    const job = v.jobB, out = job && job !== WALLB ? outFor(g, job.type) : 0, more = [];
+    if (out) more.push(`<span class="chip amber">+${out}% at work</span>`);
+    if (g.findLuck) more.push(`<span class="chip">+${+g.findLuck.toFixed(2)} luck</span>`);
+    if (g.night) more.push(`<span class="chip">+${g.night}% at night</span>`);
+    if (g.speed) more.push(`<span class="chip">+${g.speed}% speed</span>`);
+    if (more.length) st.append(this.h(`<div class="stats-row">${more.join('')}</div>`));
+    cols.append(st);
+    card.append(cols);
+    // what they carry, piece by piece
+    const kit = GEAR_SLOTS.map(sl => d.gear[sl]).filter(Boolean);
+    if (kit.length) {
+      const list = document.createElement('div'); list.className = 'sh-kit';
+      for (const it of kit) {
+        const R = rarityOf(it), row = document.createElement('button'); row.type = 'button'; row.className = 'kit';
+        row.append(itemPicture(it, 36));
+        row.append(this.h(`<span><span class="nm" style="color:${R.color}">${esc(it.name)}</span><span class="jb">${esc(R.name)} · ${esc(itemLines(it)[0] || D.ITEMS[it.base]?.text || '')}</span></span>`));
+        row.onclick = () => UI.open('item', { it, back: () => UI.open('villager', v) });
+        list.append(row);
+      }
+      card.append(list);
+    }
+    body.append(card);
+  },
   gearBlock(body, v, back) {
     const g = gearOf(v), F = fightOf(v);
     body.append(this.h(`<h3>Gear</h3>`));
     const box = document.createElement('div'); box.className = 'gearslots';
     for (const slot of GEAR_SLOTS) {
       const it = v.d.gear[slot], el = document.createElement('button'); el.type = 'button';
-      if (it) { el.className = 'gslot'; el.style.borderColor = rarityOf(it).color + '99'; el.append(itemIcon(it, 64)); el.append(this.h(`<b style="color:${rarityOf(it).color}">${esc(SLOT_LABEL[slot])}</b>`)); el.title = it.name; el.setAttribute('aria-label', `${SLOT_LABEL[slot]}: ${it.name}`); }
+      if (it) { el.className = 'gslot'; el.style.borderColor = rarityOf(it).color + '99'; el.append(itemPicture(it, 40)); el.append(this.h(`<b style="color:${rarityOf(it).color}">${esc(SLOT_LABEL[slot])}</b>`)); el.title = it.name; el.setAttribute('aria-label', `${SLOT_LABEL[slot]}: ${it.name}`); }
       else { el.className = 'gslot empty'; el.append(this.h(`<span class="plus">+</span><span>${esc(SLOT_LABEL[slot])}</span>`)); el.setAttribute('aria-label', `Equip ${SLOT_LABEL[slot]}`); }
       el.onclick = () => UI.open('equip', { v, slot, back });
       box.append(el);
@@ -280,7 +356,7 @@ const UI = {
   },
   itemRow(it, action, onAct) {
     const el = document.createElement('button'); el.type = 'button'; el.className = 'irow';
-    el.append(itemIcon(it, 64));
+    el.append(itemPicture(it, 40));
     const first = itemLines(it)[0] || D.ITEMS[it.base]?.text || '';
     el.append(this.h(`<span><span class="nm" style="color:${rarityOf(it).color}">${esc(it.name)}</span><span class="jb">${esc(rarityOf(it).name)} · ${esc(first)}</span></span><span class="side">${esc(action || '')}</span>`));
     el.onclick = onAct || (() => UI.open('item', { it }));
@@ -288,7 +364,7 @@ const UI = {
   },
   item(body, { it, back }) {
     const R = rarityOf(it), { relic, base } = itemBase(it);
-    const top = document.createElement('div'); top.className = 'ihead'; top.append(itemIcon(it, 96));
+    const top = document.createElement('div'); top.className = 'ihead'; top.style.setProperty('--rc', R.color); top.append(itemPicture(it, 88));
     top.append(this.h(`<div><h2 style="color:${R.color}">${esc(it.name)}</h2><p class="sub">${esc(R.name)} ${esc(D.SLOTS[it.slot]?.name || '')}${it.ilvl ? ' · item level ' + it.ilvl : ''}</p></div>`));
     body.append(top);
     const lines = itemLines(it);

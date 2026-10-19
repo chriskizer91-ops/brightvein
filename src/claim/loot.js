@@ -396,7 +396,7 @@ const MINE_FINDS = {
 };
 // Raids (later: flown on the Lark). Each camp is a crate table.
 const RAIDS = {
-  camp:     { name: "Prospect camp", tier: "veteran",  crates: 2, ilvl: 4,  shards: [20, 40], materials: { brass: 2 } },
+  camp:     { name: "Prospect camp", tier: "veteran",  crates: 2, ilvl: 4,  shards: [20, 40], materials: { brass: 2, glass: 1 } },
   outpost:  { name: "Jumper outpost", tier: "bearer",  crates: 3, ilvl: 9,  shards: [50, 90], masterwork: 0.15, materials: { brass: 3, glass: 2 } },
   airship:  { name: "Claim-jumper airship", tier: "bearer", crates: 3, ilvl: 12, shards: [60, 120], masterwork: 0.25, larkPart: 0.5, materials: { glass: 3, heartstone: 1 } },
   citadel:  { name: "Claim-baron's citadel", tier: "champion", crates: 5, ilvl: 18, shards: [150, 300], masterwork: 0.6, sunforged: 0.05, materials: { glass: 4, heartstone: 3 } },

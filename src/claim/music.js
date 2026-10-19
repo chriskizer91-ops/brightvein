@@ -185,6 +185,7 @@ const MUSIC = (() => {
     let tapT = 0;
     $('#vol-sfx').addEventListener('input', e => { AUDIO.start(); AUDIO.vol('sfx', e.target.value / 100); if (performance.now() - tapT > 180) { tapT = performance.now(); AUDIO.play('chime'); } });
     $('#b-menu').addEventListener('click', soundSync);
+    if ($('#tt-settings')) $('#tt-settings').addEventListener('click', soundSync);   // the settings opened from the title screen (title.js)
     $('#menu-close').addEventListener('click', () => { boxPick = null; boxSync(); });
   }
 

@@ -166,7 +166,7 @@ function deliverHaul(v) {
   if (H.items.length) bits.push(`${H.items.length} find${H.items.length > 1 ? 's' : ''}`);
   toast(`<b>${esc(v.d.name)}</b> is back from the wilds${bits.length ? ' with ' + bits.join(', ') : ', empty-handed'}.`);
   for (let i = 0; i < H.recruits; i++) {
-    if (GAME.villagers.length >= totalBeds()) { toast('A traveller came with them, but there was no bed in the Keep, so they went on.'); continue; }
+    if (bedsUsed() >= totalBeds()) { toast('A traveller came with them, but there was no bed in the Keep, so they went on.'); continue; }
     const d = makePerson(mulberry((Math.random() * 1e9) | 0)); const nv = addVillager(d, TRAIL_TOP());
     toast(`<b>${esc(d.name)}</b> came back with them, looking for work.`);
     void nv;

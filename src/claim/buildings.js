@@ -332,10 +332,10 @@ function modelLens(b) {
   doorAt(b, 0, 0.6, 1.93, 0.9, 1.8);
   windowAt(b, 0, 4.2, 1.82, 0.4, 0.9, 0, 1, { noMullion: true });
   // the head: brass yoke, lens, crystal core. it turns toward its target.
-  const head = new THREE.Group(); head.userData.dynamic = true; head.position.set(0, 7.0, 0); b.group.add(head); b.head = head;
+  const head = new THREE.Group(); head.userData.dynamic = head.userData.rigid = true; head.position.set(0, 7.0, 0); b.group.add(head); b.head = head;
   b.add(G.cyl(0.5, 0.6, 0.4, 12), MAT.brass, 0, 0.2, 0, { parent: head });
   for (const x of [-0.85, 0.85]) b.add(G.box(0.14, 1.6, 0.14, 1), MAT.brass, x, 1.0, 0, { parent: head });
-  const tilt = new THREE.Group(); tilt.position.set(0, 1.5, 0); head.add(tilt); b.tilt = tilt;
+  const tilt = new THREE.Group(); tilt.userData.rigid = true; tilt.position.set(0, 1.5, 0); head.add(tilt); b.tilt = tilt;
   b.add(new THREE.TorusGeometry(0.78, 0.11, 8, 28), MAT.brass, 0, 0, 0.35, { parent: tilt });
   b.add(new THREE.CircleGeometry(0.74, 28), MAT.lens, 0, 0, 0.36, { parent: tilt, cast: false });
   b.add(G.cyl(0.5, 0.75, 1.0, 14).rotateX(Math.PI / 2), MAT.copper, 0, 0, -0.2, { parent: tilt });
@@ -356,11 +356,11 @@ function modelBallista(b) {
   b.add(G.cyl(1.3, 1.4, 0.3, 8), MAT.stone, 0, 0.65, 0, { ry: Math.PI / 8 });
   for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; b.add(G.box(0.14, 0.14, 0.14, 1), MAT.brass, Math.cos(a) * 1.33, 0.82, Math.sin(a) * 1.33, { cast: false }); }
   // the head turns toward its target; the stock tilts
-  const head = new THREE.Group(); head.userData.dynamic = true; head.position.set(0, 0.8, 0); b.group.add(head); b.head = head;
+  const head = new THREE.Group(); head.userData.dynamic = head.userData.rigid = true; head.position.set(0, 0.8, 0); b.group.add(head); b.head = head;
   b.add(G.cyl(0.78, 0.88, 0.22, 16), MAT.brass, 0, 0.11, 0, { parent: head });
   b.add(G.box(0.38, 0.85, 0.38), MAT.oakDark, 0, 0.62, 0, { parent: head });
   for (const s of [-1, 1]) b.add(G.box(0.1, 0.5, 0.5, 1), MAT.iron, s * 0.25, 0.95, 0, { parent: head });
-  const tilt = new THREE.Group(); tilt.position.set(0, 1.12, 0); head.add(tilt); b.tilt = tilt;
+  const tilt = new THREE.Group(); tilt.userData.rigid = true; tilt.position.set(0, 1.12, 0); head.add(tilt); b.tilt = tilt;
   b.add(G.box(0.3, 0.24, 2.5, 1), MAT.oak, 0, 0, 0.15, { parent: tilt });
   b.add(G.box(0.36, 0.06, 2.3, 1), MAT.brass, 0, 0.14, 0.2, { parent: tilt, cast: false });
   for (const s of [-1, 1]) {

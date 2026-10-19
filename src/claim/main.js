@@ -146,6 +146,7 @@ function exitBuild() {
     if (!inGrid(ix, iz) || NAV.cost[iz * NAV.GX + ix] <= 0) { const o = nearestOpen(ix, iz, 12); if (o) { const [x, z] = cellC(...o); v.place(x, 0, z); } }
   }
   for (const v of GAME.villagers) { v.replan = true; if (!v.d.exp) v.plan = []; }
+  introClose();   // laying out is done, so the first look at how it works is too
   if (!BUILD.setupDone) { BUILD.setupDone = true; setTimeout(() => toast('Morning on the claim. <b>Tap a person</b> to see what they are good at.'), 600); }
   viewLimits('town'); setView('town');
   saveGame(); UI.refresh();
@@ -290,29 +291,27 @@ function dockView() {
   VIEW.tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt, tp, mode: 'town' };
   UI.open('dock');
 }
-for (const b of document.querySelectorAll('#spd-seg button')) b.onclick = () => { GAME.speed = +b.dataset.s; $('#b-speed').textContent = GAME.speed + '×'; syncMenu(); };
 $('#b-people').onclick = () => UI.cur && UI.cur.kind === 'roster' ? UI.close() : UI.open('roster');
 $('#b-build').onclick = () => enterBuild();
-$('#b-speed').onclick = () => { GAME.speed = GAME.speed === 1 ? 2 : GAME.speed === 2 ? 4 : 1; $('#b-speed').textContent = GAME.speed + '×'; };
+$('#b-speed').onclick = () => setSpeed(nextSpeed());   // up to the fastest allowed in Settings, then back to 1×
 $('#b-pause').onclick = () => { GAME.paused = !GAME.paused; $('#b-pause').classList.toggle('paused', GAME.paused); $('#b-pause').setAttribute('aria-label', GAME.paused ? 'Resume' : 'Pause'); };
-$('#b-menu').onclick = () => { $('#menu').hidden = false; syncMenu(); };
-$('#menu-close').onclick = () => { $('#menu').hidden = true; $('#reset-confirm').hidden = true; };
-function syncMenu() { for (const b of document.querySelectorAll('#q-seg button')) b.setAttribute('aria-pressed', b.dataset.q === QUALITY.level); for (const b of document.querySelectorAll('#spd-seg button')) b.setAttribute('aria-pressed', +b.dataset.s === GAME.speed); $('#b-sound').textContent = AUDIO.on ? 'On' : 'Off'; $('#b-sound').setAttribute('aria-pressed', AUDIO.on); }
-for (const b of document.querySelectorAll('#q-seg button')) b.onclick = () => { QUALITY.level = b.dataset.q; try { localStorage.setItem('bv-quality', QUALITY.level); } catch (e) { } applyQuality(); syncMenu(); };
-$('#b-sound').onclick = () => { AUDIO.start(); AUDIO.set(!AUDIO.on); syncMenu(); };
-$('#b-help').onclick = () => { $('#menu').hidden = true; $('#intro').hidden = false; $('#b-start').textContent = 'Back to the claim'; $('#b-continue').hidden = true; INTRO_HELP = true; };
-$('#b-reset').onclick = () => { $('#reset-confirm').hidden = false; };
-$('#reset-no').onclick = () => { $('#reset-confirm').hidden = true; };
-$('#reset-yes').onclick = () => { try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(OLD_SAVE_KEY); } catch (e) { } location.reload(); };
-let INTRO_HELP = false;
-addEventListener('keydown', e => { if (SKY && SKY.on) return; if (e.key === 'Escape') { if (!$('#menu').hidden) $('#menu').hidden = true; else if (BUILD.on && BUILD.pending) cancelPending(); else if (BUILD.on) exitBuild(); else UI.close(); } if (e.key === ' ' && e.target === document.body) { e.preventDefault(); $('#b-pause').click(); } });
+// the settings panel, its buttons and the speed limits are in settings.js
+addEventListener('keydown', e => {
+  if (SKY && SKY.on) return;
+  if (e.target.closest && e.target.closest('input,textarea')) return;
+  if (e.key === 'Escape') { if (!$('#menu').hidden) closeMenu(); else if (!$('#intro').hidden && started) introClose(); else if (BUILD.on && BUILD.pending) cancelPending(); else if (BUILD.on) exitBuild(); else UI.close(); }
+  if (e.key === ' ' && e.target === document.body && started) { e.preventDefault(); $('#b-pause').click(); }
+});
 
 // ----------------------------------------------------------------- saving
-const SAVE_KEY = 'brightvein-keep-v1', OLD_SAVE_KEY = 'brightvein-keep-none';
-function saveGame() {
+// into the open claim's slot (saves.js). Autosave can be turned off in Settings: then only a save asked for (force) is
+// made, from Save now, going back to the title, or carrying the claim off as a code.
+function saveGame(force) {
+  if (leaving || (!force && !SETTINGS.autosave)) return;   // leaving: the page is opening another claim (saves.js)
   try {
     const s = {
-      v: 2, day: GAME.day, t: GAME.t, ore: GAME.ore, shards: GAME.shards, food: GAME.food, recruit: GAME.recruit, nights: GAME.nights, nextId: GAME.nextId,
+      v: 2, name: (SLOTS.names[SLOTS.active] || '').trim() || undefined, day: GAME.day,   // a name the player gave it travels with it
+      t: GAME.t, ore: GAME.ore, shards: GAME.shards, food: GAME.food, recruit: GAME.recruit, nights: GAME.nights, nextId: GAME.nextId,
       wall: TOWN.wallLevel, kit: BUILD.kit, setupDone: BUILD.setupDone,
       buildings: Object.values(TOWN.b).filter(b => !b.pending).map(b => ({ id: b.id, type: b.type, level: b.level, tx: b.tile ? b.tile.tx : null, tz: b.tile ? b.tile.tz : null })),
       stash: GAME.stash, mats: GAME.mats, cells: GAME.cells, blueprints: GAME.blueprints, rooms: GAME.rooms, savedAt: Date.now(),
@@ -321,14 +320,12 @@ function saveGame() {
       night: nightsSave(), weather: weatherSave(), dig: digSave(),
       workshop: workshopSave(),   // Odile's bench, the fitted modules, the Lark's parts, the courier (bench.js, fittings.js)
     };
-    localStorage.setItem(SAVE_KEY, JSON.stringify(s));
-  } catch (e) { }
+    slotWrite(SLOTS.active, s);
+    saveFails = 0;
+  } catch (e) { if (!saveFails++) toast('The claim couldn’t be saved: this browser’s storage may be full. Carry it off as a code (Settings › Saving) to be safe.', 'night'); }
 }
-function loadSave() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.v === 2) return s; } catch (e) { }
-  try { const s = JSON.parse(localStorage.getItem(OLD_SAVE_KEY)); if (s && s.v === 1) return migrateV1(s); } catch (e) { }
-  return null;
-}
+let saveFails = 0;
+function loadSave() { return slotRead(SLOTS.active); }
 // A claim from before the grid: keep the people, stores and building levels; set each building down
 // on the grid as near as it will go to where it stood. Bunkhouses fold into the Keep.
 function migrateV1(s) {
@@ -350,19 +347,19 @@ function migrateV1(s) {
 
 // ----------------------------------------------------------------- the loop
 const clock = { last: performance.now(), getDelta() { const n = performance.now(), d = (n - this.last) / 1000; this.last = n; return d; } };
-let elapsed = 0, prevPhase = null, saveT = 15, smokeT = 0, started = false, lampNight = -1;
+let elapsed = 0, prevPhase = null, smokeT = 0, started = false, lampNight = -1, shadowTick = 0;
 const _tint = new THREE.Color();
 function frame() {
   const rdt = Math.min(clock.getDelta(), 0.1);
   // out in the skies: they draw instead, and the claim's time stands still until the ship is home
-  if (SKY && SKY.on) { AUDIO.ambience(0.7, true); if (SKY.frame(rdt)) return; }
+  if (SKY && SKY.on) { renderer.shadowMap.autoUpdate = true; AUDIO.ambience(0.7, true); if (SKY.frame(rdt)) return; }   // the skies draw their own shadows every frame
   elapsed += rdt;
-  const gdt = started && !GAME.paused && !BUILD.on && !GAME.talk && !(SKY && SKY.on) ? rdt * GAME.speed : 0;
+  const gdt = started && !GAME.paused && !BUILD.on && !GAME.talk && !(SKY && SKY.on) && !frontOpen() ? rdt * GAME.speed : 0;   // the settings and their sheets pause the claim
   if (started) {
     GAME.t += gdt / DAY_LEN;
     if (GAME.t >= 1) { GAME.t -= 1; GAME.day++; }
   }
-  applyTimeOfDay(GAME.t, elapsed);
+  applyTimeOfDay(TITLE.on ? titleFrame(rdt) : GAME.t, elapsed);   // the title screen shows golden hour (title.js)
   const ph = TOD.phase;
   if (started && prevPhase && ph !== prevPhase) phaseChange(prevPhase, ph);
   prevPhase = ph;
@@ -374,7 +371,7 @@ function frame() {
     updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); jumpersTick(gdt); updateExpeditions(gdt);
     announceStudy(updateStudies(gdt));
     lifeTick(gdt);   // the claim's mood, the day's events, the cast's stories (acttwo.js)
-  } else for (const v of GAME.villagers) { v.sprite.position.copy(v.pos); v.frame(0); }
+  } else for (const v of GAME.villagers) { v.sprite.position.copy(v.pos); v.frame(TITLE.on ? rdt : 0); }   // they breathe and blink under the title
   benchFrame(rdt, gdt);   // the bench, the modules, the rare-find beams (bench.js)
   if (BUILD.on) updatePlaceCtl();
   if (VIEW.mode === 'keep') buildInterior();
@@ -385,12 +382,19 @@ function frame() {
   wallUpdate(rdt);
   dressScene(rdt, gdt);
   dockUpdate(rdt); updateLife(rdt, TOD.night); storyTick(rdt); talkFrame(rdt);
-  updateCamera(rdt); digFrameUpdate(rdt, gdt);
+  if (!TITLE.on) updateCamera(rdt);
+  digFrameUpdate(rdt, gdt);
   if (VIEW.mode === 'keep') keepLookUpdate(rdt, gdt);   // after the camera moves: the lamplight is placed in its view
   nightsDraw(rdt); weatherDraw(rdt);
-  updateHUD(rdt); updateLabels();
+  updateHUD(rdt); updateLabels(); hintsTick(rdt);
   AUDIO.ambience(TOD.night, !GAME.paused);
-  saveT -= rdt; if (saveT <= 0 && started) { saveT = 15; saveGame(); }
+  autosaveTick(rdt);   // every few minutes, as Settings says (settings.js)
+  slowCheck(rdt);
+  shadowsDraw();   // everyone's shadow in one draw (people.js)
+  // On Light the sun's shadows are drawn again every third frame rather than every frame: the sun moves slowly, and
+  // it halves what a phone draws. A building being dragged redraws them every frame.
+  if (QUALITY.level === 'light') { renderer.shadowMap.autoUpdate = false; if (++shadowTick % 3 === 0 || BUILD.drag || !sun.shadow.map) renderer.shadowMap.needsUpdate = true; }   // no map yet (just switched): draw it now
+  else renderer.shadowMap.autoUpdate = true;
   const inK = VIEW.mode === 'keep', S = inK ? KSCENE : scene, C = inK ? kcam : camera;
   if (renderPass) { renderPass.scene = S; renderPass.camera = C; }
   // the lens: a model on a table from above, gentler side-on (the mine, the Keep) and when far away
@@ -400,12 +404,24 @@ function frame() {
     lensPass.uniforms.uFocus.value = side ? 0.5 : 0.47;
     gradePass.uniforms.uNight.value = TOD.night;
   }
-  if (!inK) shakeCamera(rdt);
+  if (!inK && !TITLE.on) shakeCamera(rdt);
   composer ? composer.render() : renderer.render(S, C);
   if (!inK) unshakeCamera();
 }
+// running slowly (under about 22 frames a second for half a minute) on Balanced or High: once, suggest Light
+const SLOW = { t: 0, n: 0, said: (() => { try { return !!localStorage.getItem('bv-slow-tip'); } catch (e) { return true; } })() };
+function slowCheck(rdt) {
+  if (SLOW.said || !started || QUALITY.level === 'light' || document.hidden) { SLOW.last = 0; return; }
+  const now = performance.now(); if (SLOW.last) { SLOW.t += Math.min(1, (now - SLOW.last) / 1000); SLOW.n++; } SLOW.last = now;
+  void rdt;
+  if (SLOW.t < 30) return;
+  const fps = SLOW.n / SLOW.t; SLOW.t = 0; SLOW.n = 0;
+  if (fps >= 22) return;
+  SLOW.said = true; try { localStorage.setItem('bv-slow-tip', '1'); } catch (e) { }
+  toast('Running slowly? <b>Settings › Picture › Light</b> is made for phones and older computers.');
+}
 function phaseChange(a, b) {
-  if (b === 'dusk') nightDusk();   // the banner names the night to come
+  if (b === 'dusk') { nightDusk(); nightSlowCheck(); }   // the banner names the night to come; back to 1× if Settings asks
   if (b === 'night') startNight();
   if (a === 'night' && b === 'dawn') endNight();   // the dawn report; by day the watch mends the wall (nights.js)
   for (const v of GAME.villagers) v.replan = true;
@@ -453,19 +469,27 @@ function dressScene(rdt, gdt) {
 }
 
 // ----------------------------------------------------------------- boot
+// The loading screen's bar fills as each part of the claim is built (title.js), with a breath between the parts so
+// the page can draw it. Then the title screen, unless the tab was reloaded to open a claim (go: 'continue' or 'new').
 async function boot() {
-  const save = loadSave();
-  await loadAssets();
+  loadStep(0.02, 'Opening the claim book…');
+  const go = takeGo(), save = loadSave();
+  await loadAssets(k => loadStep(0.03 + k * 0.3));
+  await breathe(); loadStep(0.36, 'Raising the plateau…');
   applyQuality();
   buildPlateau(); buildSky(); buildClouds(); buildPeaks();
+  await breathe(); loadStep(0.48, 'Raising the town…');
   setupTown(save);
+  await breathe(); loadStep(0.58, 'Mooring the ship…');
   setupDock(save);
   setupLife();
+  await breathe(); loadStep(0.66, 'Opening the dig…');
   setupDig(save);
   fixEnv(scene);
   if (save) { TOWN.wallLevel = save.wall || 1; wallSetLevel(TOWN.wallLevel, false); }
   nightsLoad(save); weatherLoad(save);   // wall damage, a night in progress, a boss that got away; the weather
   buildNav();
+  await breathe(); loadStep(0.74, 'Waking everyone up…');
   if (save) {
     Object.assign(GAME, { day: save.day, t: save.t, ore: save.ore, shards: save.shards, food: save.food, recruit: save.recruit, nights: save.nights, nextId: save.nextId,
       stash: save.stash || [], mats: { brass: 0, glass: 0, heartstone: 0, ...(save.mats || {}) }, cells: save.cells || {}, blueprints: save.blueprints || [] });
@@ -487,32 +511,49 @@ async function boot() {
     workshopLoad(save.workshop);   // a claim from before the bench simply has none of it yet
     if (save.savedAt) GAME.away = catchUp((Date.now() - save.savedAt) / 1000);
     if (save.migrated) setTimeout(() => toast('Your claim is on the new build grid. Everyone lives in <b>the Keep</b> now. Tap <b>Build</b> to rearrange.'), 2500);
-  } else { starterStash(); seedVillagers(); }
+  } else { starterStash(); seedVillagers(); if (go !== 'new') titleShowcase(); }
   for (const v of GAME.villagers) { const S = stationFor(v); if (S && S.kind === 'surface') v.place(S.pos.x + (Math.random() - 0.5), 0, S.pos.z + (Math.random() - 0.5)); }
   applyTimeOfDay(GAME.t, 0);
   prevPhase = TOD.phase;
   addEventListener('resize', resize); resize();
   camera.position.set(60, 70, 120); controls.target.set(0, 0, 4); viewLimits('town');
   setView('town');
+  applyCamSettings(); setSpeed(GAME.speed);
+  const straightIn = (go === 'new' && !save) || (go === 'continue' && !!save);
+  if (!straightIn) titleShow(save);
+  // the first picture compiles every shader the claim uses: done here, behind the loading screen, not on the title
+  await breathe(); loadStep(0.86, 'Lighting the lamps…'); await breathe();
+  try { applyTimeOfDay(TITLE.on ? titleFrame(0) : GAME.t, 0); if (composer) composer.render(); else renderer.render(scene, camera); } catch (e) { console.warn(e); }
   renderer.setAnimationLoop(frame);
-  $('#loading').hidden = true;
-  if (save) { $('#b-continue').hidden = false; $('#b-start').textContent = 'Start a new claim'; }
+  await breathe();
+  loadDone();
+  if (straightIn) begin(go === 'new');
   addEventListener('visibilitychange', () => { if (document.hidden && started) saveGame(); });
+  addEventListener('pagehide', () => { if (started) saveGame(); });
 }
+// Into the claim. fresh: a new claim (the open slot is empty; the title's showcase comes down and the starting kit
+// goes back in the tray), straight into laying it out, with the first look at how it works for a new player.
 function begin(fresh) {
   AUDIO.start();
-  if (INTRO_HELP) { $('#intro').hidden = true; INTRO_HELP = false; return; }
-  if (fresh && loadSave()) { try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(OLD_SAVE_KEY); } catch (e) { } location.reload(); return; }
-  $('#intro').hidden = true; started = true;
-  if (!BUILD.setupDone) { enterBuild(null, true); return; }
-  if (GAME.away && (GAME.away.lines.length || GAME.away.sec > 300)) { const A = GAME.away; setTimeout(() => UI.open('away', A), 400); }
+  sheetClose(); if (!$('#menu').hidden) closeMenu();
+  if (INTRO_HELP) { introClose(); return; }
+  if (fresh && loadSave()) { slotClear(SLOTS.active); reloadInto(SLOTS.active, 'new'); return; }   // a claim is on the page: build a new one
+  if (fresh) undoShowcase();
+  titleHide();
+  started = true;
+  applyTimeOfDay(GAME.t, elapsed); prevPhase = TOD.phase;   // back from the title's golden hour to the claim's own time
+  for (const v of GAME.villagers) v.replan = true;
+  if (!BUILD.setupDone) { enterBuild(null, true); if (!introSeen()) introShow(false); return; }
+  setView('town');
+  if (GAME.away && (GAME.away.lines.length || GAME.away.sec > 300)) { const A = GAME.away; setTimeout(() => { if (!GAME.talk) UI.open('away', A); }, 1300); }
   GAME.away = null;
-  const hint = $('#hint');
-  hint.textContent = matchMedia('(pointer:coarse)').matches ? 'Drag to move · pinch to zoom · two fingers to turn · tap anyone' : 'Drag to move · scroll to zoom · right-drag to turn · click anyone';
-  hint.hidden = false; setTimeout(() => hint.hidden = true, 7000);
+  let shown = 0; try { shown = +localStorage.getItem('bv-controls-hint') || 0; localStorage.setItem('bv-controls-hint', shown + 1); } catch (e) { }
+  if (shown < 4) {
+    const hint = $('#hint');
+    hint.textContent = matchMedia('(pointer:coarse)').matches ? 'Drag to move · pinch to zoom · two fingers to turn · tap anyone' : 'Drag to move · scroll to zoom · right-drag to turn · click anyone';
+    hint.hidden = false; setTimeout(() => hint.hidden = true, 7000);
+  }
 }
-$('#b-start').onclick = () => begin(true);
-$('#b-continue').onclick = () => begin(false);
 // test hook: advance the simulation without rendering
 function simulate(seconds, step = 0.1) {
   for (let t = 0; t < seconds; t += step) {
@@ -529,6 +570,8 @@ function simulate(seconds, step = 0.1) {
 }
 // test hook: skip to a time of day (0 = first light, 0.6 dusk, 0.69 night, 0.96 dawn), running everything on the way
 function skipTo(t, step = 0.25) { let guard = 0; while (Math.abs(GAME.t - t) > step / DAY_LEN * 1.5 && guard++ < 20000) simulate(step, step); }
+// test hook: draw one frame as the game does (through the post-processing, if any), without moving anything
+function drawOnly() { shadowsDraw(); const inK = VIEW.mode === 'keep', S = inK ? KSCENE : scene, C = inK ? kcam : camera; if (renderPass) { renderPass.scene = S; renderPass.camera = C; } if (composer) composer.render(); else renderer.render(S, C); }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
 window.__bv = { DIG, CAGE, ROOMK, digQuick, digSetHead, digTick, recruit: recruitArrives, digOrder, digUpgrade, digCancel, digWhyNot, digDiggable, digIncident, digMerge, digSave, digFrame, DIGCAM, roomAt, digAt, digAutoCrew, DLOOK, GLOW, pickDig,
   JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies,
@@ -537,4 +580,9 @@ window.__bv = { DIG, CAGE, ROOMK, digQuick, digSetHead, digTick, recruit: recrui
   showBanner, bossBar, nightLookout, BOLT, wallSetLevel, wallMatrices, snuffLamp, FX };
 // the bench and the fittings, for tests (bench.js, fittings.js, finds.js)
 Object.assign(window.__bv, { BENCH_T: { benchSalvage, benchOverhaul, benchRetune, benchChoose, benchCell, benchUncell, benchAttune, benchCraft, benchAssay, benchSkill, overhaulCost, retuneCost, salvageYield, findItem, allItems, fitModule, unfitModule, socketCount, socketsAt, modV, larkV, yardRate, yardBoost, itemNumbers, itemStats, dpsOf, fittedAll, workshopSave, lootMoment, courierToday, suggestFor, WALLB } });
-boot().catch(e => { console.error(e); $('#loading').textContent = 'The town could not be raised: ' + e.message; });
+// the front door, saves, settings, tips and toasts, for tests (title.js, saves.js, settings.js, hints.js, ui.js)
+Object.assign(window.__bv, { TITLE, titleShow, titleHide, toTitle, SLOTS, slotRead, slotWrite, slotClear, slotSummary, slotName, exportCode, importCode, codeWhy, reloadInto,
+  SETTINGS, setSpeed, applyLookSettings, HINTS, hintShow, hintClose, hintsReset, TOASTS, toast, bedsUsed, guestCount, openMenu, closeMenu, openExport, openImport, openClaims, openAbout,
+  newClaimAsk, introShow, introClose, sheetClose, LOADING, frontOpen, drawOnly, frame });
+Object.defineProperty(window.__bv, 'started', { get: () => started });
+boot().catch(e => { console.error(e); clearInterval(LOADING.t); $('#ld-line').textContent = 'The claim could not be built: ' + e.message + '. Try opening the page again.'; $('#loading').classList.add('failed'); });

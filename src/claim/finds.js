@@ -44,13 +44,12 @@ function lootFxUpdate(rdt) {
   }
 }
 function rareToast(it, line) {
-  const R = rarityOf(it), box = $('#toasts'), el = document.createElement('button');
+  const R = rarityOf(it), el = document.createElement('button');
   el.type = 'button'; el.className = 'toast rare'; el.style.setProperty('--rc', R.color);
   el.append(itemPicture(it, 52));
   el.append(UI.h(`<span class="rt"><em>${esc(line || (LOOT.rankOf(it.rarity) >= 5 ? 'Something remarkable' : 'A rare find'))}</em><b style="color:${R.color}">${esc(it.name)}</b><span>${esc(R.name)} ${esc(D.SLOTS[it.slot]?.name || '')} · tap to look</span></span>`));
   el.onclick = () => { UI.open('item', { it }); el.remove(); };
-  box.appendChild(el); while (box.children.length > 3) box.firstChild.remove();
-  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 500); }, 7500);
+  toast('', 'rare', { el, ms: 7500 });   // it takes its turn with the other toasts (ui.js)
 }
 
 // ----------------------------------------------------------------- an item's numbers, as rows that can be compared

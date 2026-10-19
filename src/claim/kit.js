@@ -105,10 +105,15 @@ class Building {
     this.merged = mergeMeshes(this.group, list);
     for (const m of list) m.visible = false;
     this.baked = list;
+    // moving parts that move as one (a turret's head, its tilting stock: marked rigid) are merged within themselves,
+    // so they still turn, in a few draws instead of one per piece
+    const rigid = new Map();
+    for (const m of this.pieces) if (m.visible && m.parent && m.parent.userData.rigid) { if (!rigid.has(m.parent)) rigid.set(m.parent, []); rigid.get(m.parent).push(m); }
+    for (const [p, ms] of rigid) { this.merged.push(...mergeMeshes(p, ms)); for (const m of ms) m.visible = false; this.baked.push(...ms); }
   }
   unbake() {
     if (!this.merged) return;
-    for (const m of this.merged) { this.group.remove(m); m.geometry.dispose(); }
+    for (const m of this.merged) { m.parent && m.parent.remove(m); m.geometry.dispose(); }
     for (const m of this.baked) m.visible = true;
     this.merged = null; this.baked = null;
   }
@@ -238,6 +243,7 @@ function timberFrame(b, cx, y0, cz, w, h, d, lvl, faces = ['f', 'b', 'l', 'r']) 
 }
 
 // ----------------------------------------------------------------- particles: dust, sparks, motes, smoke
+const FX_CAP = { light: 280, balanced: 600, high: 900 };   // how many sparks, motes and puffs of smoke at once
 const FX = (() => {
   const N = 900;
   const geo = new THREE.BufferGeometry();
@@ -262,7 +268,7 @@ const FX = (() => {
   }
   const _c = new THREE.Color();
   function emit(k, p, v, c, s, life, o = {}) {
-    const S = sys[k]; if (!S.free.length) return;
+    const S = sys[k]; if (!S.free.length || S.list.length >= (FX_CAP[QUALITY.level] || 900)) return;   // fewer at a time on Light
     const i = S.free.pop();
     S.list.push({ i, p: p.clone(), v: v.clone(), c: _c.set(c).clone(), s, life, age: 0, g: o.g ?? -0.6, drag: o.drag ?? 1.2, grow: o.grow ?? 0.6, a0: o.a ?? 0.8 });
   }

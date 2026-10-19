@@ -19,26 +19,23 @@ function viewLimits(mode) {
 function setView(mode) {
   VIEW.mode = mode;
   $('#v-town').setAttribute('aria-pressed', mode === 'town'); $('#v-mine').setAttribute('aria-pressed', mode === 'mine'); $('#v-keep').setAttribute('aria-pressed', mode === 'keep');
-  kcontrols.enabled = mode === 'keep'; controls.enabled = mode !== 'keep';
+  kcontrols.enabled = mode === 'keep'; controls.enabled = mode === 'town';   // the Mine view has its own pan and zoom (mine.js)
   if (mode === 'keep') { FOLLOW.v = null; VIEW.tween = null; buildInterior(); frameKeep(true); return; }
   const portrait = innerHeight > innerWidth;
-  const to = mode === 'town'
-    ? { t: new THREE.Vector3(0, 0, 6), p: new THREE.Vector3(34, 54, portrait ? 104 : 84) }
-    : (TOWN.b.head && TOWN.b.head.level >= 2)
-      ? { t: new THREE.Vector3(portrait ? 14 : 8, -12.5, 34), p: new THREE.Vector3(portrait ? 14 : 8, -9, portrait ? 96 : 76) }
-      // the deep seam still sealed: frame the upper gallery and the shaft
-      : { t: new THREE.Vector3(portrait ? 20 : 16, -6.5, 34), p: new THREE.Vector3(portrait ? 20 : 16, -3.5, portrait ? 84 : 62) };
+  // the Mine view looks straight at the dig, the town's rim along the top
+  const to = mode === 'town' ? { t: new THREE.Vector3(0, 0, 6), p: new THREE.Vector3(34, 54, portrait ? 104 : 84) } : digView();
   viewLimits('free');
   controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; controls.minPolarAngle = 0; controls.maxPolarAngle = Math.PI;
   VIEW.tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt: to.t, tp: to.p, mode };
 }
-function focusOn(p) { const off = camera.position.clone().sub(controls.target); const dist = Math.min(off.length(), 40); off.setLength(dist); VIEW.tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt: new THREE.Vector3(p.x, Math.min(0, p.y), p.z), tp: new THREE.Vector3(p.x, Math.min(0, p.y), p.z).add(off), mode: VIEW.mode }; }
+function focusOn(p) { if (VIEW.mode === 'mine') { if (p.y < -1) { digFocus(p); return; } setView('town'); } const off = camera.position.clone().sub(controls.target); const dist = Math.min(off.length(), 40); off.setLength(dist); VIEW.tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt: new THREE.Vector3(p.x, Math.min(0, p.y), p.z), tp: new THREE.Vector3(p.x, Math.min(0, p.y), p.z).add(off), mode: VIEW.mode }; }
 function updateCamera(dt) {
   if (VIEW.mode === 'keep') {
     const t = kcontrols.target, before = t.clone();
     t.x = clamp(t.x, -KW / 2 - 2, KW / 2 + 2); t.y = clamp(t.y, 1, KEEPV.H + 3); t.z = clamp(t.z, -2, 2);
     kcam.position.add(t.clone().sub(before)); kcontrols.update(); return;
   }
+  if (VIEW.mode === 'mine' && !VIEW.tween && !BUILD.on) { digCamUpdate(dt); return; }
   const T = VIEW.tween;
   if (T) {
     T.t = Math.min(1, T.t + dt / 1.2); const k = smooth(0, 1, T.t);
@@ -84,6 +81,9 @@ function pick(x, y) {
   const hits = ray.intersectObjects(objs, true).filter(h => h.object.visible);
   const h = hits[0];
   if (bestV && (!h || bd < h.distance + 1.5)) { selectVillager(bestV); return; }
+  // the dig's rooms (in the Mine view, the empty cells you could dig too)
+  if (VIEW.mode === 'mine' ? pickDig(x, y) : pickDig(x, y, h ? h.distance : Infinity)) return;
+  if (VIEW.mode === 'mine') { UI.close(); FOLLOW.v = null; return; }
   if (!h) { UI.close(); FOLLOW.v = null; return; }
   let o = h.object;
   if (Object.values(WALL.mesh).includes(o)) return selectBuilding(WALLB);
@@ -112,7 +112,7 @@ const bIcon = t => `<svg viewBox="0 0 54 44" aria-hidden="true">${BICON[t] || ''
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), _gp = new THREE.Vector3();
 function groundAt(x, y) { ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); return ray.ray.intersectPlane(_plane, _gp) ? _gp.clone() : null; }
 function buildBlockedReason() {
-  if (WL.list.some(f => !f.dead)) return 'Wildlight are on the plateau. Rearrange the claim once they’re gone.';
+  if (WL.list.some(f => !f.dead && !f.mine)) return 'Wildlight are on the plateau. Rearrange the claim once they’re gone.';
   if (GAME.t > 0.64 && GAME.t < 0.97 && BUILD.setupDone) return 'It’s getting dark. Rearrange the claim by day.';
   return null;
 }
@@ -325,7 +325,7 @@ function saveGame() {
       stash: GAME.stash, mats: GAME.mats, cells: GAME.cells, blueprints: GAME.blueprints, rooms: GAME.rooms, savedAt: Date.now(),
       people: GAME.villagers.map(v => ({ ...v.d })),
       sky: FLEET ? FLEET.data : undefined, story: storySave(), jumpNext: JUMP.next,
-      night: nightsSave(), weather: weatherSave(),
+      night: nightsSave(), weather: weatherSave(), dig: digSave(),
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
   } catch (e) { }
@@ -374,9 +374,9 @@ function frame() {
   prevPhase = ph;
   if (gdt > 0) {
     economy(gdt);
-    // sub-step villagers at high speed so paths stay smooth
+    // sub-step villagers (and the dig: its lift cage carries them) at high speed so paths stay smooth
     const n = Math.ceil(gdt / 0.05), sdt = gdt / n;
-    for (let i = 0; i < n; i++) for (const v of GAME.villagers) v.update(sdt);
+    for (let i = 0; i < n; i++) { digTick(sdt); for (const v of GAME.villagers) v.update(sdt); }
     updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); jumpersTick(gdt); updateExpeditions(gdt);
     announceStudy(updateStudies(gdt));
     lifeTick(gdt);   // the claim's mood, the day's events, the cast's stories (acttwo.js)
@@ -387,10 +387,10 @@ function frame() {
   const now = performance.now() / 1000;
   for (const b of BUILDINGS) b.update(now, gdt || rdt * 0.25);
   FX.update(rdt * (GAME.paused ? 0.2 : Math.min(GAME.speed, 2)));
-  wallUpdate(rdt); mineBreakUpdate(now);
+  wallUpdate(rdt);
   dressScene(rdt, gdt);
   dockUpdate(rdt); updateLife(rdt, TOD.night); storyTick(rdt); talkFrame(rdt);
-  updateCamera(rdt);
+  updateCamera(rdt); digFrameUpdate(rdt, gdt);
   nightsDraw(rdt); weatherDraw(rdt);
   updateHUD(rdt); updateLabels();
   AUDIO.ambience(TOD.night, !GAME.paused);
@@ -400,7 +400,7 @@ function frame() {
   // the lens: a model on a table from above, gentler side-on (the mine, the Keep) and when far away
   if (lensPass) {
     const dist = camera.position.distanceTo(controls.target), side = inK || VIEW.mode === 'mine';
-    lensPass.uniforms.uAmount.value = side ? 0.35 : clamp(1.25 - (dist - 25) / 110, 0.35, 1.2) * (BUILD.on ? 0.4 : 1);
+    lensPass.uniforms.uAmount.value = VIEW.mode === 'mine' && !inK ? 0.12 : side ? 0.35 : clamp(1.25 - (dist - 25) / 110, 0.35, 1.2) * (BUILD.on ? 0.4 : 1);
     lensPass.uniforms.uFocus.value = side ? 0.5 : 0.47;
     gradePass.uniforms.uNight.value = TOD.night;
   }
@@ -432,15 +432,10 @@ function dressScene(rdt, gdt) {
   }
   const nk = Math.round(night * 20) / 20 + (POWER.on ? 0 : 7) + DECOR.lamps.filter(l => !l.lit).length * 13;
   if (nk !== lampNight) { lampNight = nk; setLampColors(night); }
-  for (const L of mineDecor.lights) L.intensity = 26 * (POWER.on ? 1 : 0.35);
   worldMats.mineGlow.emissiveIntensity = 2.2 * (POWER.on ? 1 : 0.3);
   worldMats.mineCrystal.emissiveIntensity = 1.3 + Math.sin(elapsed * 1.3) * 0.25;
   if (worldMats.faceCrystal) worldMats.faceCrystal.emissiveIntensity = 0.9 + night * 1.1 + Math.sin(elapsed * 1.1 + 2) * 0.2;
-  if (mineDecor.seam) for (const m of mineDecor.seam.children) m.material.opacity = 0.6 + Math.sin(elapsed * 3 + m.position.y) * 0.3 + (WL.night && WL.night.deep ? 0.3 : 0);
   faceMat.emissiveIntensity = 0.22 + night * 0.5;
-  // the lift cage rides up and down the shaft
-  const cy = lerp(MINE.g1.y0 + 0.06, -2.2, (Math.sin(elapsed * 0.35) + 1) / 2);
-  mineDecor.cage.position.y = cy; mineDecor.rope.position.y = (cy + 2.1 - 0.3) / 2; mineDecor.rope.scale.y = Math.max(0.1, -0.3 - (cy + 2.1));
   // chimney smoke
   smokeT -= rdt;
   if (smokeT <= 0) { smokeT = 0.28; for (const b of BUILDINGS) { for (const p of b.smoke) if (Math.random() < 0.7) FX.smoke(p); if (b.smoke2 && b.level >= 2 && b.busy) FX.smoke(b.smoke2, 0x8a8a8a); } }
@@ -470,6 +465,7 @@ async function boot() {
   setupTown(save);
   setupDock(save);
   setupLife();
+  setupDig(save);
   fixEnv(scene);
   if (save) { TOWN.wallLevel = save.wall || 1; wallSetLevel(TOWN.wallLevel, false); }
   nightsLoad(save); weatherLoad(save);   // wall damage, a night in progress, a boss that got away; the weather
@@ -487,6 +483,7 @@ async function boot() {
       if (d.exp && d.exp.state !== 'leaving') { v.setHidden(true); v.where = 'wilds'; }
       else if (d.study) { v.setHidden(true); v.where = 'study'; v.plan = [{ type: 'study' }]; }
     }
+    digAfterLoad();
     autoAssign();
     // settlers from before the roll take a place on it (keeping their names), so their sprite matches a portrait
     for (const v of GAME.villagers) if (!v.d.portrait && !v.d.named && !v.d.hero) { const f = nextFolk(v.d.pref); if (f) { v.d.portrait = f.id; v.d.look = { ...v.d.look, ...f.look }; v.redraw(); } }
@@ -525,7 +522,7 @@ function simulate(seconds, step = 0.1) {
     GAME.t += step / DAY_LEN; if (GAME.t >= 1) { GAME.t -= 1; GAME.day++; }
     applyTimeOfDay(GAME.t, elapsed += step);
     if (prevPhase && TOD.phase !== prevPhase) phaseChange(prevPhase, TOD.phase); prevPhase = TOD.phase;
-    economy(step); for (const v of GAME.villagers) v.update(step);
+    economy(step); digTick(step); for (const v of GAME.villagers) v.update(step);
     updateWildlight(step, elapsed); updateDefenders(step, elapsed); jumpersTick(step); updateExpeditions(step); announceStudy(updateStudies(step));
     const now = performance.now() / 1000; for (const b of BUILDINGS) b.update(now, step);
     FX.update(step); wallUpdate(step); dressScene(step, step);
@@ -535,7 +532,8 @@ function simulate(seconds, step = 0.1) {
 // test hook: skip to a time of day (0 = first light, 0.6 dusk, 0.69 night, 0.96 dawn), running everything on the way
 function skipTo(t, step = 0.25) { let guard = 0; while (Math.abs(GAME.t - t) > step / DAY_LEN * 1.5 && guard++ < 20000) simulate(step, step); }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
-window.__bv = { JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin,
+window.__bv = { DIG, CAGE, ROOMK, digQuick, digSetHead, digTick, recruit: recruitArrives, digOrder, digUpgrade, digCancel, digWhyNot, digDiggable, digIncident, digMerge, digSave, digFrame, DIGCAM, roomAt, digAt, digAutoCrew, DLOOK, GLOW, pickDig,
+  JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin,
   NIGHT, WEATHER, WEATHERS, WL_KINDS, WALL, KEEP_LIMITS, BUY, DEFS, byType, autoAssign, findSpot, layoutChanged, planNight, forceWeather, lightningStrike, wallHit, nightReport, showDawn, skipTo, phaseChange, camShake, OUTLINE, cliffAt,
   showBanner, bossBar, nightLookout, BOLT, wallSetLevel, wallMatrices, snuffLamp, FX };
 boot().catch(e => { console.error(e); $('#loading').textContent = 'The town could not be raised: ' + e.message; });

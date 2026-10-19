@@ -212,17 +212,24 @@ function insetOutline(d) {
   return out;
 }
 
-// ----------------------------------------------------------------- mine openings in the face
+// ----------------------------------------------------------------- the dig: a grid of rooms in the cut face
+// Six rows of rooms, ten columns of them west of the lift shaft under the headframe (src/claim/mine.js digs them).
+// Each cell is 4.6 m wide and 4 m high, with 0.9 m of rock between the rows; rooms run 4.6 m back into the rock.
 const MINE = {
   depth: 4.6,
-  shaft: { x0: 26.6, x1: 30.4 },
-  g1: { x0: 5.5, x1: 30.4, y0: -9, y1: -4.9 },
-  g2: { x0: -15, x1: 30.4, y0: -21, y1: -16.4 },
+  cols: 10, rows: 6, cw: 4.6, rh: 4.0, pitch: 4.9, top: -4.6,
+  shaft: { x0: 26.2, x1: 30.8 },
   shaftTop: -0.9,
   walkZ: WORLD.faceZ - 1.5,
 };
-// one simple polygon covering shaft + both galleries (x, y)
+MINE.x0 = MINE.shaft.x0 - MINE.cols * MINE.cw;                   // the grid's west edge
+MINE.rowY0 = r => MINE.top - MINE.rh - r * MINE.pitch;           // the floor of row r
+MINE.colX0 = c => MINE.x0 + c * MINE.cw;                         // the west side of column c
+// the old names, still used for the dust in the lamplight and the Wildlight's way up from the deep seam
+MINE.g1 = { x0: MINE.colX0(8), x1: MINE.shaft.x1, y0: MINE.rowY0(0), y1: MINE.rowY0(0) + MINE.rh };
+MINE.g2 = { x0: MINE.colX0(8) + 0.25, x1: MINE.shaft.x0, y0: MINE.rowY0(5), y1: MINE.rowY0(5) + MINE.rh };
+// the face is cut away over the whole grid; the dig's own rock front fills it (x, y)
 function minePolygon() {
-  const { shaft: S, g1, g2, shaftTop } = MINE;
-  return [[S.x0, shaftTop], [S.x1, shaftTop], [S.x1, g2.y0], [g2.x0, g2.y0], [g2.x0, g2.y1], [S.x0, g2.y1], [S.x0, g1.y0], [g1.x0, g1.y0], [g1.x0, g1.y1], [S.x0, g1.y1]];
+  const x0 = MINE.x0 - 0.6, x1 = MINE.shaft.x1 + 0.6, y0 = MINE.rowY0(MINE.rows - 1) - 1.2, y1 = MINE.shaftTop + 0.3;
+  return [[x0, y1], [x1, y1], [x1, y0], [x0, y0]];
 }

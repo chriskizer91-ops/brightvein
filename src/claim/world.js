@@ -5,7 +5,7 @@ const LAYOUT = {
   head: { x: 28.5, z: 31.6, w: 7.4, d: 6.4 },
   mast: { x: -31, z: -26.5 },          // where the mast starts on a new claim
   keep: { x: 0, z: -3 },               // and the Keep
-  trail: { x: -20, z: 34.4 },          // the rope stair down the cut face, for expeditions
+  trail: { x: -25, z: 34.4 },          // the rope stair down the cut face, for expeditions (west of the dig)
   dock: { x: 6, z: 0 },                // the Sky Dock's bridge, out over the north rim (z: the rim's edge there)
 };
 { let bd = 1e9; for (const [x, z] of OUTLINE) if (z < 0 && Math.abs(x - LAYOUT.dock.x) < bd) { bd = Math.abs(x - LAYOUT.dock.x); LAYOUT.dock.z = z; } }
@@ -191,7 +191,9 @@ function strataCanvas() {
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
   const vc = document.createElement('canvas'); vc.width = W; vc.height = H; const v = vc.getContext('2d');
   const R = mulberry(4242), sx = W / WX, sy = H / HY;
-  const bands = [[0, '#4a3524'], [1.1, '#8a6a48'], [2.6, '#b89263'], [5.2, '#a07a52'], [7, '#c4a274'], [9.6, '#8e7458'], [12.5, '#7a6a5e'], [16, '#6c5e58'], [20.5, '#5c5258'], [25, '#4c4652'], [31, '#3e3a46'], [40, '#34303c'], [72, '#2c2834']];
+  // three beds, as the dig meets them: soft gold sandstone (the upper rows), blue-grey slate (the lower rows), and
+  // the dark plum rock of the deep
+  const bands = [[0, '#4a3524'], [1.1, '#8a6a48'], [2.6, '#b89263'], [5.2, '#a07a52'], [7, '#c4a274'], [9.6, '#9a7c56'], [12.2, '#8a7058'], [14, '#5e626c'], [17.5, '#525866'], [21, '#4a4e5c'], [24, '#3e3446'], [29, '#362c3e'], [40, '#30283a'], [72, '#2c2834']];
   for (let i = 0; i < bands.length - 1; i++) {
     const y0 = bands[i][0], y1 = bands[i + 1][0];
     g.fillStyle = bands[i][1]; g.beginPath();
@@ -227,14 +229,15 @@ function strataCanvas() {
       if (R() < 0.03) vein(x, y, len * 0.35 | 0, w * 0.6);
     }
   };
-  for (let i = 0; i < 11; i++) { const yy = (MINE.g1.y1 * -1 - 1 + R() * 20) * sy, xx = ((MINE.g2.x0 + R() * 48) - X0) * sx; vein(xx, yy, 10 + R() * 16 | 0, 1.6 + R() * 1.6); }
+  // more of them the deeper the dig goes: a few in the sandstone, many in the slate and the deep
+  for (let i = 0; i < 22; i++) { const d = i < 4 ? 4 + R() * 10 : 14 + R() * 22, yy = d * sy, xx = ((MINE.x0 - 4 + R() * (MINE.shaft.x1 - MINE.x0 + 8)) - X0) * sx; vein(xx, yy, 10 + R() * 16 | 0, 1.4 + R() * 1.8); }
   for (let i = 0; i < 5; i++) vein(R() * W, (3 + R() * 36) * sy, 6 + R() * 10 | 0, 1 + R());
   // tiny glints
   for (let i = 0; i < 160; i++) { const x = R() * W, y = (2 + R() * 40) * sy; v.fillStyle = `rgba(255,190,90,${R() * 0.6})`; v.fillRect(x, y, 2, 2); g.fillStyle = 'rgba(255,214,140,0.7)'; g.fillRect(x, y, 2, 2); }
   veinTex = canvasTex(vc, { srgb: true });
   // the painted bed at a depth, to colour things set into the face
   const colorAt = depth => { const i = bands.findIndex(b => b[0] > depth) - 1; return hex3(bands[Math.max(0, i < 0 ? bands.length - 1 : i)][1]); };
-  return { color: canvasTex(cv), normal: strataNormal(cv), X0, WX, HY, bands: bands.map(b => b[0]), colorAt };
+  return { color: canvasTex(cv), normal: strataNormal(cv), X0, WX, HY, bands: bands.map(b => b[0]), colorAt, canvas: cv };
 }
 // the face's relief, read off its own picture: darker rock sits back, pale rock and grain stand out, and the cut
 // marks catch the light. A normal map, so the low sun rakes across the strata.
@@ -259,7 +262,6 @@ function faceUV(geo) {
   const p = geo.attributes.position, uv = geo.attributes.uv;
   for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) - STRATA.X0) / STRATA.WX, 1 + p.getY(i) / STRATA.HY);
 }
-const minePlugs = [];
 function buildFace() {
   STRATA = strataCanvas();
   const rings = FACE_RINGS, E = faceEdges;
@@ -275,24 +277,7 @@ function buildFace() {
   const face = new THREE.Mesh(geo, faceMat); face.receiveShadow = true; face.name = 'face';
   scene.add(face);
   faceRelief();
-  // plugs of unbroken rock over the lower shaft and the deep gallery, until the deep seam is opened
-  const plug = (x0, x1, y0, y1) => {
-    const pieces = [];
-    const cols = Math.max(2, Math.round((x1 - x0) / 3.2)), rows = 2;
-    for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
-      const ax = x0 + (x1 - x0) * i / cols, bx = x0 + (x1 - x0) * (i + 1) / cols, ay = y0 + (y1 - y0) * j / rows, by = y0 + (y1 - y0) * (j + 1) / rows;
-      const g = new THREE.PlaneGeometry(bx - ax, by - ay);
-      g.translate((ax + bx) / 2, (ay + by) / 2, WORLD.faceZ);
-      // map the front face to the strata so the plug is invisible against the face
-      const pp = g.attributes.position, uu = g.attributes.uv;
-      for (let k = 0; k < pp.count; k++) uu.setXY(k, (pp.getX(k) - STRATA.X0) / STRATA.WX, 1 + pp.getY(k) / STRATA.HY);
-      const m = new THREE.Mesh(g, faceMat); m.receiveShadow = true; m.userData.cx = (ax + bx) / 2; m.userData.cy = (ay + by) / 2;
-      m.userData.home = m.position.clone(); scene.add(m); pieces.push(m);
-    }
-    minePlugs.push(...pieces);
-  };
-  plug(MINE.shaft.x0, MINE.shaft.x1, MINE.g2.y1, MINE.g1.y0);
-  plug(MINE.g2.x0, MINE.g2.x1, MINE.g2.y0, MINE.g2.y1);
+  // the dig's own rock front (src/claim/mine.js) fills the cut-away rectangle, with a hole for every room
 }
 
 // Ledges where the harder beds stand proud of the face, a few boulders, and sunstone breaking out of it in clusters
@@ -332,9 +317,10 @@ function faceRelief() {
   // sunstone clusters breaking out of the face, mostly near the galleries
   const cMat = new THREE.MeshStandardMaterial({ color: 0xe8902a, emissive: 0xff7a14, emissiveIntensity: 0.8, roughness: 0.25, metalness: 0.1, flatShading: true });
   worldMats.faceCrystal = cMat;
-  for (let i = 0; i < 18; i++) {
-    const near = R() < 0.7, y = near ? MINE.g1.y0 + 3 - R() * 16 : -(2 + R() * 30), [wx, ex] = edgesAt(y);
-    const x = near ? MINE.g2.x0 + R() * (MINE.shaft.x1 - MINE.g2.x0) : wx + 3 + R() * (ex - wx - 6);
+  for (let i = 0; i < 22; i++) {
+    // mostly round the edges of the dig, where the vein comes out of the rock
+    const near = R() < 0.7, side = R() < 0.5, y = near ? (side ? -(3 + R() * 30) : MINE.rowY0(MINE.rows - 1) - 1.6 - R() * 4) : -(2 + R() * 30), [wx, ex] = edgesAt(y);
+    const x = near ? (side ? MINE.x0 - 1.5 - R() * 5 : MINE.x0 + R() * (MINE.shaft.x1 - MINE.x0)) : wx + 3 + R() * (ex - wx - 6);
     if (!clear(x, y, 1.2) || x < wx + 1 || x > ex - 1) continue;
     for (let k = 0; k < 3 + R() * 4; k++) {
       const sc = 0.1 + R() * 0.2, g = new THREE.OctahedronGeometry(1, 0);
@@ -345,126 +331,11 @@ function faceRelief() {
   if (crystals.length) { const cm = new THREE.Mesh(mergeGeometries(crystals), cMat); cm.castShadow = true; scene.add(cm); }
 }
 
-// tunnels behind the face: walls extruded from the opening polygon, then timber, rails and crystal
-const mineDecor = { lights: [], crystals: [], lanterns: [], seam: null, g1: new THREE.Group(), g2: new THREE.Group(), wheel: null };
+// the mine's shared glows: the lantern on the headframe, and the sunstone breaking out of the rock. The rooms of the
+// dig themselves are built by src/claim/mine.js.
 function buildMineInterior() {
-  const poly = minePolygon(), D = MINE.depth, z0 = WORLD.faceZ, z1 = z0 - D;
-  const pos = [], nor = [], uv = [];
-  // signed area to know which side is inside
-  let area = 0; for (let i = 0; i < poly.length; i++) { const [ax, ay] = poly[i], [bx, by] = poly[(i + 1) % poly.length]; area += ax * by - bx * ay; }
-  const ccw = area > 0;
-  for (let i = 0; i < poly.length; i++) {
-    const [ax, ay] = poly[i], [bx, by] = poly[(i + 1) % poly.length];
-    const ex = bx - ax, ey = by - ay, L = Math.hypot(ex, ey);
-    let nx = -ey / L, ny = ex / L; if (!ccw) { nx = -nx; ny = -ny; }
-    const quad = [[ax, ay, z0], [bx, by, z0], [bx, by, z1], [ax, ay, z1]];
-    const tri = [0, 1, 2, 0, 2, 3];
-    // wind so the face points inward
-    const order = (ccw ? tri : [0, 2, 1, 0, 3, 2]);
-    for (const k of order) { const q = quad[k]; pos.push(...q); nor.push(nx, ny, 0); uv.push((k === 1 || k === 2 ? L : 0) / 3, (k >= 2 ? D : 0) / 3); }
-  }
-  const walls = new THREE.BufferGeometry();
-  walls.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  walls.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  walls.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  worldMats.tunnel = new THREE.MeshStandardMaterial({ map: tex('rock'), color: 0x9a8676, roughness: 1, envMapIntensity: 0.05, side: THREE.DoubleSide });
-  const wm = new THREE.Mesh(walls, worldMats.tunnel); wm.receiveShadow = true; scene.add(wm);
-  // back wall
-  const back = new THREE.ShapeGeometry(new THREE.Shape(poly.map(([x, y]) => new THREE.Vector2(x, y))));
-  back.translate(0, 0, z1);
-  const bp = back.attributes.position, bu = back.attributes.uv; for (let i = 0; i < bp.count; i++) bu.setXY(i, bp.getX(i) / 3, bp.getY(i) / 3);
-  const backMat = new THREE.MeshStandardMaterial({ map: tex('rock'), color: 0x8a7868, roughness: 1, envMapIntensity: 0.05, emissiveMap: veinTex, emissive: 0x000000 });
-  const bm = new THREE.Mesh(back, backMat); bm.receiveShadow = true; scene.add(bm);
-
-  const oak = new THREE.MeshStandardMaterial({ map: tex('oak'), roughness: 0.85, envMapIntensity: 0.3 });
-  const iron = new THREE.MeshStandardMaterial({ map: tex('iron'), roughness: 0.5, metalness: 0.7, envMapIntensity: 0.6 });
-  const glow = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffb45a, emissiveIntensity: 2.2 });
-  const crystalMat = new THREE.MeshStandardMaterial({ color: 0xffb04a, emissive: 0xff8a24, emissiveIntensity: 1.6, roughness: 0.25, metalness: 0.1, flatShading: true });
-  worldMats.mineGlow = glow; worldMats.mineCrystal = crystalMat;
-  const add = (geo, mat, x, y, z, parent = scene, cast = true) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = cast; m.receiveShadow = true; parent.add(m); return m; };
-  const gallery = (G, parent, deep) => {
-    // timber sets every 3.6 m: posts against the back wall, caps reaching toward the face
-    for (let x = G.x0 + 1.4; x < G.x1 - 0.6; x += 3.6) {
-      if (x > MINE.shaft.x0 - 0.8 && x < MINE.shaft.x1 + 0.4) continue;
-      const h = G.y1 - G.y0;
-      add(new THREE.BoxGeometry(0.32, h, 0.32), oak, x, G.y0 + h / 2, z1 + 0.35, parent);
-      add(new THREE.BoxGeometry(0.34, 0.34, D - 0.2), oak, x, G.y1 - 0.2, z0 - D / 2 - 0.1, parent);
-      add(new THREE.BoxGeometry(0.28, h, 0.28), oak, x, G.y0 + h / 2, z0 - 0.35, parent);
-    }
-    // rails and sleepers
-    for (const dz of [-2.3, -3.1]) add(new THREE.BoxGeometry(G.x1 - G.x0 - 1, 0.08, 0.08), iron, (G.x0 + G.x1) / 2 - 0.3, G.y0 + 0.13, z0 + dz, parent, false);
-    for (let x = G.x0 + 0.8; x < G.x1 - 0.5; x += 0.9) add(new THREE.BoxGeometry(0.22, 0.08, 1.3), oak, x, G.y0 + 0.05, z0 - 2.7, parent, false);
-    // ore carts on the rails, barrels and crates against the back wall, picks leaning on the timbers
-    const Rp = mulberry(deep ? 707 : 303), oreMat = new THREE.MeshStandardMaterial({ color: 0x8a7a6c, roughness: 0.9, flatShading: true, emissive: 0x7a3a10, emissiveIntensity: 0.35 });
-    for (let c = 0; c < (deep ? 2 : 2); c++) {
-      const x = G.x0 + 3 + Rp() * (G.x1 - G.x0 - 8); if (x > MINE.shaft.x0 - 2 && x < MINE.shaft.x1 + 1) continue;
-      add(new THREE.BoxGeometry(1.5, 0.75, 1.05), iron, x, G.y0 + 0.72, z0 - 2.7, parent);
-      add(new THREE.BoxGeometry(1.56, 0.1, 1.11), oak, x, G.y0 + 1.1, z0 - 2.7, parent);
-      for (const [dx, dz] of [[-0.5, -0.56], [0.5, -0.56], [-0.5, 0.56], [0.5, 0.56]]) add(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 10).rotateX(Math.PI / 2), iron, x + dx, G.y0 + 0.32, z0 - 2.7 + dz, parent, false);
-      for (let k = 0; k < 6; k++) add(new THREE.DodecahedronGeometry(0.16 + Rp() * 0.14, 0), oreMat, x + (Rp() - 0.5) * 1.1, G.y0 + 1.2 + Rp() * 0.15, z0 - 2.7 + (Rp() - 0.5) * 0.7, parent);
-    }
-    for (let k = 0; k < (deep ? 6 : 5); k++) {
-      const x = G.x0 + 1.2 + Rp() * (G.x1 - G.x0 - 2.4); if (x > MINE.shaft.x0 - 1.5 && x < MINE.shaft.x1 + 0.8) continue;
-      if (Rp() < 0.5) add(new THREE.CylinderGeometry(0.32, 0.36, 0.9, 12), oak, x, G.y0 + 0.45, z1 + 0.7, parent);
-      else add(new THREE.BoxGeometry(0.8, 0.6, 0.7), oak, x, G.y0 + 0.3, z1 + 0.65, parent);
-    }
-    for (let k = 0; k < 3; k++) {
-      const x = G.x0 + 2 + Rp() * (G.x1 - G.x0 - 4); if (x > MINE.shaft.x0 - 1.5 && x < MINE.shaft.x1 + 0.8) continue;
-      const pk = new THREE.Group(); pk.position.set(x, G.y0, z1 + 0.6); pk.rotation.z = 0.25; parent.add(pk);
-      add(new THREE.BoxGeometry(0.07, 1.25, 0.07), oak, 0, 0.62, 0, pk, false); add(new THREE.BoxGeometry(0.7, 0.07, 0.08).translate(0, 0, 0), iron, 0, 1.22, 0, pk, false);
-    }
-    // lanterns
-    for (let x = G.x0 + 3; x < G.x1 - 1; x += 7.2) {
-      add(new THREE.BoxGeometry(0.06, 0.5, 0.06), iron, x + 1.8, G.y1 - 0.62, z0 - 1.2, parent, false);
-      const l = add(new THREE.BoxGeometry(0.34, 0.42, 0.34), glow, x + 1.8, G.y1 - 1.05, z0 - 1.2, parent, false);
-      mineDecor.lanterns.push(l);
-    }
-    // crystal clusters growing from the back wall and ceiling
-    const R = mulberry(deep ? 91 : 19);
-    const n = deep ? 22 : 10;
-    for (let i = 0; i < n; i++) {
-      const x = G.x0 + 1 + R() * (G.x1 - G.x0 - 2); if (x > MINE.shaft.x0 - 0.5 && x < MINE.shaft.x1 + 0.5) continue;
-      const onCeil = R() < 0.35, cl = new THREE.Group();
-      for (let k = 0; k < 3 + R() * 4; k++) {
-        const s = 0.18 + R() * (deep ? 0.42 : 0.26);
-        const m = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), crystalMat);
-        m.scale.set(s * 0.55, s * 1.8, s * 0.55); m.position.set((R() - 0.5) * 0.7, s * 0.9, (R() - 0.5) * 0.5);
-        m.rotation.set((R() - 0.5) * 0.9, R() * 3, (R() - 0.5) * 0.9); cl.add(m);
-      }
-      if (onCeil) { cl.rotation.x = Math.PI; cl.position.set(x, G.y1, z1 + 0.8 + R() * 2); }
-      else { cl.rotation.x = -Math.PI / 2 + 0.35; cl.position.set(x, G.y0 + 0.8 + R() * (G.y1 - G.y0 - 1.6), z1 + 0.05); }
-      parent.add(cl); mineDecor.crystals.push(cl);
-    }
-    // a lamp that matters
-    const L = new THREE.PointLight(0xffb066, 0, deep ? 34 : 24, 1.4); L.position.set((G.x0 + G.x1) / 2, G.y1 - 1.2, z0 - 1.6); parent.add(L); mineDecor.lights.push(L);
-  };
-  scene.add(mineDecor.g1);
-  gallery(MINE.g1, mineDecor.g1, false);
-  scene.add(mineDecor.g2);
-  gallery(MINE.g2, mineDecor.g2, true);
-  // the deep seam: a glowing crack at the far end of the deep gallery, where Wildlight wakes
-  const seam = new THREE.Group();
-  const seamMat = new THREE.MeshBasicMaterial({ color: 0xffd28a, transparent: true, opacity: 0.95 });
-  for (let i = 0; i < 9; i++) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.18 + Math.random() * 0.2, 0.9 + Math.random() * 1.2), seamMat);
-    m.position.set((Math.random() - 0.5) * 0.4, 1 + i * 0.42, 0); m.rotation.z = (Math.random() - 0.5) * 0.9; seam.add(m);
-  }
-  seam.position.set(MINE.g2.x0 + 0.06, MINE.g2.y0, z0 - 2.3); seam.rotation.y = Math.PI / 2;
-  mineDecor.g2.add(seam); mineDecor.seam = seam;
-  // ladder up the shaft
-  const S = MINE.shaft, sx = (S.x0 + S.x1) / 2 + 0.9;
-  for (const dx of [-0.35, 0.35]) add(new THREE.BoxGeometry(0.09, -MINE.g2.y0, 0.09), oak, sx + dx, MINE.g2.y0 / 2, z1 + 0.35, mineDecor.g1, false);
-  for (let y = MINE.g2.y0 + 0.4; y < -0.6; y += 0.45) add(new THREE.BoxGeometry(0.75, 0.06, 0.06), oak, sx, y, z1 + 0.35, mineDecor.g1, false);
-  mergeStatic(mineDecor.g1);
-  mergeStatic(mineDecor.g2, o => { for (let p = o; p; p = p.parent) if (p === mineDecor.seam) return true; return false; });
-  // lift cage on a rope
-  const cage = new THREE.Group();
-  const cm = (w, h, d, x, y, z, m) => { const k = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); k.position.set(x, y, z); k.castShadow = true; cage.add(k); };
-  cm(1.7, 0.12, 1.7, 0, 0, 0, oak); cm(1.7, 0.08, 1.7, 0, 2.1, 0, iron);
-  for (const [x, z] of [[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]]) cm(0.07, 2.1, 0.07, x, 1.05, z, iron);
-  cage.position.set(S.x0 + 1.1, MINE.g1.y0 + 0.06, z0 - 2.2); scene.add(cage); mineDecor.cage = cage;
-  const rope = add(new THREE.CylinderGeometry(0.035, 0.035, 1, 5), new THREE.MeshStandardMaterial({ color: 0xb59a70, roughness: 1 }), S.x0 + 1.1, 0, z0 - 2.2, scene, false);
-  mineDecor.rope = rope;
+  worldMats.mineGlow = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffb45a, emissiveIntensity: 2.2 });
+  worldMats.mineCrystal = new THREE.MeshStandardMaterial({ color: 0xffb04a, emissive: 0xff8a24, emissiveIntensity: 1.6, roughness: 0.25, metalness: 0.1, flatShading: true });
 }
 
 // ----------------------------------------------------------------- sky, clouds, far peaks

@@ -90,6 +90,38 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1200)
     r = pg.evaluate('({ stash: __bv.GAME.stash.length, won: __bv.FLEET.data.raids.camp.won, panel: __bv.UI.cur && __bv.UI.cur.kind })')
     check("the camp's crates opened at home", r['stash'] >= before + 2 and r['won'] == 1 and r['panel'] == 'haul', json.dumps(r))
+    # the dig: the upper Ore Face a new claim starts with, ore up the lift, a room dug and staffed, two merged, an
+    # upgrade, a cave-in dug clear, Wildlight out of the deep seam, and a claim from before the dig loaded
+    r = pg.evaluate('''(() => { const B = __bv, out = {}, F = B.roomAt(0, 9);
+      B.DIG.incT = 1e9; for (const R of B.DIG.rooms) if (R.inc) R.inc = null;   // no trouble but what's asked for
+      out.start = !!F && F.kind === 'face' && F.w === 2 && B.workersOf(F.id).length >= 1;
+      const up0 = B.DIG.oreUp; B.simulate(40, 0.1); out.oreUp = Math.round((B.DIG.oreUp - up0) * 10) / 10;
+      B.GAME.shards = 3000;
+      const d = B.digOrder(1, 9, 'face'); out.ordered = !!d; out.diggers = d ? B.workersOf(d.id).length : 0;
+      for (let i = 0; i < 40 && B.DIG.digs.includes(d); i++) B.simulate(10, 0.1);
+      const R = B.roomAt(1, 9); out.dug = !!R && R.kind === 'face';
+      const v = B.GAME.villagers.find(v => !v.d.exp && !v.d.study && v.where !== 'ship' && v.where !== 'mast' && !(v.d.job && /^[md]:/.test(v.d.job.bid)));
+      if (R && v) B.assignJob(v, R.id);
+      for (let i = 0; i < 12 && R && !(R.out > 0); i++) B.simulate(10, 0.1);
+      out.staffedOut = R ? Math.round(R.out * 1000) / 1000 : 0; out.who = v && [v.d.name, v.where, v.plan.map(s => s.type).join(',')];
+      const d2 = B.digOrder(1, 8, 'face'); if (d2) { d2.done = d2.work; B.digTick(0.1); }
+      const M = B.roomAt(1, 9); out.merged = !!M && M === B.roomAt(1, 8) && M.w === 2;
+      out.upgraded = B.digUpgrade(M) && M.lv === 2;
+      const C = B.roomAt(0, 9); B.digIncident(C, 'cave'); out.cave = !!C.inc;
+      for (let i = 0; i < 30 && C.inc; i++) B.simulate(5, 0.1); out.caveCleared = !C.inc;
+      B.digSetHead(2); const S = B.roomAt(5, 9); out.seam = !!S && S.kind === 'seam';
+      for (const p of B.GAME.villagers.filter(p => !p.d.exp).slice(0, 3)) B.assignJob(p, S.id);
+      B.simulate(60, 0.1);
+      out.breach = B.digIncident(S, 'wild'); out.wild = B.WL.list.filter(f => f.mine === S && !f.dead).length;
+      for (let i = 0; i < 12 && S.inc; i++) B.simulate(5, 0.1); out.breachOver = !S.inc;
+      return out; })()''')
+    check('a new claim starts with the upper Ore Face, staffed', r['start'], json.dumps(r))
+    check('ore comes up in the lift cage', r['oreUp'] > 2)
+    check('dig a room: a crew digs it out', r['ordered'] and r['diggers'] >= 1 and r['dug'])
+    check('staff it, and it digs ore', r['staffedOut'] > 0)
+    check('two of a kind side by side merge', r['merged'] and r['upgraded'])
+    check('a cave-in, dug clear by the crew', r['cave'] and r['caveCleared'])
+    check('Wildlight out of the deep seam, fought off or gone', r['seam'] and r['breach'] and r['wild'] >= 2 and r['breachOver'])
     # nights: a Bright Night brings a boss with a health bar, and it can be brought down; dawn brings the report
     r = pg.evaluate('''(() => { const B = __bv, out = {};
       B.NIGHT.grudge = null; B.GAME.nights = 4; B.forceWeather('clear', 'clear');
@@ -139,6 +171,17 @@ with sync_playwright() as p:
       return out; })()''')
     check('the music turns to the night watch at night', r['night'] == 'night', json.dumps(r))
     check("a minute of play doesn't pile up sounds", r['state'] == 'running' and r['voices'] < 72 and r['persist'] < 200, json.dumps(r))
+    # a claim saved before the dig, with the deep seam open: its miners keep their places in the matching rooms
+    pg.evaluate('''(() => { const B = __bv; B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
+      delete s.dig; for (const b of s.buildings) if (b.type === 'head') b.level = 2;
+      const ps = s.people.filter(p => !p.exp); ps[0].job = { bid: 'head', slot: 1 }; ps[1].job = { bid: 'head', slot: 5 }; ps[0].name = 'Upper Test'; ps[1].name = 'Lower Test';
+      const set = Storage.prototype.setItem; localStorage.setItem('brightvein-keep-v1', JSON.stringify(s));
+      Storage.prototype.setItem = function (k, v) { if (k === 'brightvein-keep-v1') return; return set.call(this, k, v); }; })()''')
+    pg.goto('file://' + ROOT + '/dist/test.html', wait_until='domcontentloaded', timeout=400000)
+    pg.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=400000)
+    r = pg.evaluate('''(() => { const B = __bv; B.begin(false); const job = n => { const v = B.GAME.villagers.find(v => v.d.name === n); return v && v.d.job && v.d.job.bid; };
+      return { rooms: B.DIG.rooms.map(R => R.id + ' ' + R.kind + ' ' + R.w), upper: job('Upper Test'), lower: job('Lower Test') }; })()''')
+    check('an old save loads: the galleries are rooms, the miners keep their places', 'm:0.8 face 2' in r['rooms'] and 'm:2.8 face 2' in r['rooms'] and 'm:5.8 seam 2' in r['rooms'] and r['upper'] == 'm:0.8' and r['lower'] == 'm:2.8', json.dumps(r))
     extra = os.environ.get('SMOKE_EXTRA')
     if extra: print(pg.evaluate(extra))
     pg.evaluate('__bv.renderer.setAnimationLoop(null)'); pg.close()   # the next page loads faster on its own

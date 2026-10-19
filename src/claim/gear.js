@@ -87,10 +87,9 @@ function addHaul(r) {   // the result of foeDrops / raidCrates
   for (const b of r.blueprints || []) if (!GAME.blueprints.includes(b)) GAME.blueprints.push(b);
   for (const it of r.items || []) addToStash(it);
 }
-function mineFindHere() {
-  const deep = workersOf('head').some(v => v.working && MINE_STATIONS[v.d.job.slot].g === 2);
-  const g = gearOf; let luck = castPerk('fox') ? 0.3 : 0; for (const v of workersOf('head')) luck = Math.max(luck, g(v).findLuck);
-  const f = LOOT.mineFind(deep && Math.random() < 0.5 ? 'deep' : deep ? 'lower' : 'upper', { night: Math.max(1, GAME.nights), findLuck: luck });
+// a find in the spoil: gallery is 'upper', 'lower' or 'deep', by the row of the room it came out of
+function mineFindHere(gallery = 'upper') {
+  const f = LOOT.mineFind(gallery, { night: Math.max(1, GAME.nights), findLuck: digFindLuck() + (castPerk('fox') ? 0.3 : 0) });
   if (f.item) { const it = addToStash(f.item, true); toast(`The miners turned something up: <b style="color:${rarityOf(it).color}">${esc(it.name)}</b>`); }
   else if (f.cell) { GAME.cells[f.cell] = (GAME.cells[f.cell] || 0) + 1; toast(`The miners found a <b>${esc(D.CELLS[f.cell].name)}</b> in the rock.`); }
   else if (f.blueprint && !GAME.blueprints.includes(f.blueprint)) { GAME.blueprints.push(f.blueprint); toast(`A blueprint in the spoil: <b>${esc(D.ITEMS[f.blueprint].name)}</b>. Odile pins it up.`); }
@@ -99,7 +98,7 @@ function mineFindHere() {
 function wildlightDrop(f) {
   const foe = GAME.nights >= 6 && Math.random() < 0.25 ? 'flarehound' : 'glimmer';
   const r = LOOT.foeDrops(foe, { night: Math.max(1, GAME.nights), deep: TOWN.b.head.level >= 2 });
-  if (r.items.length) FX.sparks(f.pos.clone().setY(1), 18, 0xfff0c0, 2);
+  if (r.items.length) FX.sparks(f.pos.clone().setY(f.pos.y + 1), 18, 0xfff0c0, 2);
   addHaul(r);
 }
 function starterStash() {
@@ -132,16 +131,11 @@ const RATES = { mine1: 0.2, mine2: 0.34, charge: 0.3, food: 0.11, eat: 0.0055, r
 function economy(dt) {
   const sun = TOD.sunlight, night = TOD.night;
   const sum = bid => workersOf(bid).reduce((s, v) => s + v.eff(), 0);
-  // mine
-  const head = TOWN.b.head;
-  let ore = 0; for (const v of workersOf('head')) { const st = MINE_STATIONS[v.d.job.slot]; ore += v.eff() * (st.g === 2 ? RATES.mine2 : RATES.mine1); }
-  GAME.ore += ore * dt; head.busy = ore > 0 ? 1 : 0;
-  GAME.rates = { ore: ore };
-  // mine finds: every unit of ore dug has a small chance of turning something up
-  if (ore > 0) {
-    GAME.findAcc += ore * dt;
-    while (GAME.findAcc >= 1) { GAME.findAcc -= 1; if (Math.random() < D.MINE_FINDS.perOre) mineFindHere(); }
-  }
+  // the dig (src/claim/mine.js): ore goes to the foot of the shaft and comes up in the lift cage; crystal grottos grow
+  // shards; every unit of ore dug has a small chance of turning something up
+  const dug = digEconomy(dt);
+  GAME.rates = { ore: dug.ore };
+  GAME.shards += dug.shards * dt;
   // charging in the yards
   let cut = 0; for (const b of byType('shop')) cut += sum(b.id) * (b.level >= 2 ? 1.3 : 1);
   const cutBonus = 1 + 0.22 * cut;
@@ -156,7 +150,7 @@ function economy(dt) {
     b.chargeK = lerp(b.chargeK || 0, tend > 0 && GAME.ore > 0.5 ? light : 0, Math.min(1, dt * 2));
     b.busy = tend > 0 ? 1 : 0;
   }
-  GAME.shards += charged; GAME.rates.shards = charged / Math.max(dt, 1e-4);
+  GAME.shards += charged; GAME.rates.shards = charged / Math.max(dt, 1e-4) + dug.shards;
   for (const b of byType('shop')) b.busy = workersOf(b.id).some(v => v.working) ? 1 : 0;
   // food: everyone at home eats; gear "of Plenty" eats less
   let grown = 0; for (const b of byType('garden')) grown += sum(b.id) * RATES.food * (b.level >= 2 ? 1.3 : 1) * wxGrow(b);

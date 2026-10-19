@@ -5,10 +5,9 @@ const DEFS = {
     job: { title: 'Clerk', stat: 'R', slots: [0, 2, 3, 4], tool: 'book', night: false },
     blurb: 'Home to everyone on the claim, and its heart. Clerks keep the books and spread word of the strike, which brings settlers in on passing couriers. Raising the Keep makes room to build more.',
     levels: ['A stone keep under a slate roof: beds for sixteen', 'Corner turrets with copper caps: beds for twenty-four', 'The sun beacon on the roof lights the whole plateau: beds for thirty-two'] },
-  head: { name: 'Headframe & Mine', max: 2, cost: [0, 0, 180],
-    job: { title: 'Miner', stat: 'G', slots: [0, 4, 8], tool: 'pick', night: true },
-    blurb: 'Miners dig raw sunstone from the vein. Deeper galleries hold richer crystal, and wake more Wildlight.',
-    levels: ['Upper gallery and a hand winch', 'Steam winch, and the deep seam broken open: richer ore, more Wildlight'] },
+  head: { name: 'Headframe & Mine', max: 3, cost: [0, 0, 180, 360],
+    blurb: 'The lift down into the dig. Its level sets how deep you can dig and how fast the cage runs. The rooms below are dug and staffed from the Mine view.',
+    levels: ['A hand winch: the lift reaches the upper rows', 'A steam winch, and the deep seam broken open: dig the lower rows', 'A double steam winch: dig the deepest rows'] },
   yard: { name: 'Sunning Yard', max: 3, cost: [70, 70, 110, 220],
     job: { title: 'Tender', stat: 'S', slots: [0, 2, 3, 4], tool: 'crystal', night: false },
     blurb: 'Raw ore laid out on brass trays charges in the sun into shards. Tenders turn the crystal so it fills evenly. Nothing charges at night.',
@@ -65,10 +64,6 @@ const STATIONS = {
   lens: [{ x: 0.9, y: 7.0, z: 0.9, f: 0 }, { x: -0.9, y: 7.0, z: -0.6, f: 0 }],
   mast: [{ deck: [0, -4.5] }, { deck: [0.8, 2.5] }, { deck: [-0.8, 0.5] }],
 };
-const MINE_STATIONS = [
-  { g: 1, x: 9 }, { g: 1, x: 13.6 }, { g: 1, x: 18.2 }, { g: 1, x: 22.6 },
-  { g: 2, x: -10.5 }, { g: 2, x: -4.5 }, { g: 2, x: 1.5 }, { g: 2, x: 8 },
-];
 
 // ----------------------------------------------------------------- shared helpers
 function beam(b, a, c, t, mat, lvl = 1, o = {}) {
@@ -210,6 +205,13 @@ function modelHead(b) {
   b.add(G.box(1.6, 3.0, 1.6), MAT.oak, 0, top + 3.0, 2.0, { lvl: 2, sy: 1 });
   b.add(G.box(2.2, 0.3, 2.2), MAT.slate, 0, top + 4.6, 2.0, { lvl: 2 });
   b.smoke2 = b.worldPos(-3.0, 6.3, 2.7);
+  // level 3: a second steam winch on the east side, a taller stack, and brass on the sheave
+  b.add(G.cyl(0.7, 0.7, 2.4, 16).rotateX(Math.PI / 2), MAT.iron, 3.3, 1.0, 1.7, { lvl: 3 });
+  for (const z of [0.7, 2.7]) b.add(G.box(1.4, 0.35, 0.3, 1), MAT.oakDark, 3.3, 0.2, z, { lvl: 3 });
+  b.add(G.cyl(0.3, 0.36, 6.4, 12), MAT.iron, 3.4, 4.2, 2.8, { lvl: 3 });
+  b.add(G.cyl(0.44, 0.3, 0.4, 12), MAT.brass, 3.4, 7.5, 2.8, { lvl: 3 });
+  b.add(G.box(2.0, 0.24, 0.24, 1), MAT.brass, 2.2, 1.5, 1.7, { lvl: 3, rz: -0.2 });
+  b.add(new THREE.TorusGeometry(1.34, 0.06, 6, 28), MAT.brass, 0, 0, 0, { parent: wheel, ry: Math.PI / 2, lvl: 3 });
 }
 
 // ----------------------------------------------------------------- sunning yards

@@ -67,9 +67,10 @@ function equip(v, it) {
   GAME.stash.splice(GAME.stash.indexOf(it), 1);
   if (old) GAME.stash.unshift(old);
   v.d.gear[it.slot] = it; v.gearCache = null;
+  if (it.slot === 'hand' && v.redraw) v.redraw();   // what they carry shows on their sprite
   return true;
 }
-function unequip(v, slot) { const it = v.d.gear[slot]; if (!it) return; delete v.d.gear[slot]; GAME.stash.unshift(it); v.gearCache = null; }
+function unequip(v, slot) { const it = v.d.gear[slot]; if (!it) return; delete v.d.gear[slot]; GAME.stash.unshift(it); v.gearCache = null; if (slot === 'hand' && v.redraw) v.redraw(); }
 // modules and Lark parts can't be fitted yet: anything that isn't wearable becomes gear of the same rarity
 function toGear(it, ilvl = 1) { return it && (it.type === 'gear' || it.type === 'relic') ? it : LOOT.makeGear({ rarity: it ? it.rarity : 'salvage', ilvl, from: it && it.from }); }
 function addToStash(it, quiet) {

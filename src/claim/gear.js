@@ -103,24 +103,16 @@ function addHaul(r, pos) {   // the result of foeDrops / raidCrates
   for (const b of r.blueprints || []) if (!GAME.blueprints.includes(b)) GAME.blueprints.push(b);
   for (const it of r.items || []) addToStash(it, false, { pos });
 }
-function mineFindHere() {
-  const deep = workersOf('head').some(v => v.working && MINE_STATIONS[v.d.job.slot].g === 2), head = TOWN.b.head;
-  const g = gearOf; let luck = castPerk('fox') ? 0.3 : 0; for (const v of workersOf('head')) luck = Math.max(luck, g(v).findLuck);
-  luck += modV(head, 'findLuck');   // the Ore Sorter
-  const f = LOOT.mineFind(deep && Math.random() < 0.5 ? 'deep' : deep ? 'lower' : 'upper', { night: Math.max(1, GAME.nights), findLuck: luck });
+// a find in the spoil: gallery is 'upper', 'lower' or 'deep', by the row of the room it came out of
+function mineFindHere(gallery = 'upper') {
+  const head = TOWN.b.head;
+  const luck = digFindLuck() + (castPerk('fox') ? 0.3 : 0) + modV(head, 'findLuck');   // modules: the Ore Sorter
+  const f = LOOT.mineFind(gallery, { night: Math.max(1, GAME.nights), findLuck: luck });
   if (f.item) addToStash(f.item, false, { pos: head.worldPos(0, 0, 2.4), line: 'The miners turned something up' });
   else if (f.cell) { GAME.cells[f.cell] = (GAME.cells[f.cell] || 0) + 1; toast(`The miners found a <b>${esc(D.CELLS[f.cell].name)}</b> in the rock.`); }
   else if (f.blueprint && !GAME.blueprints.includes(f.blueprint)) { GAME.blueprints.push(f.blueprint); toast(`A blueprint in the spoil: <b>${esc(D.ITEMS[f.blueprint].name)}</b>. Odile pins it up.`); }
   else if (f.material) { GAME.mats[f.material] = (GAME.mats[f.material] || 0) + f.n; toast(`The miners kept back <b>${f.n} ${esc(D.MATERIALS[f.material].name)}</b> for Odile's bench.`); }
   UI.refresh();
-}
-function wildlightDrop(f) {
-  // what it was decides what it drops (loot.js DROPS): a Glimmer now and then, a Flarehound always, a Lodestar the thing
-  // glowing in its chest (sometimes a Masterwork), a Brightmaw its hoard. Without a kind, the old rule.
-  const foe = f.kind && D.FOES[f.kind] ? f.kind : GAME.nights >= 6 && Math.random() < 0.25 ? 'flarehound' : 'glimmer';
-  const r = LOOT.foeDrops(foe, { night: Math.max(1, GAME.nights), deep: TOWN.b.head.level >= 2 });
-  if (r.items.length) FX.sparks(f.pos.clone().setY(1), 18, 0xfff0c0, 2);
-  addHaul(r, f.pos.clone().setY(Math.max(0, f.pos.y)));
 }
 function starterStash() {
   const mk = (base, rarity) => LOOT.makeGear({ base, rarity, ilvl: 1, from: 'the first crates off the courier' });
@@ -155,17 +147,11 @@ const RATES = { mine1: 0.2, mine2: 0.34, charge: 0.3, food: 0.11, eat: 0.0055, r
 function economy(dt) {
   const sun = TOD.sunlight, night = TOD.night;
   const sum = bid => workersOf(bid).reduce((s, v) => s + v.eff(), 0);
-  // mine
-  const head = TOWN.b.head;
-  let ore = 0; for (const v of workersOf('head')) { const st = MINE_STATIONS[v.d.job.slot]; ore += v.eff() * (st.g === 2 ? RATES.mine2 : RATES.mine1); }
-  ore *= 1 + modV(head, 'ore') / 100;   // modules: the Steam Drill Head
-  GAME.ore += ore * dt; head.busy = ore > 0 ? 1 : 0;
-  GAME.rates = { ore: ore };
-  // mine finds: every unit of ore dug has a small chance of turning something up
-  if (ore > 0) {
-    GAME.findAcc += ore * dt;
-    while (GAME.findAcc >= 1) { GAME.findAcc -= 1; if (Math.random() < D.MINE_FINDS.perOre) mineFindHere(); }
-  }
+  // the dig (src/claim/mine.js): ore goes to the foot of the shaft and comes up in the lift cage; crystal grottos grow
+  // shards; every unit of ore dug has a small chance of turning something up (the Steam Drill Head's share is in digEconomy)
+  const dug = digEconomy(dt);
+  GAME.rates = { ore: dug.ore };
+  GAME.shards += dug.shards * dt;
   // charging in the yards
   let cut = 0; for (const b of byType('shop')) cut += sum(b.id) * (b.level >= 2 ? 1.3 : 1);
   const cutBonus = (1 + 0.22 * cut) * (1 + modType('shop', 'cut') / 100);   // modules: the Diamond Grinding Wheel
@@ -173,17 +159,17 @@ function economy(dt) {
   for (const b of Object.values(TOWN.b)) {
     if (b.type !== 'yard' || b.level < 1) continue;
     const tend = sum(b.id), mult = b.level >= 3 ? 1.5 : b.level >= 2 ? 1.25 : 1;
-    const light = yardLight(b, b.level >= 3 ? Math.max(sun, 0.35 * (1 - night)) : sun);
+    const light = yardLight(b, (b.level >= 3 ? Math.max(sun, 0.35 * (1 - night)) : sun) * wxSun(b));   // cloud and rain slow it (weather.js); a Cloud Lens wins some back
     let want = tend * RATES.charge * mult * light * dt * (castPerk('tock') ? 1.2 : 1) * yardBoost(b);   // modules: mirrors, gimbals, bees
     want = Math.min(want, GAME.ore);
     GAME.ore -= want; charged += want * cutBonus;
     b.chargeK = lerp(b.chargeK || 0, tend > 0 && GAME.ore > 0.5 ? light : 0, Math.min(1, dt * 2));
     b.busy = tend > 0 ? 1 : 0;
   }
-  GAME.shards += charged; GAME.rates.shards = charged / Math.max(dt, 1e-4);
+  GAME.shards += charged; GAME.rates.shards = charged / Math.max(dt, 1e-4) + dug.shards;
   for (const b of byType('shop')) b.busy = workersOf(b.id).some(v => v.working) ? 1 : 0;
   // food: everyone at home eats; gear "of Plenty" eats less
-  let grown = 0; for (const b of byType('garden')) grown += sum(b.id) * RATES.food * (b.level >= 2 ? 1.3 : 1) * (1 + modV(b, 'food') / 100) + nightGrow(b, dt);
+  let grown = 0; for (const b of byType('garden')) grown += sum(b.id) * RATES.food * (b.level >= 2 ? 1.3 : 1) * wxGrow(b) * (1 + modV(b, 'food') / 100) + nightGrow(b, dt);
   let mouths = 0; for (const v of GAME.villagers) if (!v.d.exp) mouths += 1 - Math.min(0.5, gearOf(v).upkeep / 100);
   GAME.rates.food = grown - mouths * RATES.eat;
   GAME.food += GAME.rates.food * dt;

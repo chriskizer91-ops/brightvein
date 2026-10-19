@@ -145,17 +145,18 @@ function fitTick(dt) {
   if (dt <= 0) return;
   const head = TOWN.b.head, deepSafe = modV(head, 'deepSafe'), warn = modV(head, 'warn');
   const climbD = modV(WALLB, 'climbDmg'), daz = modV(WALLB, 'dazzle'), vent = modV(WALLB, 'wallHp'), bal = modV(WALLB, 'turret');
-  const chew = TOWN.wallLevel >= 2 ? 0.035 : 0.085;   // how fast Wildlight chew the wall (wildlight.js huntStep)
+  // how fast Wildlight chew the wall (wildlight.js huntStep): the vents mend part of it as it goes
+  const chewOf = f => (TOWN.wallLevel >= 2 ? 0.022 : 0.05) * (f.K ? f.K.chew : 1) * (f.boss ? 3 : 1) * (WL.night ? (WL.night.n <= 1 ? 0.3 : WL.night.n <= 2 ? 0.6 : 1) : 1);
   for (const f of WL.list) {
     if (f.dead || f.air) continue;
     if (!f._fit) {   // first sight of it: where it started, in case the mirrors throw it back down
       f._fit = { pos: f.pos.clone(), route: (f.route || []).map(p => p.clone()), mode: f.mode };
       if (f.from === 'seam') {
         if (deepSafe && Math.random() < deepSafe / 100) { f.dead = true; f.dying = 1; f.root.visible = false; if (WL.night) WL.night.spawned = Math.max(0, WL.night.spawned - 1); continue; }
-        if (warn) { f._slow = 20 / (20 + warn); f.speed *= f._slow; if (FIT.canaryNight !== GAME.nights) { FIT.canaryNight = GAME.nights; toast('The canary in the headframe sings: <b>Wildlight coming up the shaft.</b>', 'night'); AUDIO.play('chime', head.group.position); } }
+        if (warn) { f._slow = 20 / (20 + warn); f.speed *= f._slow; if (f.climbSpeed) f.climbSpeed *= f._slow; if (FIT.canaryNight !== GAME.nights) { FIT.canaryNight = GAME.nights; toast('The canary in the headframe sings: <b>Wildlight coming up the shaft.</b>', 'night'); AUDIO.play('chime', head.group.position); } }
       }
     }
-    if (f._slow && f.mode !== 'route') { f.speed /= f._slow; f._slow = 0; }
+    if (f._slow && f.mode !== 'route') { f.speed /= f._slow; if (f.climbSpeed) f.climbSpeed /= f._slow; f._slow = 0; }
     // Mirror Tiles: at the crest, a climber may be dazzled and fall back down the cliff to climb again
     if (daz && f._fit.mode === 'route' && f.mode === 'hunt' && f.from === 'cliff' && !f._dz && !f.boss) {
       f._dz = true;
@@ -169,7 +170,7 @@ function fitTick(dt) {
       if (Math.random() < dt * 5) FX.sparks(f.pos.clone().setY(f.pos.y + 0.8), 3, 0x7fd6ff, 2);
     }
     // Steam Vents: the wall stands longer against them
-    if (vent && seg && !seg.broken) seg.hp = Math.min(1, seg.hp + chew * (1 - 1 / (1 + vent / 100)) * dt);
+    if (vent && seg && !seg.broken) seg.hp = Math.min(1, seg.hp + chewOf(f) * (1 - 1 / (1 + vent / 100)) * dt);
   }
   // the wall's Clockwork Ballista: a bolt every 2 s at whatever is nearest the wall
   if (bal && WL.list.length && (FIT.balT -= dt) <= 0) {
@@ -299,7 +300,7 @@ function addProp(group, kind, x, y, z, ry = 0, s = 1) {
 // where each kind of building shows its modules, in its own model's coordinates [x, y, z, turn]
 const PROP_AT = {
   keep: [[-4.6, 0, 4.7, 0.3], [4.9, 0, 4.5, -0.3], [-5.8, 0, 0.2, 0], [5.8, 0, 0.2, 0]],
-  head: [[-4.0, 0, 0.7, 0.4], [3.6, 0, 0.8, -0.4]],
+  head: [[-4.3, 0, 0.0, 0.4], [4.3, 0, -0.2, -0.4], [0.25, 0, -3.0, Math.PI]],   // clear of both steam winches and the ore bin
   yard: [[-4.4, 0, 4.85, 0], [2.4, 0, 4.85, 0], [-6.95, 0, -1.6, Math.PI / 2]],
   shop: [[-4.75, 0, 1.2, Math.PI / 2], [4.75, 0, -1.2, -Math.PI / 2]],
   garden: [[6.9, 0, 2.3, -Math.PI / 2], [-6.6, 0, -1.0, Math.PI / 2]],

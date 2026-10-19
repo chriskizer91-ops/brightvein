@@ -154,7 +154,7 @@ function openSky(mode, opts) {
   SKY.open(mode, opts).catch(e => { console.error(e); toast('The skies could not be opened: ' + esc(e.message)); dockHome({}); });
 }
 function dockHome(r) {
-  controls.enabled = VIEW.mode !== 'keep'; kcontrols.enabled = VIEW.mode === 'keep';
+  controls.enabled = VIEW.mode === 'town'; kcontrols.enabled = VIEW.mode === 'keep';
   clock.getDelta();
   dockMoor();
   // Barnabus's gift (the old skyman): a tenth more shards from every voyage

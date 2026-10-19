@@ -141,12 +141,14 @@ function bestFor(it) {
 }
 
 // ----------------------------------------------------------------- a person's numbers with and without a piece
+// as Villager.eff (people.js) works it out, at work and well fed, by day: rooms down the dig count as the mine
 function jobEff(v, b = v.jobB) {
   if (!b || !b.def || !b.def.job) return 0;
-  let e = statOf(v, b.def.job.stat) / 10;
+  const J = b.def.job;
+  let e = J.stat2 ? (statOf(v, J.stat) + statOf(v, J.stat2)) / 20 : statOf(v, J.stat) / 10;
   if (v.d.trait === 'Steady') e *= 1.1;
-  e *= 1 + outFor(gearOf(v), b.type) / 100;
-  if (mastered(v, b.def.job.stat)) e *= 1.2;
+  e *= 1 + outFor(gearOf(v), b.gearJob || b.type) / 100;
+  if (mastered(v, J.stat)) e *= 1.2;
   return e;
 }
 function personNums(v) {
@@ -229,7 +231,7 @@ UI.item = function (body, { it, back }) {
 UI.compareBlock = function (body, it) {
   const wearer = wornBy(it), slot = it.slot;
   const want = new Set(); { const { base } = itemBase(it), s = itemStats(it); if (s.outJob) want.add(s.outJob); for (const j of (base && base.jobs) || []) want.add(JOB_OF[j] || j); if (itemWeapon(it)) want.add('wall'); }
-  const jobOf = v => v.jobB ? (v.jobB === WALLB ? 'wall' : v.jobB.type) : null;
+  const jobOf = v => v.jobB ? (v.jobB === WALLB ? 'wall' : v.jobB.gearJob || v.jobB.type) : null;
   const people = GAME.villagers.filter(v => !v.d.exp && v !== wearer).sort((a, b) => (b === UI.cmpV) - (a === UI.cmpV) || want.has(jobOf(b)) - want.has(jobOf(a)) || (b.d.gear[slot] ? 0 : 1) - (a.d.gear[slot] ? 0 : 1));
   if (!people.length) return;
   const v = people.includes(UI.cmpV) ? UI.cmpV : people[0];

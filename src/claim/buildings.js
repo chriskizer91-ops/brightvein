@@ -5,10 +5,9 @@ const DEFS = {
     job: { title: 'Clerk', stat: 'R', slots: [0, 2, 3, 4], tool: 'book', night: false },
     blurb: 'Home to everyone on the claim, and its heart. Clerks keep the books and spread word of the strike, which brings settlers in on passing couriers. Raising the Keep makes room to build more.',
     levels: ['A stone keep under a slate roof: beds for sixteen', 'Corner turrets with copper caps: beds for twenty-four', 'The sun beacon on the roof lights the whole plateau: beds for thirty-two'] },
-  head: { name: 'Headframe & Mine', max: 2, cost: [0, 0, 180],
-    job: { title: 'Miner', stat: 'G', slots: [0, 4, 8], tool: 'pick', night: true },
-    blurb: 'Miners dig raw sunstone from the vein. Deeper galleries hold richer crystal, and wake more Wildlight.',
-    levels: ['Upper gallery and a hand winch', 'Steam winch, and the deep seam broken open: richer ore, more Wildlight'] },
+  head: { name: 'Headframe & Mine', max: 3, cost: [0, 0, 180, 360],
+    blurb: 'The lift down into the dig. Its level sets how deep you can dig and how fast the cage runs. The rooms below are dug and staffed from the Mine view.',
+    levels: ['A hand winch: the lift reaches the upper rows', 'A steam winch, and the deep seam broken open: dig the lower rows', 'A double steam winch: dig the deepest rows'] },
   yard: { name: 'Sunning Yard', max: 3, cost: [70, 70, 110, 220],
     job: { title: 'Tender', stat: 'S', slots: [0, 2, 3, 4], tool: 'crystal', night: false },
     blurb: 'Raw ore laid out on brass trays charges in the sun into shards. Tenders turn the crystal so it fills evenly. Nothing charges at night.',
@@ -65,10 +64,6 @@ const STATIONS = {
   lens: [{ x: 0.9, y: 7.0, z: 0.9, f: 0 }, { x: -0.9, y: 7.0, z: -0.6, f: 0 }],
   mast: [{ deck: [0, -4.5] }, { deck: [0.8, 2.5] }, { deck: [-0.8, 0.5] }],
 };
-const MINE_STATIONS = [
-  { g: 1, x: 9 }, { g: 1, x: 13.6 }, { g: 1, x: 18.2 }, { g: 1, x: 22.6 },
-  { g: 2, x: -10.5 }, { g: 2, x: -4.5 }, { g: 2, x: 1.5 }, { g: 2, x: 8 },
-];
 
 // ----------------------------------------------------------------- shared helpers
 function beam(b, a, c, t, mat, lvl = 1, o = {}) {
@@ -210,6 +205,13 @@ function modelHead(b) {
   b.add(G.box(1.6, 3.0, 1.6), MAT.oak, 0, top + 3.0, 2.0, { lvl: 2, sy: 1 });
   b.add(G.box(2.2, 0.3, 2.2), MAT.slate, 0, top + 4.6, 2.0, { lvl: 2 });
   b.smoke2 = b.worldPos(-3.0, 6.3, 2.7);
+  // level 3: a second steam winch on the east side, a taller stack, and brass on the sheave
+  b.add(G.cyl(0.7, 0.7, 2.4, 16).rotateX(Math.PI / 2), MAT.iron, 3.3, 1.0, 1.7, { lvl: 3 });
+  for (const z of [0.7, 2.7]) b.add(G.box(1.4, 0.35, 0.3, 1), MAT.oakDark, 3.3, 0.2, z, { lvl: 3 });
+  b.add(G.cyl(0.3, 0.36, 6.4, 12), MAT.iron, 3.4, 4.2, 2.8, { lvl: 3 });
+  b.add(G.cyl(0.44, 0.3, 0.4, 12), MAT.brass, 3.4, 7.5, 2.8, { lvl: 3 });
+  b.add(G.box(2.0, 0.24, 0.24, 1), MAT.brass, 2.2, 1.5, 1.7, { lvl: 3, rz: -0.2 });
+  b.add(new THREE.TorusGeometry(1.34, 0.06, 6, 28), MAT.brass, 0, 0, 0, { parent: wheel, ry: Math.PI / 2, lvl: 3 });
 }
 
 // ----------------------------------------------------------------- sunning yards
@@ -496,23 +498,27 @@ const _wm = new THREE.Matrix4(), _wq = new THREE.Quaternion(), _we = new THREE.E
 function wallMatrices() {
   const { logs, tips, blocks, merl, caps } = WALL.mesh;
   WALL.segs.forEach((s, i) => {
-    const hpK = s.broken ? 0.18 : 1;
+    const hpK = s.broken ? 0.18 : 1, dmg = s.broken ? 1 : 1 - s.hp;
     s.logs.forEach((l, k) => {
-      const x = lerp(s.a[0], s.b[0], l.t) - Math.sin(s.ang) * l.tz, z = lerp(s.a[1], s.b[1], l.t) + Math.cos(s.ang) * l.tz, h = l.h * s.k1 * hpK;
-      _we.set(l.tilt, 0, l.tilt * 0.5); _wq.setFromEuler(_we);
+      // a battered palisade: the weakest logs lean out of line, then snap off to stumps
+      const weak = hash2(i * 13 + k, 77), down = !s.broken && dmg > 0.3 && weak < (dmg - 0.3) * 1.3, lean = dmg > 0.12 && weak < dmg + 0.25 ? (hash2(i, k * 5 + 1) - 0.5) * dmg * 0.9 : 0;
+      const x = lerp(s.a[0], s.b[0], l.t) - Math.sin(s.ang) * l.tz, z = lerp(s.a[1], s.b[1], l.t) + Math.cos(s.ang) * l.tz, h = l.h * s.k1 * hpK * (down ? 0.28 : 1);
+      _we.set(l.tilt + lean, 0, l.tilt * 0.5 + lean * 0.6); _wq.setFromEuler(_we);
       _wm.compose(_wp.set(x, 0, z), _wq, _ws.set(1, Math.max(0.001, h), 1)); logs.setMatrixAt(i * 8 + k, _wm);
-      _wm.compose(_wp.set(x, h, z), _wq, _ws.set(1, Math.max(0.001, s.k1 * hpK), 1)); tips.setMatrixAt(i * 8 + k, _wm);
+      _wm.compose(_wp.set(x, h, z), _wq, _ws.set(1, Math.max(0.001, s.k1 * hpK * (down ? 0 : 1)), 1)); tips.setMatrixAt(i * 8 + k, _wm);
     });
     _we.set(0, -s.ang, 0); _wq.setFromEuler(_we);
-    const h = 2.8 * s.k2 * hpK;
+    const h = 2.8 * s.k2 * hpK * (1 - dmg * 0.1);
     _wm.compose(_wp.set(s.mx, 0, s.mz), _wq, _ws.set(s.len + 0.25, Math.max(0.001, h), 1.1)); blocks.setMatrixAt(i, _wm);
-    _wm.compose(_wp.set(s.mx, h, s.mz), _wq, _ws.set(s.len + 0.35, Math.max(0.001, 0.25 * s.k2), 1.3)); caps.setMatrixAt(i, _wm);
+    _wm.compose(_wp.set(s.mx, h, s.mz), _wq, _ws.set(s.len + 0.35, Math.max(0.001, 0.25 * s.k2 * (dmg > 0.6 ? 0 : 1)), 1.3)); caps.setMatrixAt(i, _wm);
     for (let k = 0; k < 3; k++) {
-      const t = (k + 0.5) / 3, x = lerp(s.a[0], s.b[0], t) + Math.sin(s.ang) * 0.35, z = lerp(s.a[1], s.b[1], t) - Math.cos(s.ang) * 0.35;
-      _wm.compose(_wp.set(x, h + 0.2 * s.k2, z), _wq, _ws.set(0.7, Math.max(0.001, 0.6 * s.k2 * (s.broken ? 0 : 1)), 0.45)); merl.setMatrixAt(i * 3 + k, _wm);
+      // merlons knocked off one by one as a stone section takes harm
+      const t = (k + 0.5) / 3, x = lerp(s.a[0], s.b[0], t) + Math.sin(s.ang) * 0.35, z = lerp(s.a[1], s.b[1], t) - Math.cos(s.ang) * 0.35, gone = s.broken || dmg > 0.3 + hash2(i, k) * 0.5;
+      _wm.compose(_wp.set(x, h + 0.2 * s.k2, z), _wq, _ws.set(0.7, Math.max(0.001, 0.6 * s.k2 * (gone ? 0 : 1)), 0.45)); merl.setMatrixAt(i * 3 + k, _wm);
     }
   });
   for (const m of Object.values(WALL.mesh)) m.instanceMatrix.needsUpdate = true;
+  wallDamageDraw();   // cracks and rubble (nights.js)
 }
 function wallSetLevel(lv, animate) {
   WALL.level = lv;

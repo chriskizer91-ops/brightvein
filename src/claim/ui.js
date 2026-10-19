@@ -62,7 +62,7 @@ const UI = {
     body.innerHTML = '';
     requestAnimationFrame(() => { panel.scrollTop = keep; });
     if (!c) return;
-    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock, haul: this.haul, journal: this.journal,
+    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock, haul: this.haul, journal: this.journal, weather: this.weather, dig: this.dig,
       bench: this.bench, fit: this.fit, lark: this.lark, courier: this.courier }[c.kind];
     if (fn) fn.call(this, body, c.ref);
   },
@@ -74,7 +74,7 @@ const UI = {
     body.append(this.h(`<h2>${esc(b.name || def.name)}<span class="lvl" aria-label="Level ${lv} of ${max}">${pips}</span></h2>
       <p class="sub">${esc(def.levels[lv - 1] || '')}</p><p>${esc(def.blurb)}</p>`));
     const chips = [];
-    if (b.type === 'head') { const r = (GAME.rates && GAME.rates.ore) || 0; chips.push(`<span class="chip">${(r * 60).toFixed(1)} ore a minute</span>`); chips.push(`<span class="chip ${lv >= 2 ? 'warn' : ''}">${lv >= 2 ? 'Deep seam open' : 'Deep seam sealed'}</span>`); }
+    if (b.type === 'head') chips.push(digHeadChips(b));
     if (b.type === 'yard') { chips.push(`<span class="chip amber">Up to ${yardRate(b).toFixed(1)} ore charged a minute, in full sun</span>`); if (TOD.sunlight < 0.05 && lv < 3) chips.push(`<span class="chip">Resting: no sun</span>`); }
     if (b.type === 'shop') chips.push(`<span class="chip amber">+${Math.round(22 * workersOf(b.id).reduce((s, v) => s + v.eff(), 0) * (lv >= 2 ? 1.3 : 1))}% shards from every tray</span>`);
     if (b.type === 'garden') { const net = (GAME.rates && GAME.rates.food || 0) * 60; chips.push(`<span class="chip ${net < 0 ? 'warn' : 'good'}">Claim food ${net >= 0 ? '+' : ''}${net.toFixed(1)} a minute</span>`); }
@@ -86,8 +86,10 @@ const UI = {
     }
     if (b.type === 'lens') chips.push(`<span class="chip">Reach ${Math.round(turretRange(b))} m · 1 shard a shot · needs a crew</span>`);
     if (b.type === 'ballista') chips.push(`<span class="chip">Reach ${lv >= 2 ? 17 : 14} m · ${lv >= 2 ? 14 : 10} a bolt · no crew, no shards</span>`);
-    if (isWall) { const br = WALL.segs.filter(s => s.broken).length; chips.push(`<span class="chip ${br ? 'warn' : 'good'}">${br ? br + ' breaches, mended at dawn by the watch' : 'Sound all the way round'}</span>`); }
+    if (isWall) { const br = WALL.segs.filter(s => s.broken).length, hit = WALL.segs.filter(s => s.hp < 1).length; chips.push(`<span class="chip ${hit ? 'warn' : 'good'}">${hit ? `${hit} damaged${br ? `, ${br} broken through` : ''}: the watch mends it by day` : 'Sound all the way round'}</span>`); }
     if (b.type === 'mast') chips.push(`<span class="chip">${SHIP.state === 'docked' ? 'Moored' : 'On patrol'}</span>`);
+    if (b.type === 'rod') chips.push(`<span class="chip amber">Catches lightning within ${ROD_REACH} m · ${b.caught || 0} bolts so far</span>`);
+    if (b.scorch > 0.02) chips.push(`<span class="chip warn">Scorched by lightning: working slower until it’s patched</span>`);
     if (chips.length) body.append(this.h(`<div class="stats-row">${chips.join('')}</div>`));
     if (def.job) {
       const n = slotsOf(b), ws = workersOf(b.id);
@@ -120,6 +122,7 @@ const UI = {
     // actions
     const acts = document.createElement('div'); acts.className = 'stats-row';
     if (b.type === 'keep') { const gi = this.h(`<button type="button" class="btn primary">Go inside</button>`); gi.querySelector('button').onclick = () => { UI.close(); setView('keep'); }; acts.append(gi); }
+    if (b.type === 'head' && VIEW.mode !== 'mine') { const gi = this.h(`<button type="button" class="btn primary">See the dig</button>`); gi.querySelector('button').onclick = () => { UI.close(); setView('mine'); }; acts.append(gi); }
     if (b.tile) { const mv = this.h(`<button type="button" class="btn">Move</button>`); mv.querySelector('button').onclick = () => enterBuild(b); acts.append(mv); }
     if (acts.children.length) body.append(acts);
     if (lv < max) {
@@ -140,11 +143,11 @@ const UI = {
       const el = document.createElement('button'); el.type = 'button'; el.className = 'li';
       el.append(faceOf(v));
       el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${esc(jb)}</span></span><span class="fit">${stars(s)} <em>${STAT_NAMES[stat]} ${s}</em></span>`));
-      el.onclick = () => { if (assignJob(v, b.id)) { v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now a ${def.job.title.toLowerCase()}.`); AUDIO.play('tap'); } UI.open('building', b); };
+      el.onclick = () => { if (assignJob(v, b.id)) { if (!b.isDig) v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now a ${def.job.title.toLowerCase()}.`); AUDIO.play('tap'); } UI.open(b.isRoom ? 'dig' : 'building', b); };
       list.append(el);
     }
     body.append(list);
-    this.back(body, 'Back', () => UI.open('building', b));
+    this.back(body, 'Back', () => UI.open(b.isRoom ? 'dig' : 'building', b));
   },
   villager(body, v) {
     const d = v.d, b = v.jobB, E = d.exp;
@@ -318,7 +321,7 @@ const UI = {
     fight.push(`<span>${F.ranged ? `<b>${Math.round(F.range)} m</b> reach` : 'Close in'}</span>`);
     if (wa) fight.push(`<span style="color:${wa.color || 'inherit'}">${esc(wa.name)}</span>`);
     st.append(this.h(`<h3>In a fight${w ? ` · ${esc(w.name)}` : ' · bare-handed'}</h3><div class="sh-fight">${fight.join('')}</div>`));
-    const job = v.jobB, out = job && job !== WALLB ? outFor(g, job.type) : 0, more = [];
+    const job = v.jobB, out = job && job !== WALLB ? outFor(g, job.gearJob || job.type) : 0, more = [];
     if (out) more.push(`<span class="chip amber">+${out}% at work</span>`);
     if (g.findLuck) more.push(`<span class="chip">+${+g.findLuck.toFixed(2)} luck</span>`);
     if (g.night) more.push(`<span class="chip">+${g.night}% at night</span>`);
@@ -356,7 +359,7 @@ const UI = {
     body.append(box);
     const chips = [`<span class="chip">${Math.round(F.dps)} damage a second${F.ranged ? ` · reach ${Math.round(F.range)} m` : ''}</span>`, `<span class="chip">${maxHpOf(v)} health</span>`];
     if (g.guard) chips.push(`<span class="chip">${g.guard}% guard</span>`);
-    const job = v.jobB, out = job && job !== WALLB ? outFor(g, job.type) : 0;
+    const job = v.jobB, out = job && job !== WALLB ? outFor(g, job.gearJob || job.type) : 0;
     if (out) chips.push(`<span class="chip amber">+${out}% at work</span>`);
     if (g.findLuck) chips.push(`<span class="chip">+${+g.findLuck.toFixed(2)} luck</span>`);
     body.append(this.h(`<div class="stats-row">${chips.join('')}</div>`));
@@ -392,7 +395,7 @@ const UI = {
   jobs(body, v) {
     body.append(this.h(`<h2>A job for ${esc(v.d.name.split(' ')[0])}</h2><p class="sub">Stars show how well their stats fit.</p>`));
     const list = document.createElement('div'); list.className = 'list';
-    const opts = [...Object.values(TOWN.b).filter(b => b.def.job && b.level > 0 && !b.pending), WALLB];
+    const opts = [...Object.values(TOWN.b).filter(b => b.def.job && b.level > 0 && !b.pending), WALLB, ...digJobOptions()];
     opts.sort((a, c) => statOf(v, c.def.job.stat) - statOf(v, a.def.job.stat));
     for (const b of opts) {
       const s = statOf(v, b.def.job.stat), n = slotsOf(b), used = workersOf(b.id).length, mine = v.d.job && v.d.job.bid === b.id;
@@ -400,7 +403,7 @@ const UI = {
       const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; if (full) el.disabled = true;
       el.style.gridTemplateColumns = '1fr auto'; el.style.opacity = full ? 0.5 : 1;
       el.append(this.h(`<span><span class="nm">${esc(b.def.job.title)} · ${esc(b.name || b.def.name)}</span><span class="jb">${mine ? 'Current job' : full ? 'Full' : `${used} of ${n} places taken`}${b.def.job.night ? ' · works nights' : ''}</span></span><span class="fit">${stars(s)} <em>${STAT_NAMES[b.def.job.stat]} ${s}</em></span>`));
-      el.onclick = () => { if (mine) return UI.open('villager', v); if (v.d.study) endStudy(v); if (assignJob(v, b.id)) { v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now a ${b.def.job.title.toLowerCase()}.`); AUDIO.play('tap'); } UI.open('villager', v); };
+      el.onclick = () => { if (mine) return UI.open('villager', v); if (v.d.study) endStudy(v); if (assignJob(v, b.id)) { if (!b.isDig) v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now a ${b.def.job.title.toLowerCase()}.`); AUDIO.play('tap'); } UI.open('villager', v); };
       list.append(el);
     }
     const none = document.createElement('button'); none.type = 'button'; none.className = 'li'; none.style.gridTemplateColumns = '1fr'; none.append(this.h(`<span><span class="nm">No job</span><span class="jb">Rest and wander the plateau</span></span>`));
@@ -508,32 +511,9 @@ function upgrade(b) {
     else toast(`<b>${b.name || b.def.name}</b> is now level ${b.level}.`);
     autoAssign(); UI.refresh();
   });
-  if (b.type === 'head' && lv + 1 === 2) openDeepSeam();
+  if (b.type === 'head') digHeadRaised(lv + 1);
   UI.refresh();
 }
-function openDeepSeam() {
-  const t0 = performance.now() / 1000;
-  AUDIO.play('crack');
-  setTimeout(() => toast('The deep seam is open. <b>Richer ore, and something stirs below.</b>', 'night'), 1200);
-  MINE_BREAK.t0 = t0;
-  if (VIEW.mode !== 'mine') setTimeout(() => setView('mine'), 300);
-}
-const MINE_BREAK = { t0: 0 };
-function mineBreakUpdate(now) {
-  if (!MINE_BREAK.t0) { for (const m of minePlugs) m.visible = TOWN.b.head.level < 2; mineDecor.g2.visible = TOWN.b.head.level >= 2; return; }
-  const t = now - MINE_BREAK.t0;
-  mineDecor.g2.visible = true;
-  minePlugs.forEach((m, i) => {
-    const k = clamp((t - 0.8 - i * 0.06) / 1.4, 0, 1);
-    if (k <= 0) { m.visible = true; m.position.copy(m.userData.home); m.rotation.set(0, 0, 0); return; }
-    m.visible = k < 1;
-    m.position.set(m.userData.home.x + (i % 2 ? 1 : -1) * k * 1.5, m.userData.home.y - k * k * 20, m.userData.home.z + k * 3);
-    m.rotation.set(k * 2, 0, (i % 3 - 1) * k * 2);
-    if (k > 0 && k < 0.1 && Math.random() < 0.3) FX.puff(new THREE.Vector3(m.userData.cx, m.userData.cy, WORLD.faceZ + 0.5), 4, 0xa89070, 1.4);
-  });
-  if (t > 4) MINE_BREAK.t0 = 0;
-}
-
 // ----------------------------------------------------------------- HUD
 const dialCtx = $('#dial').getContext('2d');
 let hudT = 0;
@@ -574,7 +554,8 @@ function updateLabels() {
   if (SEL.villager && !SEL.villager.hidden) want.push({ key: 'sel', html: esc(SEL.villager.d.name), pos: _pp.copy(SEL.villager.pos).add(new THREE.Vector3(0, 2.3, 0)).clone(), cls: '' });
   if (BUILD.on && BUILD.sel && !BUILD.pending) want.push({ key: 'bsel', html: `${esc(BUILD.sel.name)} <small>${BUILD.sel.tile ? 'drag to move' : 'fixed'}</small>`, pos: new THREE.Vector3(BUILD.sel.L.x, { lens: 9, keep: 13, mast: 16, shop: 8, garden: 4.5, yard: 3.5, ballista: 3.5 }[BUILD.sel.type] || 5, BUILD.sel.L.z), cls: 'build' });
   for (const b of Object.values(TOWN.b)) if (b.building) want.push({ key: 'b' + b.id, html: `Building <small>${Math.max(0, Math.ceil(b.doneAt - performance.now() / 1000))}s</small>`, pos: b.worldPos(0, 6, 0), cls: 'build' });
-  { const J = GAME.bench.job, s = J && benchShop(); if (s && !s.building) want.push({ key: 'bench', html: `At the bench <small>${Math.min(99, Math.floor(J.t / J.need * 100))}%</small>`, pos: s.worldPos(0, 8.5, 0), cls: 'build' }); }   // Odile at work (bench.js)
+  if (VIEW.mode === 'mine' && !BUILD.on) want.push(...digLabels());
+  { const J = GAME.bench.job, s = J && VIEW.mode === 'town' && benchShop(); if (s && !s.building) want.push({ key: 'bench', html: `At the bench <small>${Math.min(99, Math.floor(J.t / J.need * 100))}%</small>`, pos: s.worldPos(0, 8.5, 0), cls: 'build' }); }   // Odile at work (bench.js)
   }
   const seen = new Set();
   const W = innerWidth, H = innerHeight;

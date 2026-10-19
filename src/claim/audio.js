@@ -374,6 +374,9 @@ const AU = (() => {
     thunder: [(E, t, o) => { burst(E, t, o, 0.08, 'highpass', 1500, 600, 0.12, 0.7); const pts = [[0.06, 0.45]]; let x = 0.06; for (let i = 0; i < 4; i++) { x += 0.5 + rnd(E) * 0.7; pts.push([x, 0.18 + rnd(E) * 0.3]); } pts.push([x + 1.6, 0]); swell(E, t, o, pts, 'lowpass', 420, 70, 0.7); tone(E, t + 0.04, o, 'sine', 52, 34, 1.4, 0.18, 0.05); }, 0.45, 3.4],
     raidlost: [(E, t, o) => { brass(E, t, n2m('A2'), 0.9, 0.7, o); brass(E, t + 0.5, n2m('F2'), 1.2, 0.6, o); }, 0.45, -3.4],
     sail: [(E, t, o) => { swell(E, t, o, [[0.4, 0.2], [1.2, 0.12], [2.2, 0]], 'bandpass', 400, 1200, 0.8, 'pink'); }, 0.3, 8.2],
+    // a Bright Night's boss: a low growl that swells and a glassy shriek over it (the Wildlight are light, after all)
+    bossroar: [(E, t, o) => { swell(E, t, o, [[0.18, 0.55], [0.8, 0.4], [1.5, 0]], 'lowpass', 900, 160, 0.9, 'pink'); tone(E, t, o, 'sawtooth', 104, 52, 1.3, 0.1, 0.09);
+      tone(E, t + 0.05, o, 'sine', 1760, 2637, 0.8, 0.025, 0.18); tone(E, t + 0.1, o, 'sine', 2217, 1480, 0.95, 0.02, 0.22); }, 0.5, 0],
     // the alarm: the watch bell rung fast, for a wave of Wildlight coming up the cliffs
     alarm: [(E, t, o) => { for (let i = 0; i < 3; i++) bell(E, t + i * 0.26, n2m(i === 2 ? 'A4' : 'D5'), 1, 0.75, o, { short: 0.45 }); }, 0.5, 2],
   };
@@ -551,7 +554,8 @@ const AUDIO = (() => {
   // effects that are also music: these start a cue in the score as well as (or instead of) a sound
   const CUES = { dawn: 'dawn', chapter: 'flourish', raidwon: 'victory', sunk: 'lament' };
   // other names an effect might be asked for by
-  const ALIAS = { pick: 'dig', mine: 'dig', lightning: 'thunder', boom: 'cannon', explosion: 'raiderdown', wave: 'alarm', courier: 'horn', rocks: 'rockfall', ballista: 'thunk', lens: 'zap', death: 'poof' };
+  const ALIAS = { pick: 'dig', mine: 'dig', lightning: 'thunder', boom: 'cannon', explosion: 'raiderdown', wave: 'alarm', boltstrike: 'thunder', nightstart: 'bell', courier: 'horn', rocks: 'rockfall', ballista: 'thunk', lens: 'zap', death: 'poof',
+    anvil: 'hit', forge: 'flare', success: 'goal', fail: 'snuff' };   // Odile's bench (bench.js)
   function play(k, pos, o = {}) {
     if (!E || S.muted) return;
     k = ALIAS[k] || k;

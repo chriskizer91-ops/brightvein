@@ -13,13 +13,24 @@ with sync_playwright() as p:
     pg.on('pageerror', lambda e: errors.append('page error: ' + str(e)) or print('PAGE ERROR', e))
     pg.on('console', lambda m: print('console error:', m.text[:300]) if m.type == 'error' else None)
     pg.route('**/fonts.g*/**', lambda r: r.fulfill(body='', content_type='text/css'))
-    pg.goto('file://' + ROOT + '/dist/test.html')
+    pg.goto('file://' + ROOT + '/dist/test.html', timeout=120000)
     pg.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=60000)
     r = pg.evaluate('''(() => { const B = __bv; B.begin(true);
       for (const t of ['yard', 'yard', 'garden', 'shop']) B.trayPick(t);
       B.exitBuild(); B.simulate(240, 0.1);
       return { day: B.GAME.day, people: B.GAME.villagers.length, shards: Math.round(B.GAME.shards), nights: B.GAME.nights, buildings: Object.keys(B.TOWN.b).length }; })()''')
     check('a day and a night on the claim', r['day'] >= 2 and r['nights'] >= 1, json.dumps(r))
+
+    # the story: the prologue opened when the claim started, and closes after the first night; the settlers came off
+    # the roll, so each has a portrait to match their sprite
+    pg.wait_for_timeout(1500)
+    r = pg.evaluate('''(async () => { const B = __bv, out = { ch0: B.STORY.ch, shown: !!B.STORY.shown };
+      for (let i = 0; i < 40 && B.STORY.ch === 0; i++) { while (B.STORY.shown) B.talkNext(); await new Promise(r => setTimeout(r, 700)); }
+      out.ch = B.STORY.ch; out.title = B.CHAPTERS[B.STORY.ch].title;
+      out.rolled = B.GAME.villagers.filter(v => v.d.portrait).length; out.people = B.GAME.villagers.length;
+      return out; })()''')
+    check('the prologue played and chapter 1 began', r['ch'] >= 1, json.dumps(r))
+    check('settlers come off the roll with a portrait each', r['rolled'] >= 4, json.dumps(r))
 
     # the skies: the ship moors at the Sky Dock, sets sail, beats a wave, sails on, sinks, and the crew bring half home
     pg.wait_for_function('__bv.DOCK.ship && __bv.DOCK.ship.root.parent', timeout=60000)

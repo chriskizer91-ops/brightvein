@@ -24,7 +24,10 @@ function setView(mode) {
   const portrait = innerHeight > innerWidth;
   const to = mode === 'town'
     ? { t: new THREE.Vector3(0, 0, 6), p: new THREE.Vector3(34, 54, portrait ? 104 : 84) }
-    : { t: new THREE.Vector3(portrait ? 14 : 8, -12.5, 34), p: new THREE.Vector3(portrait ? 14 : 8, -9, portrait ? 96 : 76) };
+    : (TOWN.b.head && TOWN.b.head.level >= 2)
+      ? { t: new THREE.Vector3(portrait ? 14 : 8, -12.5, 34), p: new THREE.Vector3(portrait ? 14 : 8, -9, portrait ? 96 : 76) }
+      // the deep seam still sealed: frame the upper gallery and the shaft
+      : { t: new THREE.Vector3(portrait ? 20 : 16, -6.5, 34), p: new THREE.Vector3(portrait ? 20 : 16, -3.5, portrait ? 84 : 62) };
   viewLimits('free');
   controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; controls.minPolarAngle = 0; controls.maxPolarAngle = Math.PI;
   VIEW.tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt: to.t, tp: to.p, mode };
@@ -320,7 +323,7 @@ function saveGame() {
       buildings: Object.values(TOWN.b).filter(b => !b.pending).map(b => ({ id: b.id, type: b.type, level: b.level, tx: b.tile ? b.tile.tx : null, tz: b.tile ? b.tile.tz : null })),
       stash: GAME.stash, mats: GAME.mats, cells: GAME.cells, blueprints: GAME.blueprints, rooms: GAME.rooms, savedAt: Date.now(),
       people: GAME.villagers.map(v => ({ ...v.d })),
-      sky: FLEET ? FLEET.data : undefined,
+      sky: FLEET ? FLEET.data : undefined, story: storySave(), jumpNext: JUMP.next,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
   } catch (e) { }
@@ -358,7 +361,7 @@ function frame() {
   // out in the skies: they draw instead, and the claim's time stands still until the ship is home
   if (SKY && SKY.on) { AUDIO.ambience(0.7, true); if (SKY.frame(rdt)) return; }
   elapsed += rdt;
-  const gdt = started && !GAME.paused && !BUILD.on && !(SKY && SKY.on) ? rdt * GAME.speed : 0;
+  const gdt = started && !GAME.paused && !BUILD.on && !GAME.talk && !(SKY && SKY.on) ? rdt * GAME.speed : 0;
   if (started) {
     GAME.t += gdt / DAY_LEN;
     if (GAME.t >= 1) { GAME.t -= 1; GAME.day++; }
@@ -372,7 +375,7 @@ function frame() {
     // sub-step villagers at high speed so paths stay smooth
     const n = Math.ceil(gdt / 0.05), sdt = gdt / n;
     for (let i = 0; i < n; i++) for (const v of GAME.villagers) v.update(sdt);
-    updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); updateExpeditions(gdt);
+    updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); jumpersTick(gdt); updateExpeditions(gdt);
     announceStudy(updateStudies(gdt));
   } else for (const v of GAME.villagers) { v.sprite.position.copy(v.pos); v.frame(0); }
   if (BUILD.on) updatePlaceCtl();
@@ -383,13 +386,20 @@ function frame() {
   FX.update(rdt * (GAME.paused ? 0.2 : Math.min(GAME.speed, 2)));
   wallUpdate(rdt); mineBreakUpdate(now);
   dressScene(rdt, gdt);
-  dockUpdate(rdt);
+  dockUpdate(rdt); updateLife(rdt, TOD.night); storyTick(rdt); talkFrame(rdt);
   updateCamera(rdt);
   updateHUD(rdt); updateLabels();
   AUDIO.ambience(TOD.night, !GAME.paused);
   saveT -= rdt; if (saveT <= 0 && started) { saveT = 15; saveGame(); }
   const inK = VIEW.mode === 'keep', S = inK ? KSCENE : scene, C = inK ? kcam : camera;
   if (renderPass) { renderPass.scene = S; renderPass.camera = C; }
+  // the lens: a model on a table from above, gentler side-on (the mine, the Keep) and when far away
+  if (lensPass) {
+    const dist = camera.position.distanceTo(controls.target), side = inK || VIEW.mode === 'mine';
+    lensPass.uniforms.uAmount.value = side ? 0.35 : clamp(1.25 - (dist - 25) / 110, 0.35, 1.2) * (BUILD.on ? 0.4 : 1);
+    lensPass.uniforms.uFocus.value = side ? 0.5 : 0.47;
+    gradePass.uniforms.uNight.value = TOD.night;
+  }
   composer ? composer.render() : renderer.render(S, C);
 }
 function phaseChange(a, b) {
@@ -411,6 +421,7 @@ function phaseChange(a, b) {
 }
 // everything that glows, smokes or sways
 function dressScene(rdt, gdt) {
+  WIND.time.value = elapsed;
   const night = TOD.night, pw = POWER.on ? 1 : 0.2;
   MAT.window.emissiveIntensity = night * 1.7 * pw + 0.05;
   for (const b of BUILDINGS) for (const L of b.lights) L.light.intensity = b.level >= L.lvl ? L.power * night * pw * (L.yard ? 0.4 + (b.chargeK || 0) : 1) : 0;
@@ -427,6 +438,7 @@ function dressScene(rdt, gdt) {
   for (const L of mineDecor.lights) L.intensity = 26 * (POWER.on ? 1 : 0.35);
   worldMats.mineGlow.emissiveIntensity = 2.2 * (POWER.on ? 1 : 0.3);
   worldMats.mineCrystal.emissiveIntensity = 1.3 + Math.sin(elapsed * 1.3) * 0.25;
+  if (worldMats.faceCrystal) worldMats.faceCrystal.emissiveIntensity = 0.9 + night * 1.1 + Math.sin(elapsed * 1.1 + 2) * 0.2;
   if (mineDecor.seam) for (const m of mineDecor.seam.children) m.material.opacity = 0.6 + Math.sin(elapsed * 3 + m.position.y) * 0.3 + (WL.night && WL.night.deep ? 0.3 : 0);
   faceMat.emissiveIntensity = 0.22 + night * 0.5;
   // the lift cage rides up and down the shaft
@@ -460,6 +472,7 @@ async function boot() {
   buildPlateau(); buildSky(); buildClouds(); buildPeaks();
   setupTown(save);
   setupDock(save);
+  setupLife();
   fixEnv(scene);
   if (save) { TOWN.wallLevel = save.wall || 1; wallSetLevel(TOWN.wallLevel, false); }
   buildNav();
@@ -477,6 +490,9 @@ async function boot() {
       else if (d.study) { v.setHidden(true); v.where = 'study'; v.plan = [{ type: 'study' }]; }
     }
     autoAssign();
+    // settlers from before the roll take a place on it (keeping their names), so their sprite matches a portrait
+    for (const v of GAME.villagers) if (!v.d.portrait && !v.d.named && !v.d.hero) { const f = nextFolk(v.d.pref); if (f) { v.d.portrait = f.id; v.d.look = { ...v.d.look, ...f.look }; v.redraw(); } }
+    storyLoad(save.story); JUMP.next = save.jumpNext ?? null;
     if (save.savedAt) GAME.away = catchUp((Date.now() - save.savedAt) / 1000);
     if (save.migrated) setTimeout(() => toast('Your claim is on the new build grid. Everyone lives in <b>the Keep</b> now. Tap <b>Build</b> to rearrange.'), 2500);
   } else { starterStash(); seedVillagers(); }
@@ -512,11 +528,11 @@ function simulate(seconds, step = 0.1) {
     applyTimeOfDay(GAME.t, elapsed += step);
     if (prevPhase && TOD.phase !== prevPhase) phaseChange(prevPhase, TOD.phase); prevPhase = TOD.phase;
     economy(step); for (const v of GAME.villagers) v.update(step);
-    updateWildlight(step, elapsed); updateDefenders(step, elapsed); updateExpeditions(step); announceStudy(updateStudies(step));
+    updateWildlight(step, elapsed); updateDefenders(step, elapsed); jumpersTick(step); updateExpeditions(step); announceStudy(updateStudies(step));
     const now = performance.now() / 1000; for (const b of BUILDINGS) b.update(now, step);
     FX.update(step); wallUpdate(step); dressScene(step, step);
   }
 }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
-window.__bv = { get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin };
+window.__bv = { JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin };
 boot().catch(e => { console.error(e); $('#loading').textContent = 'The town could not be raised: ' + e.message; });

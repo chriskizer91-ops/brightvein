@@ -23,9 +23,13 @@
 ## Code
 
 - `src/claim/`: the claim (town, Keep, mine, people, Wildlight, loot, UI). One shared scope: its files are joined in the order of `src/claim/order.json` into one module. Add a file there to add it to the build.
+  - `folk.js`: everyone's portrait and look, picture first. Settlers come off this roll so their sprite and portrait match. `node tools/portrait-prompts.mjs` writes `docs/art-requests/03-portraits.md` from it.
+  - `cast.js`: the visiting cast's looks. `story.js`: chapters, scenes, visitors, the journal and codex (`docs/story.md`). `dock.js`: the Sky Dock and the fleet's panel. `life.js`: birds, distant ships, fireflies, mine dust.
 - `src/sky/`, `src/ship/`, `src/ships/`: the skies, the ship builder and the six ships, from the airship game. Ordinary ES modules.
 - `src/shell.html`, `src/style.css`: the page and its look.
 - `assets/claim/`: the claim's painted textures (from Briarwatch). `assets/map/`, `assets/ships/`, `assets/fonts/`: from the airship game.
+- `assets/cast/`, `assets/portraits/`, `assets/items/`: pictures shown as they are (portraits on cards and in scenes, item pictures), inlined by the build as `ART.cast`, `ART.portraits`, `ART.items`, named by id. Shrink portraits to 256 × 256 and items to 128 × 128 (webp) before adding them.
+- `src/sky/sites.js`: the claim-jumpers' places to raid.
 - `reference/`: pictures to draw from; never loaded by the game.
 
 ## Checking a change

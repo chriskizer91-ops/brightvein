@@ -285,7 +285,8 @@ function towerAI(dt) {
     if (!b.level || b.pending) continue;
     const crew = workersOf(b.id).filter(v => v.working);
     b.coreMat.emissiveIntensity = lerp(b.coreMat.emissiveIntensity, crew.length ? 0.8 + TOD.night * 1.2 : 0.2, dt * 3);
-    if (!crew.length || TOD.night < 0.4) { b.cool = 0; continue; }
+    const raid = jumpersActive();   // by day the crews run up to the towers when jumpers come
+    if (!crew.length && !(raid && workersOf(b.id).length) || (TOD.night < 0.4 && !raid)) { b.cool = 0; continue; }
     const range = turretRange(b), muzzle = new THREE.Vector3(); b.muzzle.getWorldPosition(muzzle);
     let best = null, bd = range;
     for (const f of WL.list) { if (f.dead || f.pos.y < -2) continue; const d = Math.hypot(f.pos.x - muzzle.x, f.pos.z - muzzle.z); if (d < bd) { bd = d; best = f; } }
@@ -297,7 +298,7 @@ function towerAI(dt) {
     if (best) b.tilt.rotation.x = lerp(b.tilt.rotation.x, Math.atan2(7.5 - best.pos.y, bd) * 0.9, dt * 5);
     b.cool = (b.cool || 0) - dt;
     if (best && b.cool <= 0 && Math.abs(dy) < 0.25 && GAME.shards >= 1) {
-      const agi = crew.reduce((s, v) => s + statOf(v, 'A'), 0);
+      const agi = (crew.length ? crew : workersOf(b.id)).reduce((s, v) => s + statOf(v, 'A'), 0);
       b.cool = (b.level >= 2 ? 1.1 : 1.7) / (0.6 + agi * 0.06);
       GAME.shards -= 1;
       const to = best.pos.clone(); to.y += 0.7;
@@ -358,7 +359,7 @@ function watchAI() {
   for (const v of GAME.villagers) {
     if (v.hidden || v.where !== 'surface' || v.d.exp) continue;
     let nearest = null, nd = 1e9;
-    for (const f of WL.list) { if (f.dead || f.pos.y < -1) continue; const d = Math.hypot(f.pos.x - v.pos.x, f.pos.z - v.pos.z); if (d < nd) { nd = d; nearest = f; } }
+    for (const f of WL.list) { if (f.dead || f.air || f.pos.y < -1) continue; const d = Math.hypot(f.pos.x - v.pos.x, f.pos.z - v.pos.z); if (d < nd) { nd = d; nearest = f; } }
     if (!nearest) continue;
     const isWatch = v.d.job && v.d.job.bid === 'wall';
     if (isWatch) { if (nd < 18 && (!v.plan[0] || v.plan[0].type !== 'chase')) v.plan = [{ type: 'chase', target: nearest, t: 9 }]; }
@@ -380,7 +381,7 @@ function shipAI(dt, time) {
   if (SHIP.state === 'docked') {
     ship.position.copy(S.home); ship.position.y += Math.sin(time * 0.8) * 0.15; ship.rotation.set(Math.sin(time * 0.6) * 0.02, Math.PI / 2, Math.sin(time * 0.7) * 0.015);
     S.prop.rotation.x += dt * 1.5;
-    if (night && crew.length && WL.night) { SHIP.state = 'lift'; SHIP.t = 0; SHIP.from = ship.position.clone(); SHIP.ang = Math.atan2(S.home.z - C.z, S.home.x - C.x); toast('<b>The Lark</b> casts off to patrol the rim.'); }
+    if (crew.length && ((night && WL.night) || jumpersActive())) { SHIP.state = 'lift'; SHIP.t = 0; SHIP.from = ship.position.clone(); SHIP.ang = Math.atan2(S.home.z - C.z, S.home.x - C.x); toast('<b>The Lark</b> casts off to patrol the rim.'); }
   } else if (SHIP.state === 'lift' || SHIP.state === 'return') {
     SHIP.t += dt / 5;
     const k = smooth(0, 1, SHIP.t);
@@ -410,7 +411,7 @@ function shipAI(dt, time) {
         AUDIO.play('flare');
       }
     }
-    if (!night || !crew.length || !WL.night) { SHIP.state = 'return'; SHIP.t = 0; }
+    if (!crew.length || (!(night && WL.night) && !jumpersActive())) { SHIP.state = 'return'; SHIP.t = 0; }
   }
 }
 function updateDefenders(dt, time) {

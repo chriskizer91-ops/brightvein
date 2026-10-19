@@ -5,10 +5,11 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 // the skies (src/sky/): voyages, the shipyard and the fleet's save, from the airship game
-import { makeSky, SKIES, SHIPS, SITES } from './sky/voyage.js';
+import { makeSky, SKIES, SHIPS, SITES, buildShipFar, buildShipAt } from './sky/voyage.js';
 import { makeProgress } from './sky/progress.js';
 
 const $ = s => document.querySelector(s);
@@ -39,7 +40,45 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environment = envTex;
 
-let composer = null, bloom = null, renderPass = null;
+let composer = null, bloom = null, renderPass = null, lensPass = null, gradePass = null;
+// The HD-2D finish. The lens: a tilt-shift blur that keeps a band across the middle sharp and softens the far
+// ground at the top and the near ground at the bottom, so the claim reads as a model on a table (stronger the closer
+// you look). The grade, after tone mapping: plum in the shadows, warm cream in the lights, and a soft vignette.
+const LENS_SHADER = {
+  uniforms: { tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uFocus: { value: 0.47 }, uBand: { value: 0.16 }, uAmount: { value: 1 } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uFocus, uBand, uAmount; varying vec2 vUv;
+    void main() {
+      float d = abs(vUv.y - uFocus);
+      float blur = smoothstep(uBand, uBand + 0.32, d) * uAmount * (vUv.y > uFocus ? 1.15 : 0.8);
+      vec4 c = texture2D(tDiffuse, vUv);
+      if (blur < 0.02) { gl_FragColor = c; return; }
+      float r = blur * 5.5 * uRes.y / 900.0;
+      vec2 px = r / uRes;
+      vec4 acc = c; float n = 1.0;
+      for (int i = 0; i < 12; i++) {
+        float a = float(i) * 2.39996 + 0.5, rr = sqrt((float(i) + 0.5) / 12.0);
+        acc += texture2D(tDiffuse, vUv + vec2(cos(a), sin(a)) * px * rr); n += 1.0;
+      }
+      gl_FragColor = acc / n;
+    }`,
+};
+const GRADE_SHADER = {
+  uniforms: { tDiffuse: { value: null }, uVignette: { value: 0.32 }, uNight: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uVignette, uNight; varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv);
+      float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+      vec3 shade = vec3(0.075, 0.03, 0.09), light = vec3(1.0, 0.95, 0.84);
+      c.rgb = mix(c.rgb, c.rgb * mix(vec3(0.94, 0.9, 1.04), light, smoothstep(0.25, 0.9, l)), 0.5);
+      c.rgb += shade * (1.0 - smoothstep(0.0, 0.35, l)) * 0.35;
+      c.rgb = mix(vec3(l), c.rgb, 1.06 - uNight * 0.12);
+      vec2 q = vUv - 0.5; q.x *= 0.85;
+      c.rgb *= 1.0 - uVignette * smoothstep(0.32, 0.78, length(q));
+      gl_FragColor = c;
+    }`,
+};
 // the Keep's interior is its own little diorama with its own camera
 const KSCENE = new THREE.Scene();
 const kcam = new THREE.PerspectiveCamera(36, 1, 0.5, 400);
@@ -51,7 +90,9 @@ function setupComposer() {
   renderPass = new RenderPass(scene, camera); composer.addPass(renderPass);
   bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.6, 0.55, 0.82);
   composer.addPass(bloom);
+  lensPass = new ShaderPass(LENS_SHADER); composer.addPass(lensPass);
   composer.addPass(new OutputPass());
+  gradePass = new ShaderPass(GRADE_SHADER); composer.addPass(gradePass);
 }
 function applyQuality() {
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, QUALITY.level === 'high' ? 2 : QUALITY.level === 'balanced' ? 1.5 : 1));
@@ -66,6 +107,7 @@ function resize() {
   kcam.aspect = w / h; kcam.updateProjectionMatrix();
   if (typeof KEEPV !== 'undefined' && VIEW.mode === 'keep') frameKeep(false);
   if (composer) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h); }
+  if (lensPass) lensPass.uniforms.uRes.value.set(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
 }
 
 // ----------------------------------------------------------------- assets

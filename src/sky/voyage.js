@@ -26,6 +26,9 @@ import { makeSites, SITES } from './sites.js';
 import minimapUrl from '../../assets/map/minimap.webp';
 
 export { SKIES, SHIPS, SITES };
+// a ship at the far setting of the detail dial, for the claim's distant traffic
+export const buildShipFar = (R, art) => buildShip(R, 'far', art);
+export const buildShipAt = (R, level, art) => buildShip(R, level, art);
 const $ = (id) => document.getElementById(id);
 const touch = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1 && matchMedia('(hover: none)').matches;
 const PARTS = ['hull', 'sails', 'crystals'];

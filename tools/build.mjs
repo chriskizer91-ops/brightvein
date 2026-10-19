@@ -24,7 +24,7 @@ for (const f of fs.readdirSync(path.join(ROOT, 'assets/claim')).sort()) {
 // pictures the claim shows as they are, by folder and name: ART.cast.io (the cast's portraits), ART.items['wind-rifle']
 // (painted item pictures, named after the item's base id in src/claim/loot.js)
 const art = {};
-for (const dir of ['cast', 'items']) {
+for (const dir of ['cast', 'items', 'portraits']) {
   art[dir] = {};
   const at = path.join(ROOT, 'assets', dir);
   if (!fs.existsSync(at)) continue;

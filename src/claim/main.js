@@ -379,6 +379,7 @@ function frame() {
     for (let i = 0; i < n; i++) for (const v of GAME.villagers) v.update(sdt);
     updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); jumpersTick(gdt); updateExpeditions(gdt);
     announceStudy(updateStudies(gdt));
+    lifeTick(gdt);   // the claim's mood, the day's events, the cast's stories (acttwo.js)
   } else for (const v of GAME.villagers) { v.sprite.position.copy(v.pos); v.frame(0); }
   if (BUILD.on) updatePlaceCtl();
   updateRings(); updateInterior();
@@ -528,6 +529,7 @@ function simulate(seconds, step = 0.1) {
     updateWildlight(step, elapsed); updateDefenders(step, elapsed); jumpersTick(step); updateExpeditions(step); announceStudy(updateStudies(step));
     const now = performance.now() / 1000; for (const b of BUILDINGS) b.update(now, step);
     FX.update(step); wallUpdate(step); dressScene(step, step);
+    lifeTick(step);
   }
 }
 // test hook: skip to a time of day (0 = first light, 0.6 dusk, 0.69 night, 0.96 dawn), running everything on the way

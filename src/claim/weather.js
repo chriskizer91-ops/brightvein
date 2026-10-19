@@ -32,7 +32,8 @@ const WX_KEYS = ['overcast', 'rain', 'fog', 'storm'];
 const wxM = () => WEATHER.mix;
 const wxCover = () => { const M = WEATHER.mix; return clamp(M.overcast + M.rain + M.storm + M.fog * 0.45, 0, 1); };
 // sun on the yards (and a scorched building works slower until it's patched)
-function wxSun(b) { const M = WEATHER.mix; return clamp(1 - 0.25 * M.overcast - 0.4 * M.rain - 0.15 * M.fog - 0.4 * M.storm, 0.3, 1) * (1 - 0.5 * ((b && b.scorch) || 0)); }
+// (Nib's mirrors, once her story is done, halve what cloud and rain take: quests.js)
+function wxSun(b) { const M = WEATHER.mix, k = castGift('tock', 1, 0.5); return clamp(1 - k * (0.25 * M.overcast + 0.4 * M.rain + 0.15 * M.fog + 0.4 * M.storm), 0.3, 1) * (1 - 0.5 * ((b && b.scorch) || 0)); }
 function wxGrow(b) { const M = WEATHER.mix; return (1 + 0.5 * M.rain + 0.15 * M.storm - 0.08 * M.fog) * (1 - 0.5 * ((b && b.scorch) || 0)); }
 const wxWalk = () => 1 - 0.15 * WEATHER.mix.rain - 0.12 * WEATHER.mix.storm;
 // how far the towers see: in fog, at night, Wildlight get much closer before anyone spots them
@@ -74,7 +75,7 @@ function modelRod(b) {
 // ----------------------------------------------------------------- rolling the weather
 function rollWeather(dayNo, nightNo) {
   if (dayNo <= 2) return 'clear';
-  const w = { clear: 38, overcast: 22, rain: 17, fog: 12, storm: dayNo >= 4 ? 11 : 0 };
+  const w = { clear: 38, overcast: 22, rain: 17, fog: 12, storm: dayNo >= 4 ? 11 * stormSeasonK() : 0 };   // the storm season (acttwo.js)
   if (nightNo % 5 === 0) w.fog = 0;                     // no fog on a Bright Night: the boss is enough
   if (WEATHER.today !== 'clear' && WEATHER.today === WEATHER.next) w[WEATHER.today] = 0;   // nothing three days running
   const tot = Object.values(w).reduce((s, x) => s + x, 0);

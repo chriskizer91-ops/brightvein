@@ -4,21 +4,25 @@
 // with what it has: lens towers (their crews run up even by day), clockwork ballistas, the Lark if she has a crew,
 // and the Captain's own ship at the Sky Dock, whose guns reach anything that comes near the north rim. Bring a jumper
 // down and she falls into the cloud and leaves a crate behind; leave her be and she sails off with what she took.
-// Once the Chandlery is taken, they stop coming. They're targets in WL.list (air: true), so every turret sees them.
-const JUMP = { list: [], next: null, art: null };
+// Once the Chandlery is taken, they stop coming, until act two: from chapter 11 the Gilded Exchange's hired crews come
+// the same way under silver sails, until the Grindstone is sunk (exchangeCrews, acttwo.js).
+// They're targets in WL.list (air: true), so every turret sees them.
+const JUMP = { list: [], next: null, art: null, silverArt: null };
 const JUMP_HP = { skiff: 260, cutter: 420 };
-function jumperArt() {
-  if (JUMP.art || !SKY || !SKY.shipArt) return JUMP.art;
+function jumperArt(silver = false) {
+  const key = silver ? 'silverArt' : 'art';
+  if (JUMP[key] || !SKY || !SKY.shipArt) return JUMP[key];
   const A = SKY.shipArt, M = { ...A.M, hull: A.M.hull.clone(), canvas: A.M.canvas.clone() };
   M.canvas.onBeforeCompile = A.M.canvas.onBeforeCompile; M.canvas.customProgramCacheKey = A.M.canvas.customProgramCacheKey;
-  M.hull.color.set(0x9a8781); M.canvas.color.set(0xc8735c); M.canvas.emissive.set(0x7a3020);
-  return (JUMP.art = { ...A, M });
+  if (silver) { M.hull.color.set(0x8d939c); M.canvas.color.set(0xe4e8ee); M.canvas.emissive.set(0x2a2e36); }
+  else { M.hull.color.set(0x9a8781); M.canvas.color.set(0xc8735c); M.canvas.emissive.set(0x7a3020); }
+  return (JUMP[key] = { ...A, M });
 }
 class Jumper {
   constructor(kind, k, n) {
     this.air = true; this.kind = kind; this.dead = false; this.hp = this.max = JUMP_HP[kind] * (1 + Math.max(0, STORY.ch - 2) * 0.12);
     const R = SHIPS.find(s => s.id === kind);
-    this.ship = buildShipAt(R, 'middle', jumperArt()); this.root = this.ship.root; this.root.userData.jumper = this;
+    this.silver = exchangeCrews(); this.ship = buildShipAt(R, 'middle', jumperArt(this.silver)); this.root = this.ship.root; this.root.userData.jumper = this;
     scene.add(this.root);
     this.ang = Math.random() * TAU + k * (TAU / n); this.r = 36 + k * 4; this.h = 15 + k * 3;
     this.phase = 'in'; this.t = 0; this.cool = 3 + k * 1.5; this.stolen = 0; this.pos = new THREE.Vector3(); this.smokeT = 0;
@@ -61,7 +65,7 @@ class Jumper {
       const k = smooth(0, 1, this.t / 10), out = new THREE.Vector3(Math.cos(this.ang) * 300, 70, Math.sin(this.ang) * 300);
       P.lerpVectors(this.fleeFrom, out, k);
       this.root.rotation.y = Math.atan2(out.x - this.fleeFrom.x, out.z - this.fleeFrom.z);
-      if (k >= 1) { if (this.stolen) toast(`The jumper ${this.kind} got away with ${SHARD} ${Math.round(this.stolen)} shards.`); return this.gone(); }
+      if (k >= 1) { if (this.stolen) toast(`The ${this.silver ? 'Exchange’s' : 'jumper'} ${this.kind} got away with ${SHARD} ${Math.round(this.stolen)} shards.`); return this.gone(); }
     } else if (this.phase === 'down') {
       // she rolls over and drops into the cloud, burning
       P.y -= dt * (2 + this.t * 3); this.root.rotation.z = Math.min(1.1, this.t * 0.35); this.root.rotation.x = Math.min(0.5, this.t * 0.12);
@@ -79,7 +83,7 @@ function jumperDowned(j) {
   const haul = LOOT.raidCrates('camp'), item = haul.items[0];
   GAME.shards += 25 + Math.round(j.stolen);
   if (item) addToStash(item, true);
-  toast(`<b>A jumper ${j.kind} is going down!</b> She leaves ${SHARD} ${25 + Math.round(j.stolen)}${item ? ` and a crate: <b style="color:${rarityOf(item).color}">${esc(item.name)}</b>` : ''}.`);
+  toast(`<b>${j.silver ? 'The Exchange’s' : 'A jumper'} ${j.kind} is going down!</b> She leaves ${SHARD} ${25 + Math.round(j.stolen)}${item ? ` and a crate: <b style="color:${rarityOf(item).color}">${esc(item.name)}</b>` : ''}.`);
 }
 // the Captain's ship at the Sky Dock fires on any jumper that comes in reach
 const DOCK_GUN = { skiff: 16, cutter: 24, brig: 34, frigate: 46 };
@@ -98,12 +102,13 @@ const jumpersActive = () => JUMP.list.some(j => !j.dead && j.phase !== 'down');
 function jumpersTick(dt) {
   if (!started || !BUILD.setupDone) return;
   dockGuns(dt);
-  if (STORY.ch < 2 || (STORY.ch === 2 && !STORY.started) || (FLEET && FLEET.data.raids.citadel.won) || JUMP.list.length || BUILD.on) return;
+  if (STORY.ch < 2 || (STORY.ch === 2 && !STORY.started) || (FLEET && FLEET.data.raids.citadel.won && !exchangeCrews()) || JUMP.list.length || BUILD.on) return;
   if (JUMP.next == null) JUMP.next = GAME.day + 1;
-  if (GAME.day < JUMP.next || TOD.t < 0.2 || TOD.t > 0.45 || !jumperArt()) return;
+  if (GAME.day < JUMP.next || TOD.t < 0.2 || TOD.t > 0.45 || !jumperArt(exchangeCrews()) || EVT.card) return;
   JUMP.next = GAME.day + 2 + Math.floor(Math.random() * 2);
   const kinds = STORY.ch <= 3 ? ['skiff'] : STORY.ch <= 5 ? ['skiff', 'skiff'] : ['cutter', 'skiff'];
   kinds.forEach((k, i) => { const j = new Jumper(k, i, kinds.length); JUMP.list.push(j); WL.list.push(j); });
-  toast(`<b>Rust-red sails over the rim!</b> Tallow's jumpers have come for the yards. Turrets, the Lark and your ship will fire on them.`, 'night');
+  toast(exchangeCrews() ? `<b>Silver sails over the rim!</b> The Exchange's hired crews have come for the yards. Turrets, the Lark and your ship will fire on them.`
+    : `<b>Rust-red sails over the rim!</b> Tallow's jumpers have come for the yards. Turrets, the Lark and your ship will fire on them.`, 'night');
   AUDIO.play('warhorn');
 }

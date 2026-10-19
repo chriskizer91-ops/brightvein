@@ -321,6 +321,9 @@ body.touch #sky .mouse-only { display: none !important; }
   #compass { top: calc(var(--top) + 97px); left: auto; right: var(--gutter); translate: none; width: 136px; padding: 2px 6px; text-align: center; font-size: 15px; white-space: nowrap; overflow: hidden; }
   #battery { top: auto; bottom: calc(var(--bottom) + 200px); right: var(--gutter); left: auto; translate: none; text-align: right; }
   #port-mats { display: none; }
+  .swatch { padding: 8px 11px 8px 8px; font-size: 13px; }
+  .swatch i { width: 18px; height: 18px; }
+  #port .buy, .pp-tabs button { min-height: 40px; }
   #port-panel { top: 41vh; }
   /* a phone: the ship's panel compact on the left with the boss bar under it; the map, the compass, the score and
      the objective in a column on the right; the pause button at the top in the middle */

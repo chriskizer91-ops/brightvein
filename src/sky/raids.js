@@ -172,8 +172,8 @@ export function makeRaids(ctx) {
       t.ready -= dt;
       if (fighting && td < (t.spire ? 1400 : 1150) && t.ready <= 0 && !foe.down) {
         // a volley of two (heavier from the Chandlery), or three heavy shot from the spire gun, each a little off
-        t.ready = (t.spire ? 4.6 : 2.6) * S.reload * (0.85 + Math.random() * 0.3);
-        const from = t.world.clone().add(V(0, 0.4, 0)), e = td * 0.012 * S.aim + 1, n = t.spire ? 3 : 2;
+        t.ready = (t.spire ? 4.6 : def.id === 'citadel' ? 3.2 : 2.6) * S.reload * (0.85 + Math.random() * 0.3);
+        const from = t.world.clone().add(V(0, 0.4, 0)), e = td * 0.016 * S.aim + 2, n = t.spire ? 3 : 2;
         for (let k = 0; k < n; k++) {
           aimP.copy(intercept(from, ZERO, foe.aimAt(), foe.velocity, 430));
           aimP.add(V(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(2 * e));
@@ -207,8 +207,8 @@ export function makeRaids(ctx) {
       cur.wave++; cur.waveT = 0; spawnGuard(cur.wave, foe);
       say.banner('More guards', describe(def.guard[cur.wave].ids)); sfx('alarm');
     }
-    // the Chandlery: when half its guns are down, or its first guards are, the Baron's flagship rises
-    if (cur.kind === 'citadel' && !cur.boss && (cur.towers.filter((t) => t.alive).length <= 3 || (cur.wave >= 1) || cur.t > 150)) riseCandle(foe);
+    // the Chandlery: when half its guns are down (or the fight has gone on three minutes), the Baron's flagship rises
+    if (cur.kind === 'citadel' && !cur.boss && (cur.towers.filter((t) => t.alive).length <= 3 || cur.t > 180)) riseCandle(foe);
     if (cur.kind === 'citadel') return cur.boss && cur.boss.f.down ? 'taken' : null;
     return cur.towers.some((t) => t.goal && t.alive) ? null : 'taken';
   }

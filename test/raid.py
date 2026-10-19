@@ -17,7 +17,9 @@ refit = int(sys.argv[5]) if len(sys.argv) > 5 else 0
 AUTOPILOT = '''
 window.__raidPilot = (site, ship, limit, opts = {}) => {
   const B = __bv, g = B.SKY; g.raid(site, ship); g.wind.strength = 0;
-  const P = g.player, out = { log: [], saves: 0 }; let t = 0, last = '';
+  const P = g.player, out = { log: [], saves: 0, harm: {} }; let t = 0, last = '';
+  // where her harm comes from: before the boss, while it rises, in its phases, while it rams (for balance)
+  const hit0 = P.hit; P.hit = (part, dmg) => { const cur = g.sites.cur, b = cur && cur.boss, k = !b ? 'before' : b.rise ? 'rising' : b.ram ? 'ramming' : 'phase' + (cur.phase + 1); const h = P.health[part]; hit0(part, dmg); out.harm[k] = Math.round((out.harm[k] || 0) + h - P.health[part]); };
   const near = (list, f) => list.map((x) => [x, f(x).distanceTo(P.pos)]).sort((a, b) => a[1] - b[1])[0];
   while (t < limit && g.mode === 'voyage' && !['taken', 'lost'].includes(g.waves.state)) {
     const cur = g.sites.cur, kind = cur.kind, live = g.raiders.list.filter((r) => !r.f.down);

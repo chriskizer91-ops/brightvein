@@ -28,7 +28,7 @@ export const SITES = [
     towers: 0, guard: [{ ids: ['galleon', 'cutter', 'skiff'], captain: -1 }, { ids: ['brig'], captain: -1 }], crates: 3, regrow: 2, after: 'outpost', stars: 2, ship: 'cutter', pays: 'A Lark part likely, Heartstone' },
   { id: 'citadel', loot: 'citadel', kind: 'citadel', name: 'The Chandlery, Baron Tallow\'s citadel', short: 'The Chandlery', x: HOME.x + 2200, z: HOME.z + 4300, y: 760, size: 86,
     line: 'A fortress of candle-works on a great lifted rock. Six gun towers, the Baron\'s frigate, and his own flagship somewhere under the rock.', goal: 'Silence the Chandlery’s guns and bring down Tallow’s flagship',
-    towers: 6, guard: [{ ids: ['frigate', 'brig'], captain: 0 }, { ids: ['cutter', 'cutter'], captain: -1 }], crates: 5, regrow: 4, after: 'galleon', stars: 4, ship: 'brig', pays: 'Five crates, a Masterwork likely, Heartstone' },
+    towers: 6, guard: [{ ids: ['frigate', 'brig'], captain: -1 }, { ids: ['cutter', 'cutter'], captain: -1 }], crates: 5, regrow: 4, after: 'galleon', stars: 4, ship: 'brig', pays: 'Five crates, a Masterwork likely, Heartstone' },
   { id: 'survey', loot: 'survey', kind: 'rock', winches: true, name: 'The Plumbline, the Exchange\'s survey rig', short: 'The Plumbline', x: HOME.x + 3000, z: HOME.z - 1300, y: 660, size: 46, ch: 11, flag: 'silver', look: 'silver',
     line: 'A survey rig on a lifted rock off Hollowcrest: brass derricks, very long drills, two gun towers and an escort under silver sails.', goal: 'Cut its three drill strings: shoot the winches on top of the derricks',
     towers: 2, guard: [{ ids: ['cutter', 'cutter'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 3, regrow: 3, after: 'citadel', stars: 3, ship: 'brig', pays: 'Lark parts, modules, Cut Glass' },

@@ -89,8 +89,27 @@ function repaintGround() {
   for (let j = 0; j < GRID.NZ; j++) for (let i = 0; i < GRID.NX; i++) {
     if (!GRID.ok[j * GRID.NX + i]) continue;
     const [px, py] = toPx(GRID.X0 + i * T, GRID.Z0 + j * T);
-    g.fillStyle = (i + j) % 2 ? 'rgba(255,248,200,0.07)' : 'rgba(18,40,8,0.06)';
+    g.fillStyle = (i + j) % 2 ? 'rgba(255,248,200,0.035)' : 'rgba(18,40,8,0.03)';
     g.fillRect(px, py, T * PPM + 0.5, T * PPM + 0.5);
+  }
+  // worn paths: from every building's door to the Keep's, and out to the headframe, the Sky Dock's stair, the mast and
+  // the rope stair down the face. They curve a little, the way people actually walk.
+  const keep = TOWN.b.keep;
+  if (keep && !keep.pending) {
+    const door = [keep.L.x, keep.L.z + 5.2], ends = [];
+    for (const b of Object.values(TOWN.b)) if (b !== keep && !b.pending && b.L) ends.push([b.L.x, b.L.z + (b.type === 'head' ? -2 : 0)]);
+    const D = LAYOUT.dock; ends.push([D.x - 8.6, D.z + 6.2], [LAYOUT.trail.x, LAYOUT.trail.z - 1]);
+    g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
+    for (const [x, z] of ends) {
+      const mx = (x + door[0]) / 2, mz = (z + door[1]) / 2, len = Math.hypot(x - door[0], z - door[1]) || 1;
+      const bend = (hash2(Math.round(x * 3), Math.round(z * 3)) - 0.5) * len * 0.35, cx = mx - (z - door[1]) / len * bend, cz = mz + (x - door[0]) / len * bend;
+      for (const [w, a] of [[2.0, 0.1], [1.35, 0.22], [0.8, 0.38]]) {
+        g.globalAlpha = a; g.strokeStyle = earth; g.lineWidth = w * PPM;
+        const [ax, ay] = toPx(door[0], door[1]), [bx, by] = toPx(cx, cz), [ex, ey] = toPx(x, z);
+        g.beginPath(); g.moveTo(ax, ay); g.quadraticCurveTo(bx, by, ex, ey); g.stroke();
+      }
+    }
+    g.restore(); g.globalAlpha = 1;
   }
   for (const b of Object.values(TOWN.b)) {
     if (!b.tile || b.pending) continue;
@@ -213,7 +232,27 @@ function strataCanvas() {
   // tiny glints
   for (let i = 0; i < 160; i++) { const x = R() * W, y = (2 + R() * 40) * sy; v.fillStyle = `rgba(255,190,90,${R() * 0.6})`; v.fillRect(x, y, 2, 2); g.fillStyle = 'rgba(255,214,140,0.7)'; g.fillRect(x, y, 2, 2); }
   veinTex = canvasTex(vc, { srgb: true });
-  return { color: canvasTex(cv), X0, WX, HY };
+  // the painted bed at a depth, to colour things set into the face
+  const colorAt = depth => { const i = bands.findIndex(b => b[0] > depth) - 1; return hex3(bands[Math.max(0, i < 0 ? bands.length - 1 : i)][1]); };
+  return { color: canvasTex(cv), normal: strataNormal(cv), X0, WX, HY, bands: bands.map(b => b[0]), colorAt };
+}
+// the face's relief, read off its own picture: darker rock sits back, pale rock and grain stand out, and the cut
+// marks catch the light. A normal map, so the low sun rakes across the strata.
+function strataNormal(cv) {
+  const W = cv.width, H = cv.height, src = cv.getContext('2d').getImageData(0, 0, W, H).data, h = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) h[i] = (src[i * 4] * 0.3 + src[i * 4 + 1] * 0.55 + src[i * 4 + 2] * 0.15) / 255;
+  // soften once, so it reads as rock and not as noise
+  const b = new Float32Array(W * H);
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const i = y * W + x; b[i] = (h[i] * 4 + h[i - 1] + h[i + 1] + h[i - W] + h[i + W]) / 8; }
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const g = out.getContext('2d'), img = g.createImageData(W, H), d = img.data, k = 5.5;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, l = b[y * W + Math.max(0, x - 1)], r = b[y * W + Math.min(W - 1, x + 1)], u = b[Math.max(0, y - 1) * W + x], dn = b[Math.min(H - 1, y + 1) * W + x];
+    let nx = (l - r) * k, ny = (dn - u) * k, nz = 1; const n = Math.hypot(nx, ny, nz); nx /= n; ny /= n; nz /= n;
+    d[i * 4] = (nx * 0.5 + 0.5) * 255; d[i * 4 + 1] = (ny * 0.5 + 0.5) * 255; d[i * 4 + 2] = (nz * 0.5 + 0.5) * 255; d[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  return canvasTex(out, { srgb: false });
 }
 let STRATA;
 function faceUV(geo) {
@@ -232,9 +271,10 @@ function buildFace() {
   const geo = new THREE.ShapeGeometry(shape, 1);
   geo.translate(0, 0, WORLD.faceZ);
   faceUV(geo);
-  faceMat = new THREE.MeshStandardMaterial({ map: STRATA.color, emissiveMap: veinTex, emissive: 0xffffff, emissiveIntensity: 0.3, roughness: 0.95, envMapIntensity: 0.2 });
+  faceMat = new THREE.MeshStandardMaterial({ map: STRATA.color, normalMap: STRATA.normal, normalScale: new THREE.Vector2(1.1, -1.1), emissiveMap: veinTex, emissive: 0xffffff, emissiveIntensity: 0.3, roughness: 0.95, envMapIntensity: 0.2 });
   const face = new THREE.Mesh(geo, faceMat); face.receiveShadow = true; face.name = 'face';
   scene.add(face);
+  faceRelief();
   // plugs of unbroken rock over the lower shaft and the deep gallery, until the deep seam is opened
   const plug = (x0, x1, y0, y1) => {
     const pieces = [];
@@ -253,6 +293,56 @@ function buildFace() {
   };
   plug(MINE.shaft.x0, MINE.shaft.x1, MINE.g2.y1, MINE.g1.y0);
   plug(MINE.g2.x0, MINE.g2.x1, MINE.g2.y0, MINE.g2.y1);
+}
+
+// Ledges where the harder beds stand proud of the face, a few boulders, and sunstone breaking out of it in clusters
+// along the veins (thickest round the galleries), so the face has real depth and the light catches it
+function faceRelief() {
+  const R = mulberry(3131), mine = minePolygon(), rockMat = new THREE.MeshStandardMaterial({ map: tex('rock'), vertexColors: true, roughness: 0.97, envMapIntensity: 0.15 });
+  const z0 = WORLD.faceZ, ledges = [], crystals = [];
+  const edgesAt = y => { let j = 0; while (j < FACE_RINGS.length - 2 && FACE_RINGS[j + 1] > y) j++; const t = (y - FACE_RINGS[j]) / (FACE_RINGS[j + 1] - FACE_RINGS[j]); return [lerp(faceEdges[j][0], faceEdges[j + 1][0], t), lerp(faceEdges[j][1], faceEdges[j + 1][1], t)]; };
+  const clear = (x, y, pad) => !pointInPoly(x, y, mine) && !pointInPoly(x - pad, y, mine) && !pointInPoly(x + pad, y, mine) && !pointInPoly(x, y + pad, mine) && !pointInPoly(x, y - pad, mine);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  const bedCol = y => { const c = STRATA.colorAt(-y); return [c[0] / 255, c[1] / 255, c[2] / 255]; };
+  const paint = (g, col) => { const n = g.attributes.position.count, c = []; for (let i = 0; i < n; i++) { const k = 0.85 + hash2(i, n) * 0.25; c.push(col[0] * k, col[1] * k, col[2] * k); } g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return g; };
+  for (const by of STRATA.bands.slice(2, 13)) {
+    const y = -by, [wx, ex] = edgesAt(y);
+    for (let x = wx + 1.5; x < ex - 1.5;) {
+      const len = 1 + R() * 3.4, cx = x + len / 2, out = 0.1 + R() * 0.3, th = 0.16 + R() * 0.32;
+      if (R() < 0.62 && cx + len / 2 < ex - 1 && clear(cx - len / 2, y, 0.6) && clear(cx + len / 2, y, 0.6) && clear(cx, y, 0.6)) {
+        const yy = y + (fbm(cx / 9, by) - 0.5) * 1.2;
+        let g = new THREE.BoxGeometry(len, th, out * 2, 4, 2, 1); g = g.toNonIndexed();
+        // a broken edge: no two ledges, nor two corners, alike
+        const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x0 = p.getX(i), y0 = p.getY(i); const j = hash2(Math.round(x0 * 10 + cx * 7), Math.round(y0 * 10 + by)); p.setXYZ(i, x0 * (0.92 + j * 0.12), y0 * (0.7 + j * 0.6), p.getZ(i) * (0.6 + j * 0.7)); }
+        g.computeVertexNormals();
+        g.applyMatrix4(m4.compose(new THREE.Vector3(cx, yy, z0), q.setFromEuler(e.set(0, 0, (R() - 0.5) * 0.08)), new THREE.Vector3(1, 1, 1)));
+        projUV(g, 2.5); paint(g, bedCol(yy)); ledges.push(g);
+      }
+      x += len + 0.6 + R() * 3.5;
+    }
+  }
+  for (let i = 0; i < 26; i++) {
+    const y = -(1.6 + R() * 38), [wx, ex] = edgesAt(y), x = wx + 2 + R() * (ex - wx - 4), s = 0.35 + R() * 0.9;
+    if (!clear(x, y, s + 0.4)) continue;
+    let g = new THREE.DodecahedronGeometry(s, 0); g = g.index ? g.toNonIndexed() : g;
+    g.applyMatrix4(m4.compose(new THREE.Vector3(x, y, z0 + s * 0.15), q.setFromEuler(e.set(R() * 3, R() * 3, R() * 3)), new THREE.Vector3(1.2, 0.8, 0.6)));
+    projUV(g, 1.5); paint(g, bedCol(y).map(c => c * 0.85)); ledges.push(g);
+  }
+  const lm = new THREE.Mesh(mergeGeometries(ledges), rockMat); lm.castShadow = true; lm.receiveShadow = true; scene.add(lm);
+  // sunstone clusters breaking out of the face, mostly near the galleries
+  const cMat = new THREE.MeshStandardMaterial({ color: 0xe8902a, emissive: 0xff7a14, emissiveIntensity: 0.8, roughness: 0.25, metalness: 0.1, flatShading: true });
+  worldMats.faceCrystal = cMat;
+  for (let i = 0; i < 18; i++) {
+    const near = R() < 0.7, y = near ? MINE.g1.y0 + 3 - R() * 16 : -(2 + R() * 30), [wx, ex] = edgesAt(y);
+    const x = near ? MINE.g2.x0 + R() * (MINE.shaft.x1 - MINE.g2.x0) : wx + 3 + R() * (ex - wx - 6);
+    if (!clear(x, y, 1.2) || x < wx + 1 || x > ex - 1) continue;
+    for (let k = 0; k < 3 + R() * 4; k++) {
+      const sc = 0.1 + R() * 0.2, g = new THREE.OctahedronGeometry(1, 0);
+      g.applyMatrix4(m4.compose(new THREE.Vector3(x + (R() - 0.5) * 0.7, y + (R() - 0.5) * 0.5, z0 + 0.05), q.setFromEuler(e.set(Math.PI / 2 - 0.4 + (R() - 0.5) * 0.9, 0, (R() - 0.5) * 1.6)), new THREE.Vector3(sc * 0.55, sc * 1.9, sc * 0.55)));
+      crystals.push(g.index ? g.toNonIndexed() : g);
+    }
+  }
+  if (crystals.length) { const cm = new THREE.Mesh(mergeGeometries(crystals), cMat); cm.castShadow = true; scene.add(cm); }
 }
 
 // tunnels behind the face: walls extruded from the opening polygon, then timber, rails and crystal
@@ -304,6 +394,25 @@ function buildMineInterior() {
     // rails and sleepers
     for (const dz of [-2.3, -3.1]) add(new THREE.BoxGeometry(G.x1 - G.x0 - 1, 0.08, 0.08), iron, (G.x0 + G.x1) / 2 - 0.3, G.y0 + 0.13, z0 + dz, parent, false);
     for (let x = G.x0 + 0.8; x < G.x1 - 0.5; x += 0.9) add(new THREE.BoxGeometry(0.22, 0.08, 1.3), oak, x, G.y0 + 0.05, z0 - 2.7, parent, false);
+    // ore carts on the rails, barrels and crates against the back wall, picks leaning on the timbers
+    const Rp = mulberry(deep ? 707 : 303), oreMat = new THREE.MeshStandardMaterial({ color: 0x8a7a6c, roughness: 0.9, flatShading: true, emissive: 0x7a3a10, emissiveIntensity: 0.35 });
+    for (let c = 0; c < (deep ? 2 : 2); c++) {
+      const x = G.x0 + 3 + Rp() * (G.x1 - G.x0 - 8); if (x > MINE.shaft.x0 - 2 && x < MINE.shaft.x1 + 1) continue;
+      add(new THREE.BoxGeometry(1.5, 0.75, 1.05), iron, x, G.y0 + 0.72, z0 - 2.7, parent);
+      add(new THREE.BoxGeometry(1.56, 0.1, 1.11), oak, x, G.y0 + 1.1, z0 - 2.7, parent);
+      for (const [dx, dz] of [[-0.5, -0.56], [0.5, -0.56], [-0.5, 0.56], [0.5, 0.56]]) add(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 10).rotateX(Math.PI / 2), iron, x + dx, G.y0 + 0.32, z0 - 2.7 + dz, parent, false);
+      for (let k = 0; k < 6; k++) add(new THREE.DodecahedronGeometry(0.16 + Rp() * 0.14, 0), oreMat, x + (Rp() - 0.5) * 1.1, G.y0 + 1.2 + Rp() * 0.15, z0 - 2.7 + (Rp() - 0.5) * 0.7, parent);
+    }
+    for (let k = 0; k < (deep ? 6 : 5); k++) {
+      const x = G.x0 + 1.2 + Rp() * (G.x1 - G.x0 - 2.4); if (x > MINE.shaft.x0 - 1.5 && x < MINE.shaft.x1 + 0.8) continue;
+      if (Rp() < 0.5) add(new THREE.CylinderGeometry(0.32, 0.36, 0.9, 12), oak, x, G.y0 + 0.45, z1 + 0.7, parent);
+      else add(new THREE.BoxGeometry(0.8, 0.6, 0.7), oak, x, G.y0 + 0.3, z1 + 0.65, parent);
+    }
+    for (let k = 0; k < 3; k++) {
+      const x = G.x0 + 2 + Rp() * (G.x1 - G.x0 - 4); if (x > MINE.shaft.x0 - 1.5 && x < MINE.shaft.x1 + 0.8) continue;
+      const pk = new THREE.Group(); pk.position.set(x, G.y0, z1 + 0.6); pk.rotation.z = 0.25; parent.add(pk);
+      add(new THREE.BoxGeometry(0.07, 1.25, 0.07), oak, 0, 0.62, 0, pk, false); add(new THREE.BoxGeometry(0.7, 0.07, 0.08).translate(0, 0, 0), iron, 0, 1.22, 0, pk, false);
+    }
     // lanterns
     for (let x = G.x0 + 3; x < G.x1 - 1; x += 7.2) {
       add(new THREE.BoxGeometry(0.06, 0.5, 0.06), iron, x + 1.8, G.y1 - 0.62, z0 - 1.2, parent, false);
@@ -440,26 +549,48 @@ function buildClouds() {
   }
   return { a, b, puffs };
 }
+// The Ironspire Peaks round the claim: iron-grey spires with ridges and gullies, rust in their streaks, snow on every
+// ledge high enough to hold it, and a few flat-topped mesas like this one, further off in the haze
 function buildPeaks() {
   const R = mulberry(5150), group = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, envMapIntensity: 0.1 });
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, envMapIntensity: 0.1 });
   worldMats.peaks = mat;
-  for (let i = 0; i < 16; i++) {
-    const ang = i / 16 * TAU + R() * 0.3, dist = 330 + R() * 260;
-    if (Math.abs(((ang + Math.PI) % TAU) - Math.PI - Math.PI / 2) < 0.25 && dist < 400) continue;
-    const h = 60 + R() * 150, r = h * (0.55 + R() * 0.35);
-    const geo = new THREE.ConeGeometry(r, h, 9, 6, true);
-    const p = geo.attributes.position, cols = [];
-    for (let k = 0; k < p.count; k++) {
-      const x = p.getX(k), y = p.getY(k), z = p.getZ(k), t = (y + h / 2) / h;
-      const nn = (fbm(x / 22 + i * 3, z / 22 + y / 30, 3) - 0.5) * r * 0.45 * (1 - t * 0.6);
-      p.setXYZ(k, x + nn, y + (fbm(x / 9, z / 9) - 0.5) * 8 * (1 - t), z + nn * 0.8);
-      const snow = smooth(0.62, 0.72, t + (fbm(x / 6, z / 6) - 0.5) * 0.2);
-      const rock = [0.36 + R() * 0.05, 0.37, 0.44];
-      cols.push(lerp(rock[0], 0.95, snow), lerp(rock[1], 0.96, snow), lerp(rock[2], 1.0, snow));
+  const spire = (h, r, seed, mesa) => {
+    const SEG = 30, RINGS = 22, pos = [], idx = [];
+    for (let j = 0; j <= RINGS; j++) {
+      const t = j / RINGS;
+      for (let i = 0; i <= SEG; i++) {
+        const a = i / SEG * TAU, ca = Math.cos(a), sa = Math.sin(a);
+        // ridges: a few sharp ribs running up the spire, and gullies between
+        const rib = Math.pow(Math.abs(Math.sin(a * 2.5 + seed + t * 1.3)), 0.6), n = fbm(ca * 2 + seed, sa * 2 + t * 3.2, 4);
+        let k = mesa ? (t < 0.82 ? 1 - t * 0.28 : lerp(0.77, 0.0, (t - 0.82) / 0.18)) : Math.pow(1 - t, 1.25);
+        k *= 0.72 + rib * 0.22 + (n - 0.5) * 0.5;
+        const y = mesa && t >= 0.82 ? h * (0.82 + (t - 0.82) * 0.12) : t * h;
+        pos.push(ca * r * Math.max(0.02, k), y + (fbm(ca * 5 + seed, sa * 5 + t * 7, 2) - 0.5) * h * 0.04, sa * r * Math.max(0.02, k));
+      }
     }
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); geo.computeVertexNormals();
-    const m = new THREE.Mesh(geo, mat); m.position.set(Math.cos(ang) * dist, h / 2 - 58, Math.sin(ang) * dist); m.rotation.y = R() * TAU;
+    for (let j = 0; j < RINGS; j++) for (let i = 0; i < SEG; i++) { const a = j * (SEG + 1) + i, b = a + SEG + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    // colour: iron grey, rusty streaks low down, green on a mesa's top, snow where it's high and flat enough
+    const p = g.attributes.position, nrm = g.attributes.normal, cols = [];
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i), t = y / h, up = nrm.getY(i);
+      const streak = fbm(x * 0.08 + seed, y * 0.02, 3), base = 0.3 + fbm(x * 0.05, z * 0.05 + y * 0.03, 3) * 0.12;
+      let c = [base * 0.95, base, base * 1.12];
+      c = [lerp(c[0], 0.46, smooth(0.55, 0.75, streak) * (1 - t) * 0.8), lerp(c[1], 0.3, smooth(0.55, 0.75, streak) * (1 - t) * 0.8), lerp(c[2], 0.22, smooth(0.55, 0.75, streak) * (1 - t) * 0.8)];
+      if (mesa && t > 0.8 && up > 0.6) c = [0.32, 0.42, 0.22];
+      const snow = mesa ? 0 : smooth(0.45, 0.7, up + (t - 0.7) * 1.2 + (fbm(x * 0.2, z * 0.2) - 0.5) * 0.5) * smooth(0.5, 0.68, t);
+      cols.push(lerp(c[0], 0.93, snow), lerp(c[1], 0.95, snow), lerp(c[2], 1.0, snow));
+    }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+    return g;
+  };
+  for (let i = 0; i < 22; i++) {
+    const ang = i / 22 * TAU + R() * 0.2, mesa = i % 6 === 3, dist = (mesa ? 520 : 300) + R() * (mesa ? 220 : 280);
+    if (Math.abs(((ang + Math.PI) % TAU) - Math.PI - Math.PI / 2) < 0.28 && dist < 420) continue;   // keep the view south clear
+    const h = mesa ? 90 + R() * 60 : 110 + R() * 190, r = mesa ? 60 + R() * 50 : h * (0.28 + R() * 0.2);
+    const m = new THREE.Mesh(spire(h, r, i * 7.3, mesa), mat);
+    m.position.set(Math.cos(ang) * dist, -70 - R() * 30, Math.sin(ang) * dist); m.rotation.y = R() * TAU;
     group.add(m);
   }
   scene.add(group);

@@ -540,14 +540,73 @@ function blocked(x, z, pad = 0) {
   if (dockClear(x, z, pad)) return true;
   return false;
 }
+// ----------------------------------------------------------------- trees, and the wind in them
+// Pines: seven ragged tiers whose hems droop, darker inside and underneath, lighter at the tips. Broadleaf trees: a
+// crown of lumpy clumps, shaded darker underneath (where the light doesn't reach) and warmer on top. Both sway: the
+// wind moves everything above the trunk a little, each tree in its own time.
+const WIND = { time: { value: 0 } };
+function windSway(mat, amp, from = 1.0, key = 'sway') {
+  mat.onBeforeCompile = sh => {
+    sh.uniforms.uWind = WIND.time;
+    sh.vertexShader = 'uniform float uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      #ifdef USE_INSTANCING
+        vec3 wp = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+      #else
+        vec3 wp = vec3(0.0);
+      #endif
+      float sw = max(0.0, transformed.y - ${from.toFixed(2)}) * ${amp.toFixed(4)};
+      float gust = 0.6 + 0.4 * sin(uWind * 0.31 + wp.x * 0.05);
+      transformed.x += (sin(uWind * 1.3 + wp.x * 0.37 + wp.z * 0.21) + 0.35 * sin(uWind * 3.1 + wp.z * 1.7 + transformed.y)) * sw * gust;
+      transformed.z += cos(uWind * 1.07 + wp.z * 0.33 + wp.x * 0.11) * sw * 0.55 * gust;`);
+  };
+  mat.customProgramCacheKey = () => key + amp + from;
+  return mat;
+}
+function pineGeometry() {
+  const parts = [], tiers = 7;
+  for (let t = 0; t < tiers; t++) {
+    const k = t / (tiers - 1), r = lerp(2.4, 0.42, k), h = lerp(2.3, 1.35, k), y0 = 1.25 + k * 4.7;
+    const g = new THREE.ConeGeometry(r, h, 14, 3);
+    const p = g.attributes.position, col = [];
+    for (let i = 0; i < p.count; i++) {
+      let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const f = (y + h / 2) / h, a = Math.atan2(z, x), j = hash2(t * 37 + Math.round((a + Math.PI) * 14 / TAU), 11 + t), j2 = hash2(t * 13, Math.round((a + Math.PI) * 7 / TAU));
+      if (f < 0.01) { const rr = 1 + (j - 0.5) * 0.42; x *= rr; z *= rr; y -= 0.15 + j * 0.45; }   // a ragged, drooping hem
+      else if (f < 0.6) { const rr = 1 + (j2 - 0.5) * 0.16 * (1 - f); x *= rr; z *= rr; }
+      p.setXYZ(i, x, y + y0 + h / 2 - 0.35, z);
+      const sh = f < 0.01 ? 0.58 + j * 0.25 : lerp(0.82, 1.22, f) * (0.95 + j2 * 0.1);
+      col.push(sh * 0.92, sh, sh * 0.86);
+    }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.computeVertexNormals();
+    parts.push(g.toNonIndexed());
+  }
+  const out = mergeGeometries(parts); out.deleteAttribute('uv'); return out;
+}
+function crownGeometry() {
+  const blobs = [[0, 3.5, 0, 1.55], [0.95, 3.0, 0.35, 1.15], [-0.85, 3.1, -0.45, 1.2], [0.25, 4.35, -0.2, 1.1], [-0.4, 3.7, 0.9, 1.0], [0.7, 3.9, -0.8, 0.95], [-1.0, 2.6, 0.5, 0.8], [0.4, 2.5, -0.9, 0.85]];
+  const parts = blobs.map(([bx, by, bz, r], n) => {
+    const g = new THREE.IcosahedronGeometry(r, 2), p = g.attributes.position, col = [];
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i), d = 1 + (fbm(x * 1.7 + n * 3, z * 1.7 + y * 1.3, 3) - 0.5) * 0.55;
+      p.setXYZ(i, x * d + bx, y * d * 0.9 + by, z * d + bz);
+      const up = (y / r + 1) / 2, sh = lerp(0.5, 1.2, up) * (0.92 + hash2(i, n) * 0.16);
+      col.push(sh * (0.95 + up * 0.08), sh, sh * (0.85 - up * 0.05));
+    }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.computeVertexNormals();
+    return g.index ? g.toNonIndexed() : g;
+  });
+  const out = mergeGeometries(parts); out.deleteAttribute('uv'); return out;
+}
 function buildDecor() {
   const R = mulberry(2024);
   // --- trees: dark pines toward the rim, a few round broadleaf trees just inside the wall
-  const trunkG = new THREE.CylinderGeometry(0.16, 0.26, 2.2, 6); trunkG.translate(0, 1.1, 0);
-  const cones = [[2.2, 3.0, 1.6], [1.75, 2.6, 3.0], [1.25, 2.2, 4.3], [0.75, 1.8, 5.4]].map(([r, h, y]) => { const g = new THREE.ConeGeometry(r, h, 8); g.translate(0, y + h / 2 - 0.4, 0); return g; });
-  const pineG = mergeGeometries(cones.map(g => g.toNonIndexed()));
-  const blobG = mergeGeometries([[0, 3.4, 0, 1.6], [0.9, 2.9, 0.3, 1.2], [-0.8, 3.0, -0.4, 1.25], [0.2, 4.2, -0.2, 1.1]].map(([x, y, z, r]) => { const g = new THREE.IcosahedronGeometry(r, 1); g.translate(x, y, z); return g.index ? g.toNonIndexed() : g; }));
-  const trunk2 = new THREE.CylinderGeometry(0.18, 0.3, 3.0, 6); trunk2.translate(0, 1.5, 0);
+  const trunkG = new THREE.CylinderGeometry(0.13, 0.28, 2.4, 7); trunkG.translate(0, 1.2, 0);
+  const pineG = pineGeometry();
+  const blobG = crownGeometry();
+  const trunk2 = mergeGeometries([new THREE.CylinderGeometry(0.17, 0.32, 3.0, 7).translate(0, 1.5, 0),
+    new THREE.CylinderGeometry(0.06, 0.11, 1.6, 5).rotateZ(0.75).translate(0.55, 2.6, 0), new THREE.CylinderGeometry(0.06, 0.11, 1.5, 5).rotateZ(-0.7).rotateY(2).translate(-0.3, 2.5, 0.45)].map(g => g.toNonIndexed()));
   const pts = [];
   for (let i = 0; i < 1400 && pts.length < 110; i++) {
     const x = (R() - 0.5) * 94, z = -40 + R() * 74;
@@ -565,11 +624,11 @@ function buildDecor() {
   const pines = pts.filter(p => p.pine), broads = pts.filter(p => !p.pine);
   const mkI = (geo, mat, list, colFn) => { const m = new THREE.InstancedMesh(geo, mat, Math.max(1, list.length)); list.forEach((p, i) => { _wm.compose(_wp.set(p.x, 0, p.z), _wq.setFromEuler(_we.set(0, p.r, 0)), _ws.set(p.s, p.s * (0.9 + (p.s % 0.2)), p.s)); m.setMatrixAt(i, _wm); if (colFn) m.setColorAt(i, colFn(p)); }); m.count = list.length; m.castShadow = true; m.receiveShadow = true; scene.add(m); return m; };
   const barkMat = trackEnv(new THREE.MeshStandardMaterial({ map: tex('oak'), color: 0x6a5040, roughness: 1 }), 0.1);
-  const needleMat = trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }), 0.1);
-  const leafMat = trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true }), 0.1);
+  const needleMat = windSway(trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.92 }), 0.1), 0.022, 1.2, 'pine');
+  const leafMat = windSway(trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.88 }), 0.1), 0.03, 1.8, 'leaf');
   const pc = new THREE.Color();
-  mkI(trunkG, barkMat, pines); mkI(pineG, needleMat, pines, p => pc.setHSL(0.38 + (p.r % 0.05), 0.46, 0.075 + (p.s % 0.06)).clone());
-  mkI(trunk2, barkMat, broads); mkI(blobG, leafMat, broads, p => pc.setHSL(0.21 + (p.r % 0.07), 0.52, 0.11 + (p.s % 0.08)).clone());
+  mkI(trunkG, barkMat, pines); mkI(pineG, needleMat, pines, p => pc.setHSL(0.37 + (p.r % 0.05), 0.42, 0.085 + (p.s % 0.05)).clone());
+  mkI(trunk2, barkMat, broads); mkI(blobG, leafMat, broads, p => pc.setHSL(0.2 + (p.r % 0.08), 0.5, 0.13 + (p.s % 0.07)).clone());
   // --- rocks along the rim
   const rockG = projUV(new THREE.DodecahedronGeometry(1, 0), 1.5);
   const rocks = [];
@@ -585,7 +644,7 @@ function buildDecor() {
     const g = mergeGeometries([a, flip(a), b2, flip(b2)]); const n = g.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0); return g;
   })();
   for (const [key, count, where] of [['meadow', 130, 'rim'], ['meadow', 70, 'lawn'], ['fern', 90, 'rim'], ['herb', 40, 'lawn'], ['reed', 70, 'rim']]) {
-    const mat = trackEnv(new THREE.MeshStandardMaterial({ map: bleedTex(key), emissiveMap: bleedTex(key), emissive: 0xffffff, emissiveIntensity: 0.06, alphaTest: 0.45, side: THREE.FrontSide, roughness: 0.95 }), 0.05);
+    const mat = windSway(trackEnv(new THREE.MeshStandardMaterial({ map: bleedTex(key), emissiveMap: bleedTex(key), emissive: 0xffffff, emissiveIntensity: 0.06, alphaTest: 0.45, side: THREE.FrontSide, roughness: 0.95 }), 0.05), 0.13, 0.05, 'clump-' + key + where);
     (worldMats.clumps || (worldMats.clumps = [])).push(mat);
     const list = [];
     for (let i = 0; i < count * 10 && list.length < count; i++) {

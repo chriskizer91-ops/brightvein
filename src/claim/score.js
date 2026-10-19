@@ -33,7 +33,7 @@ const SCORE = {
     bpm: 72, beats: 4, tpb: 2, key: 'D', level: 1,
     layers: {
       box: { kind: 'line', src: 'lead', inst: 'box', vol: 0.34, rev: 0.4, pan: 0.2, oct: 1 },
-      lead: { kind: 'line', inst: 'whistle', vol: 0.3, rev: 0.32, pan: 0.05, orn: 0.12 },
+      lead: { kind: 'line', inst: 'whistle', vol: 0.3, rev: 0.44, pan: 0.05, orn: 0.12 },
       harp: { kind: 'arp', inst: 'harp', vol: 0.36, rev: 0.4, pan: -0.25, oct: 3 },
       pad: { kind: 'pad', inst: 'pad', vol: 0.2, rev: 0.5, cutoff: 1500 },
       bass: { kind: 'bass', inst: 'bowed', vol: 0.3, rev: 0.25, oct: 2, follow: true },
@@ -58,7 +58,7 @@ const SCORE = {
     name: 'Morning on the Claim', blurb: 'Day on the claim: warm and unhurried, plucked strings and a whistle.',
     bpm: 92, beats: 4, tpb: 2, key: 'G', level: 1,
     layers: {
-      lead: { kind: 'line', inst: 'whistle', vol: 0.28, rev: 0.26, pan: 0.12, orn: 0.18 },
+      lead: { kind: 'line', inst: 'whistle', vol: 0.28, rev: 0.38, pan: 0.12, orn: 0.18 },
       resp: { kind: 'line', inst: 'harp', vol: 0.34, rev: 0.32, pan: -0.3 },
       harp: { kind: 'arp', inst: 'harp', vol: 0.3, rev: 0.32, pan: -0.25, oct: 3 },
       strum: { kind: 'strum', inst: 'pluck', vol: 0.2, rev: 0.2, pan: 0.32, range: [55, 74] },
@@ -99,7 +99,7 @@ const SCORE = {
     name: 'Lamplighting', blurb: 'Dusk: the day tune slows and thins, on a low flute, as the light goes.',
     base: 'day', bpm: 74, level: 1.05, thin: [1, 1, 0, 0],
     layers: {
-      lead: { kind: 'line', inst: 'flute', vol: 0.3, rev: 0.4, pan: 0.1, oct: -1, orn: 0 },
+      lead: { kind: 'line', inst: 'flute', vol: 0.3, rev: 0.52, pan: 0.1, oct: -1, orn: 0 },
       resp: { kind: 'line', inst: 'harp', vol: 0.3, rev: 0.45, pan: -0.3 },
       harp: { kind: 'arp', inst: 'harp', vol: 0.3, rev: 0.45, pan: -0.25, oct: 3 },
       bass: { kind: 'bass', inst: 'bowed', vol: 0.26, rev: 0.3, oct: 2, follow: true },
@@ -119,7 +119,7 @@ const SCORE = {
       pad: { kind: 'pad', inst: 'pad', vol: 0.2, rev: 0.5, cutoff: 520 },
       bass: { kind: 'bass', inst: 'bowed', vol: 0.3, rev: 0.2, oct: 2, follow: true },
       heart: { kind: 'drum', vol: 0.4, rev: 0.2 },
-      lead: { kind: 'line', inst: 'flute', vol: 0.3, rev: 0.4, pan: 0.15, orn: 0.06 },
+      lead: { kind: 'line', inst: 'flute', vol: 0.3, rev: 0.52, pan: 0.15, orn: 0.06 },
       drums: { kind: 'drum', vol: 0.3, rev: 0.12, pan: 0.1 },
       trem: { kind: 'pad', inst: 'trem', vol: 0.11, rev: 0.4, pan: 0.25, voices: 2, range: [71, 86] },
       brass: { kind: 'stab', inst: 'brass', vol: 0.2, rev: 0.35, range: [40, 59] },
@@ -206,7 +206,7 @@ const SCORE = {
     bpm: 112, beats: 4, tpb: 2, key: 'Cm', level: 0.95,
     layers: {
       brass: { kind: 'line', inst: 'brass', vol: 0.32, rev: 0.3, pan: -0.05 },
-      lead: { kind: 'line', inst: 'whistle', vol: 0.28, rev: 0.28, pan: 0.15, orn: 0.1 },
+      lead: { kind: 'line', inst: 'whistle', vol: 0.28, rev: 0.36, pan: 0.15, orn: 0.1 },
       ost: { kind: 'arp', inst: 'spicc', vol: 0.3, rev: 0.18, pan: -0.15, oct: 2 },
       stab: { kind: 'stab', inst: 'brass', vol: 0.2, rev: 0.3, range: [43, 62] },
       pad: { kind: 'pad', inst: 'pad', vol: 0.14, rev: 0.45, cutoff: 700 },
@@ -241,7 +241,7 @@ const SCORE = {
     name: 'Open Skies', blurb: 'Sailing: the main motif slowed to half speed, soaring over strings and wind.',
     bpm: 100, beats: 4, tpb: 2, key: 'D', level: 1,
     layers: {
-      lead: { kind: 'line', inst: 'whistle', vol: 0.28, rev: 0.35, pan: 0.1, orn: 0.1 },
+      lead: { kind: 'line', inst: 'whistle', vol: 0.28, rev: 0.46, pan: 0.1, orn: 0.1 },
       strings: { kind: 'pad', inst: 'strings', vol: 0.16, rev: 0.45, pan: -0.1, voices: 3, range: [62, 81] },
       harp: { kind: 'arp', inst: 'harp', vol: 0.26, rev: 0.35, pan: -0.3, oct: 3 },
       pad: { kind: 'pad', inst: 'pad', vol: 0.14, rev: 0.5, cutoff: 2200 },
@@ -357,7 +357,7 @@ const SCORE = {
     name: 'The Moon Faire', blurb: 'The festival night: a jig on whistle, with a frame drum and a strummed cittern.',
     bpm: 108, beats: 2, tpb: 3, key: 'D', level: 0.95,
     layers: {
-      lead: { kind: 'line', inst: 'whistle', vol: 0.27, rev: 0.25, pan: 0.12, orn: 0.3 },
+      lead: { kind: 'line', inst: 'whistle', vol: 0.27, rev: 0.32, pan: 0.12, orn: 0.3 },
       harm: { kind: 'harm', of: 'lead', steps: -2, inst: 'box', vol: 0.13, rev: 0.35, pan: 0.3 },
       strum: { kind: 'strum', inst: 'pluck', vol: 0.24, rev: 0.2, pan: -0.3, range: [55, 74] },
       bass: { kind: 'bass', inst: 'pizz', vol: 0.32, rev: 0.12, oct: 2 },
@@ -434,11 +434,14 @@ const SCORE = {
     mix: () => ({ low: 1, drone: 1, pad: 1, drip: 1 }),
   },
 };
-// the music box in the settings lists these, in this order (with the intensity to play them at)
+// the music box in the settings lists these, in this order: [theme, intensity, its name there, what it says]
 const SCORE_BOX = [
-  ['title', 0], ['day', 0], ['dusk', 0], ['night', 0, 'The Night Watch (quiet)'], ['night', 3, 'The Night Watch (Wildlight on the plateau)'],
-  ['dawn', 0], ['letter', 0], ['tallow', 0], ['skies', 1], ['skies', 2, 'Open Skies (a fight)'], ['scene', 0], ['flourish', 0],
-  ['victory', 0], ['lament', 0], ['faire', 0], ['keep', 0], ['mine', 0],
+  ['title', 0], ['day', 0], ['dusk', 0],
+  ['night', 0, 'The Night Watch (quiet)', 'Night with nothing on the plateau yet: a plucked pattern over a low drone.'],
+  ['night', 3, 'The Night Watch (under attack)', 'Eight or more Wildlight on the plateau: a heartbeat, hand drums, high strings and low brass come in.'],
+  ['dawn', 0], ['letter', 0], ['tallow', 0], ['skies', 1],
+  ['skies', 2, 'Open Skies (a fight)', 'Under fire: drums, a driving bass and brass stabs join the tune.'],
+  ['scene', 0], ['flourish', 0], ['victory', 0], ['lament', 0], ['faire', 0], ['keep', 0], ['mine', 0],
 ];
 
 // ---------------------------------------------------------------- the arranger: notes from the score, bar by bar

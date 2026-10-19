@@ -374,6 +374,8 @@ const AU = (() => {
     thunder: [(E, t, o) => { burst(E, t, o, 0.08, 'highpass', 1500, 600, 0.12, 0.7); const pts = [[0.06, 0.45]]; let x = 0.06; for (let i = 0; i < 4; i++) { x += 0.5 + rnd(E) * 0.7; pts.push([x, 0.18 + rnd(E) * 0.3]); } pts.push([x + 1.6, 0]); swell(E, t, o, pts, 'lowpass', 420, 70, 0.7); tone(E, t + 0.04, o, 'sine', 52, 34, 1.4, 0.18, 0.05); }, 0.45, 3.4],
     raidlost: [(E, t, o) => { brass(E, t, n2m('A2'), 0.9, 0.7, o); brass(E, t + 0.5, n2m('F2'), 1.2, 0.6, o); }, 0.45, -3.4],
     sail: [(E, t, o) => { swell(E, t, o, [[0.4, 0.2], [1.2, 0.12], [2.2, 0]], 'bandpass', 400, 1200, 0.8, 'pink'); }, 0.3, 8.2],
+    // the alarm: the watch bell rung fast, for a wave of Wildlight coming up the cliffs
+    alarm: [(E, t, o) => { for (let i = 0; i < 3; i++) bell(E, t + i * 0.26, n2m(i === 2 ? 'A4' : 'D5'), 1, 0.75, o, { short: 0.45 }); }, 0.5, 2],
   };
   // loot by rarity: plain for salvage, a little brighter each step, and Signed, Masterwork, Guild and Sunforged grander
   const LOOT = ['salvage', 'tooled', 'tuned', 'calibrated', 'signed', 'masterwork', 'guild', 'sunforged'];
@@ -475,7 +477,7 @@ const AU = (() => {
     if (!E.offline) setTimeout(() => { for (const n of [g, p, r]) if (n) try { n.disconnect(); } catch (x) { } }, (t - c.currentTime + 4.5) * 1000);
     return true;
   }
-  const LOOT_TRIM = [-6.5, -5, -2, -2, -5, -5, -4.5, -4.5];
+  const LOOT_TRIM = [-6.5, -6, -6, -5, -5, -3.5, -4.5, -4.5];
   function lootSfx(E, rank, t, P = {}) {
     const c = E.ctx, g = c.createGain(); g.gain.value = (P.gain ?? 1) * Math.pow(10, LOOT_TRIM[rank] / 20); g.connect(E.sfx);
     const r = c.createGain(); r.gain.value = 0.4; g.connect(r); r.connect(E.sfxRev);
@@ -548,8 +550,11 @@ const AUDIO = (() => {
   }
   // effects that are also music: these start a cue in the score as well as (or instead of) a sound
   const CUES = { dawn: 'dawn', chapter: 'flourish', raidwon: 'victory', sunk: 'lament' };
+  // other names an effect might be asked for by
+  const ALIAS = { pick: 'dig', mine: 'dig', lightning: 'thunder', boom: 'cannon', explosion: 'raiderdown', wave: 'alarm', courier: 'horn', rocks: 'rockfall', ballista: 'thunk', lens: 'zap', death: 'poof' };
   function play(k, pos, o = {}) {
     if (!E || S.muted) return;
+    k = ALIAS[k] || k;
     const now = performance.now(); if (last[k] && now - last[k] < (o.gap ?? 70)) return; last[k] = now;
     try {
       if (CUES[k]) MUSIC.cue(CUES[k]);
@@ -633,7 +638,7 @@ const AUDIO = (() => {
       e.music.gain.value = curve(0.7); e.musicRev.gain.value = curve(0.7); e.sfx.gain.value = curve(0.8); e.sfxRev.gain.value = curve(0.8); e.amb.gain.value = e.ambRev.gain.value = curve(0.8) * 0.9;
       e.echoOut.gain.value = 0.6 * curve(0.7);
       const t0 = performance.now();
-      if (opts.theme) MUSIC.render(e, opts.theme, opts.i || 0, secs, opts.only);
+      if (opts.theme || opts.plan) MUSIC.render(e, opts.theme, opts.i || 0, secs, opts.only, opts.plan);
       for (const [name, at] of opts.sfx || []) AU.sfx(e, name, at, {});
       for (const [r, at] of opts.loot || []) AU.lootSfx(e, Math.max(0, AU.LOOT.indexOf(r)), at);
       for (const [inst, m, at, dur] of opts.notes || []) AU.INST[inst](e, at, m, dur, 0.8, e.duck, {});
@@ -641,15 +646,17 @@ const AUDIO = (() => {
       const made = performance.now() - t0, buf = await c.startRendering();
       const L = buf.getChannelData(0), R = buf.getChannelData(1), n = L.length;
       let peak = 0, sum = 0, nan = 0, quietSecs = 0, secSum = 0, secN = 0;
-      const perSec = [];
+      const perSec = [], tenths = []; let tSum = 0, tN = 0;
       for (let i = 0; i < n; i++) {
         const a = L[i], b = R[i]; if (a !== a || b !== b) { nan++; continue; }
         const m = Math.max(Math.abs(a), Math.abs(b)); if (m > peak) peak = m;
-        sum += a * a + b * b; secSum += a * a + b * b; secN++;
+        sum += a * a + b * b; secSum += a * a + b * b; secN++; tSum += a * a + b * b; tN++;
+        if (tN >= sr / 10) { tenths.push(Math.sqrt(tSum / (2 * tN))); tSum = 0; tN = 0; }
         if (secN >= sr) { const r = Math.sqrt(secSum / (2 * secN)); perSec.push(r); if (r < 0.001) quietSecs++; secSum = 0; secN = 0; }
       }
       const rms = Math.sqrt(sum / (2 * n)), db = x => x > 0 ? 20 * Math.log10(x) : -999;
       const out = { peak: +peak.toFixed(4), peakDb: +db(peak).toFixed(1), rmsDb: +db(rms).toFixed(1), nan, quietSecs, seconds: secs, voicesMax: e.voicesMax, dropped: e.dropped, makeMs: Math.round(made), loudestSecDb: +db(Math.max(...perSec, 0)).toFixed(1) };
+      if (opts.tenths) out.tenths = tenths.map(x => +(x > 0 ? 20 * Math.log10(x) : -120).toFixed(1));
       if (opts.wav) out.wav = wavB64(buf, opts.wavSeconds || secs);
       return out;
     },

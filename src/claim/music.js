@@ -93,7 +93,7 @@ const MUSIC = (() => {
   }
 
   // ---------------------------------------------------------------- what the game wants to hear
-  let sceneRef = null, sceneLetter = false, pend = null, pendSince = 0, took = null, lvl = 0, lvlLowSince = 0;
+  let sceneRef = null, sceneLetter = false, pend = null, pendSince = 0, took = null, lvl = 0, lvlLowSince = 0, lastPhase = null, dawnAt = -1e9;
   function gameWant() {
     if (typeof SKY !== 'undefined' && SKY && SKY.on) {
       const W = SKY.waves, P = SKY.player, sailing = SKY.mode === 'voyage' && !(P && P.down) && !(W && W.sunk);
@@ -110,6 +110,8 @@ const MUSIC = (() => {
     }
     if (typeof jumpersActive === 'function' && jumpersActive()) return { theme: 'tallow', i: 0, urgent: true };
     const ph = TOD.phase;
+    if (lastPhase === 'night' && ph === 'dawn') playCue('dawn');   // the sun's up (endNight asks for it too; it plays once)
+    lastPhase = ph;
     if (ph === 'night' || (ph === 'dusk' && TOD.night > 0.55)) {
       if (STORY.ch === 6 && STORY.started) return { theme: 'faire', i: 0 };   // the Moon Faire's festival night
       let n = 0; for (const f of WL.list) if (!f.dead && !f.air) n++;
@@ -142,6 +144,7 @@ const MUSIC = (() => {
   // ---------------------------------------------------------------- cues and flourishes
   function playCue(id) {
     if (!E || !SCORE[id]) return;
+    if (id === 'dawn') { if (performance.now() - dawnAt < 30000) return; dawnAt = performance.now(); }
     if (!SCORE[id].overlay) { cue = id; return; }
     if (overlays.some(o => o.id === id && !o.done)) return;
     // over the top, on the next beat of whatever's playing, with the rest dipped under it
@@ -159,11 +162,11 @@ const MUSIC = (() => {
   }
   function boxBuild() {
     const ul = $('#mb-list'); if (!ul || ul.childElementCount) return;
-    SCORE_BOX.forEach(([id, i, label], k) => {
+    SCORE_BOX.forEach(([id, i, label, blurb], k) => {
       const th = SCORE[id], li = document.createElement('li'), name = label || th.name;
       li.innerHTML = '<button type="button" class="mb-play" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="ip" d="M5 3v10l8-5z"/><path class="is" d="M4 4h8v8H4z"/></svg></button><span class="mb-t"><b></b><em></em></span>';
       const b = li.querySelector('button'); b.dataset.k = k; b.setAttribute('aria-label', 'Play ' + name);
-      li.querySelector('b').textContent = name; li.querySelector('em').textContent = th.blurb;
+      li.querySelector('b').textContent = name; li.querySelector('em').textContent = blurb || th.blurb;
       b.onclick = () => { AUDIO.start(); boxPick = boxPick && boxPick.k === k ? null : { id, i, k }; boxSync(); };
       ul.append(li);
     });
@@ -196,7 +199,13 @@ const MUSIC = (() => {
     want: gameWant,
     status() { const c = main && main.cur; return { theme: c ? c.id : null, i: c ? c.i : 0, section: c ? c.th.form[c.formIdx].s : null, bar: c ? c.bar : 0, cue, box: boxPick && boxPick.id, overlays: overlays.map(o => o.id), queued: main ? main.q.length : 0 }; },
     // offline, for tests: a whole stretch of one theme scheduled at once
-    render(e, id, i, secs, only) { const L = lane(e, e.duck, () => (L.done ? null : { theme: id, i, only }), () => { L.done = true; }); L.next = 0.05; pumpLane(L, secs); },
+    render(e, id, i, secs, only, plan) {
+      // a cue in the plan (dawn) plays once, then the plan moves on to what comes after it, as the game would
+      const used = new Set();
+      const pick = T => { let k = -1; plan.forEach((p, j) => { if (T >= p[0]) k = j; }); if (k < 0) return null; while (used.has(k) && k < plan.length - 1) k++; const [, th, n, urgent] = plan[k]; return { theme: th, i: n || 0, urgent: !!urgent }; };
+      const L = lane(e, e.duck, T => (plan ? pick(T) : L.done ? null : { theme: id, i, only }), done => { L.done = true; if (plan) plan.forEach((p, j) => { if (p[1] === done) used.add(j); }); });
+      L.next = 0.05; pumpLane(L, secs);
+    },
   };
 })();
 window.BV_AUDIO = { AUDIO, MUSIC, AU, ARR, SCORE };

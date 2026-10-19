@@ -21,7 +21,7 @@ THEMES = [('title', 0, 30, 'title'), ('day', 0, 30, 'day'), ('dusk', 0, 26, 'dus
           ('faire', 0, 26, 'faire'), ('keep', 0, 26, 'keep'), ('mine', 0, 30, 'mine')]
 SFX = ['tap', 'open', 'lift', 'place', 'build', 'built', 'upgraded', 'levelup', 'statup', 'chime', 'goal', 'zap', 'flare', 'volley', 'thunk', 'cannon',
        'cannonfar', 'hit', 'hullhit', 'raiderhit', 'poof', 'crack', 'wallhit', 'snuff', 'jumperdown', 'raiderdown', 'sunk', 'tower', 'horn', 'warhorn',
-       'bell', 'dig', 'rockfall', 'cart', 'thunder', 'raidlost', 'pickup', 'sail']
+       'bell', 'alarm', 'dig', 'rockfall', 'cart', 'thunder', 'raidlost', 'pickup', 'sail']
 LOOT = ['salvage', 'tuned', 'signed', 'masterwork', 'guild', 'sunforged']
 AMB = [('day', {'out': True, 'day': 1}), ('night', {'out': True, 'night': 1, 'hum': 0.7}), ('mine', {'mine': True, 'miners': True}),
        ('keep', {'keep': True}), ('skies', {'sky': True, 'speed': 40}), ('rain', {'out': True, 'day': 1, 'rain': 0.8})]
@@ -104,8 +104,19 @@ with sync_playwright() as p:
         if not once:
             k = key_of(base64.b64decode(w))
             if k: check(f'theme {name} sounds in {keys[theme]}', keys[theme] in (k[0][1], k[1][1]), f'heard {k[0][1]} ({k[0][0]:.2f}) and {k[1][1]} ({k[1][0]:.2f})')
+    # journeys: the score following the game from theme to theme, to hear (and check) the changes between them. The
+    # music must never drop out at a change, nor jump suddenly louder.
+    JOURNEYS = [('journey-day-and-night', 98, [[0, 'title'], [12, 'day'], [30, 'dusk'], [44, 'night', 0], [56, 'night', 1], [66, 'night', 3], [78, 'dawn', 0, True], [79, 'day']]),
+                ('journey-around-the-claim', 112, [[0, 'keep'], [12, 'mine'], [24, 'scene', 0, True], [34, 'letter', 0, True], [46, 'tallow', 0, True], [60, 'skies', 1, True], [74, 'skies', 2], [88, 'skies', 0], [94, 'faire']])]
+    if not args:
+        for name, secs, plan in JOURNEYS:
+            r = pg.evaluate(f'BV_AUDIO.AUDIO.render({{ plan: {json.dumps(plan)}, seconds: {secs}, sr: 32000, tenths: true, wav: {str(WAV).lower()} }})')
+            save(name, r.pop('wav', None)); t = r.pop('tenths')
+            gaps = [i / 10 for i, v in enumerate(t[5:-5], 5) if v < -55]
+            jump = max(t[i] - max(t[i - 3:i]) for i in range(3, len(t)))
+            check(f'{name}: no drop-outs or sudden jumps at the changes', r['nan'] == 0 and r['peak'] < 0.98 and not gaps and jump < 18, json.dumps({**r, 'gaps': gaps[:5], 'biggestJumpDb': round(jump, 1)}))
     if THEMES:
-        loops = [levels[n]['rmsDb'] for _, _, _, n in THEMES if n not in ('dawn', 'flourish', 'victory', 'lament', 'night-quiet', 'mine', 'scene', 'letter', 'keep')]
+        loops =[levels[n]['rmsDb'] for _, _, _, n in THEMES if n not in ('dawn', 'flourish', 'victory', 'lament', 'night-quiet', 'mine', 'scene', 'letter', 'keep')]
         if loops:
             spread = max(loops) - min(loops)
             check('the themes sit within a few dB of each other', spread <= 6, f'{min(loops)} to {max(loops)} dB RMS')

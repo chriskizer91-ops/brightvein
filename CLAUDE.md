@@ -25,6 +25,7 @@
 - `src/claim/`: the claim (town, Keep, mine, people, Wildlight, loot, UI). One shared scope: its files are joined in the order of `src/claim/order.json` into one module. Add a file there to add it to the build.
   - `folk.js`: everyone's portrait and look, picture first. Settlers come off this roll so their sprite and portrait match. `node tools/portrait-prompts.mjs` writes `docs/art-requests/03-portraits.md` from it.
   - `cast.js`: the visiting cast's looks. `story.js`: chapters, scenes, visitors, the journal and codex (`docs/story.md`). `dock.js`: the Sky Dock and the fleet's panel. `life.js`: birds, distant ships, fireflies, mine dust.
+  - Sound (no sound files: all synthesised live with Web Audio). The music is written as notes in `score.js` (each theme's chords, tunes, drum patterns and form; the notation is explained at its top, and every theme grows from one motif). `music.js` plays it, choosing the theme from the game's state and changing on bar lines, and runs the Music box in the settings. `audio.js` has the instruments, effects and ambience: `AUDIO.play(name, position)` plays an effect (unknown names are ignored; a position makes it quieter with distance), `AUDIO.loot(rarity)`, `AUDIO.rain(0..1)`.
 - `src/sky/`, `src/ship/`, `src/ships/`: the skies, the ship builder and the six ships, from the airship game. Ordinary ES modules.
 - `src/shell.html`, `src/style.css`: the page and its look.
 - `assets/claim/`: the claim's painted textures (from Briarwatch). `assets/map/`, `assets/ships/`, `assets/fonts/`: from the airship game.
@@ -39,6 +40,8 @@ npm install
 node tools/build.mjs            # dist/brightvein.html (open it) and dist/brightvein.artifact.html (publish it)
 python3 test/smoke.py           # plays the claim and a voyage headless; must end with "all good"
 python3 test/shot.py out.png 1280 800 "<js to run>" 6000 3000   # a screenshot after running some JS
+node test/music.mjs             # the written music: every bar adds up, tunes sit on their chords, notes in range
+python3 test/audio.py [--wav]   # renders every theme, effect and ambience offline and measures it (--wav: shots/audio/)
 ```
 
 - `window.__bv` exposes the game for tests (`simulate(seconds)` runs the claim without drawing).

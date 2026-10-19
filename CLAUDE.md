@@ -58,4 +58,4 @@ python3 test/audio.py [--wav]   # renders every theme, effect and ambience offli
 
 - `window.__bv` exposes the game for tests (`simulate(seconds)` runs the claim without drawing). The page opens on the title screen; tests wait for `#loading` to be hidden, then call `__bv.begin(true)` (a new claim) or `__bv.begin(false)` (the saved one).
 - Headless rendering is software (SwiftShader) and slow: test logic with `simulate`, and take few screenshots.
-- The game is published at the Brightvein artifact link (see `README.md`). After a change, build, then publish `dist/brightvein.artifact.html` to that link (pass the url) so Chris's link keeps working.
+- The game is published at the Brightvein artifact link (see `README.md`). After a change, build, then publish `dist/brightvein.artifact.html` to that link (pass the url) so Chris's link keeps working. The artifact declares the `downloads` capability (saving a claim as a file asks the viewer through it, in `saves.js`); leave `capabilities` out when republishing so it carries over.

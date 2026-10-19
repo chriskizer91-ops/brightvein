@@ -21,10 +21,22 @@ for (const f of fs.readdirSync(path.join(ROOT, 'assets/claim')).sort()) {
   const mime = MIME[f.split('.').pop()]; if (!mime) continue;
   assets[f.replace(/\.\w+$/, '')] = `data:${mime};base64,` + fs.readFileSync(path.join(ROOT, 'assets/claim', f)).toString('base64');
 }
+// pictures the claim shows as they are, by folder and name: ART.cast.io (the cast's portraits), ART.items['wind-rifle']
+// (painted item pictures, named after the item's base id in src/claim/loot.js)
+const art = {};
+for (const dir of ['cast', 'items']) {
+  art[dir] = {};
+  const at = path.join(ROOT, 'assets', dir);
+  if (!fs.existsSync(at)) continue;
+  for (const f of fs.readdirSync(at).sort()) {
+    const mime = MIME[f.split('.').pop()]; if (!mime) continue;
+    art[dir][f.replace(/\.\w+$/, '')] = `data:${mime};base64,` + fs.readFileSync(path.join(at, f)).toString('base64');
+  }
+}
 // join the claim's files into one module
 const order = JSON.parse(rd('src/claim/order.json'));
 const parts = order.map((f) => `// ---- ${f}\n` + rd('src/claim/' + f));
-const claim = parts[0] + `\nconst ASSETS = ${JSON.stringify(assets)};\n` + parts.slice(1).join('\n');
+const claim = parts[0] + `\nconst ASSETS = ${JSON.stringify(assets)};\nconst ART = ${JSON.stringify(art)};\n` + parts.slice(1).join('\n');
 fs.mkdirSync(path.join(ROOT, '.build'), { recursive: true });
 fs.writeFileSync(path.join(ROOT, 'src/.claim.gen.js'), claim);
 

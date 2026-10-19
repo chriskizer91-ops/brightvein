@@ -272,13 +272,13 @@ function signTex() {
   return SIGN_TEX;
 }
 function digSign(R, x0, x1, y1) {
-  if (!DM.sign) DM.sign = glowMat(trackEnv(new THREE.MeshStandardMaterial({ map: signTex(), color: 0xd8ccb8, roughness: 0.8, emissive: 0xffffff, emissiveMap: signTex(), emissiveIntensity: 0.06 }), 0.1));
+  if (!DM.sign) DM.sign = glowMat(trackEnv(new THREE.MeshStandardMaterial({ map: signTex(), color: 0x8a8070, roughness: 0.85 }), 0.1));
   const i = SIGN_KINDS.indexOf(R.kind); if (i < 0) return;
   const geo = dplane(0.95, 0.8), uv = geo.attributes.uv, n = SIGN_KINDS.length;
   for (let k = 0; k < uv.count; k++) uv.setX(k, (i + uv.getX(k)) / n);
   const BZ = WORLD.faceZ - MINE.depth, cx = (x0 + x1) / 2;
-  dput(geo, DM.sign, cx, y1 - 0.62, BZ + 0.06, { keepUV: true });
-  for (const dx of [-0.3, 0.3]) dput(dbox(0.04, 0.2, 0.04), DM.iron, cx + dx, y1 - 0.12, BZ + 0.06);
+  dput(geo, DM.sign, cx, y1 - 1.0, BZ + 0.06, { keepUV: true });
+  for (const dx of [-0.3, 0.3]) dput(dbox(0.04, 0.58, 0.04), DM.iron, cx + dx, y1 - 0.31, BZ + 0.06);
 }
 // the rock box: back wall, floor, ceiling, and the ends (a doorway where another room or the shaft is next door)
 function digShell(x0, x1, y0, y1, t, wOpen, eOpen, raw = false) {
@@ -337,7 +337,7 @@ function digTierDress(R, x0, x1, y0, y1, t) {
       if (R.r === 0) for (let k = 0; k < 5; k++) { const L = 0.4 + Rn() * 1.1; dput(dcyl(0.012, 0.035, L, 4), DM.root, cx + (Rn() - 0.5) * 3.8, y1 - L / 2, BZ + 0.3 + Rn() * 3.6, { rz: (Rn() - 0.5) * 0.4 }); }
       dput(new THREE.DodecahedronGeometry(0.35 + Rn() * 0.25, 0), DM.rock, cx + (Rn() - 0.5) * 3, y0 + 0.2, BZ + 0.45, { s: [1.3, 0.7, 1], uv: 1.5 });
     } else if (t === 1) {
-      for (let k = 0; k < 4; k++) dput(new THREE.OctahedronGeometry(1, 0), DM.crystal, cx - 1.8 + k * 1.2 + Rn() * 0.4, y0 + 2.7 + Rn() * 0.9, BZ + 0.04, { rx: Math.PI / 2 - 0.3, rz: (Rn() - 0.5) * 1.2, s: [0.06, 0.16 + Rn() * 0.1, 0.06] });
+      for (let k = 0; k < 4; k++) dput(new THREE.OctahedronGeometry(1, 0), DM.crystal, cx + [-1.9, -1.1, 1.1, 1.9][k] + Rn() * 0.3, y0 + 2.7 + Rn() * 0.9, BZ + 0.04, { rx: Math.PI / 2 - 0.3, rz: (Rn() - 0.5) * 1.2, s: [0.06, 0.16 + Rn() * 0.1, 0.06] });
       dput(new THREE.CircleGeometry(0.4 + Rn() * 0.4, 14), DM.puddle, cx + (Rn() - 0.5) * 3, y0 + 0.012, FZ - 0.8 - Rn() * 0.8, { rx: -Math.PI / 2, s: [1.6, 1, 1] });
     } else {
       // a geode high on the back wall: a ring of rock round a nest of crystal
@@ -417,7 +417,7 @@ const FURNISH = {
   },
   pump(R, x0, x1, y0, y1, t) {
     const FZ = WORLD.faceZ, BZ = FZ - MINE.depth;
-    dput(dcyl(0.09, 0.09, x1 - x0, 8), DM.iron, (x0 + x1) / 2, y0 + 2.55, BZ + 0.3, { rz: Math.PI / 2 });
+    dput(dcyl(0.09, 0.09, x1 - x0, 8), DM.iron, (x0 + x1) / 2, y0 + 2.3, BZ + 0.3, { rz: Math.PI / 2 });
     for (const cx of cellsOf(R)) {
       // the sump, and the pipe that takes the water up
       dput(new THREE.CircleGeometry(0.55, 16), DM.dark, cx, y0 + 0.01, 32.4, { rx: -Math.PI / 2 });
@@ -430,8 +430,8 @@ const FURNISH = {
         dput(dcyl(0.3, 0.3, 0.7, 12), DM.oakDark, cx - 1.9, y0 + 0.35, 33.4);
       } else {            // a beam engine: cylinder, rocking beam, flywheel
         dput(dcyl(0.35, 0.35, 2.0, 14), DM.iron, cx - 0.55, y0 + 1.0, 32.5); dput(dcyl(0.42, 0.42, 0.12, 14), DM.brass, cx - 0.55, y0 + 2.05, 32.5);
-        for (const dx of [-0.25, 0.25]) dput(dbox(0.14, 2.9, 0.14), DM.oakDark, cx + dx, y0 + 1.45, 32.5);
-        dynObj(R, 'rock', cx, y0 + 2.95, 32.5, () => { dput(dbox(2.0, 0.16, 0.16), R.lv >= 3 ? DM.iron : DM.oakDark, cx, y0 + 2.95, 32.5); dput(dbox(0.06, 0.8, 0.06), DM.iron, cx - 0.55, y0 + 2.55, 32.5); }, { axis: 'z', speed: 1.6, amp: 0.16 });
+        for (const dx of [-0.25, 0.25]) dput(dbox(0.14, 2.4, 0.14), DM.oakDark, cx + dx, y0 + 1.2, 32.5);
+        dynObj(R, 'rock', cx, y0 + 2.45, 32.5, () => { dput(dbox(2.0, 0.16, 0.16), R.lv >= 3 ? DM.iron : DM.oakDark, cx, y0 + 2.45, 32.5); dput(dbox(0.06, 0.45, 0.06), DM.iron, cx - 0.55, y0 + 2.2, 32.5); }, { axis: 'z', speed: 1.6, amp: 0.16 });
         dynObj(R, 'spin', cx + 0.75, y0 + 1.05, 32.85, () => { dput(new THREE.TorusGeometry(0.62, 0.07, 6, 22), DM.iron, cx + 0.75, y0 + 1.05, 32.85); for (let k = 0; k < 3; k++) dput(dbox(0.05, 1.2, 0.05), DM.iron, cx + 0.75, y0 + 1.05, 32.85, { rz: k * Math.PI / 3 }); }, { axis: 'z', speed: 2.2 });
         if (R.lv >= 3) { dput(dcyl(0.5, 0.5, 1.6, 14), DM.copper, cx - 1.85, y0 + 0.8, 32.6); for (let k = 0; k < 2; k++) { dput(dcyl(0.16, 0.16, 0.05, 14), DM.brass, cx - 1.2 + k * 0.4, y0 + 2.2, BZ + 0.03, { rx: Math.PI / 2 }); dput(new THREE.CircleGeometry(0.12, 14), DM.cream, cx - 1.2 + k * 0.4, y0 + 2.2, BZ + 0.06); } }
       }
@@ -451,8 +451,8 @@ const FURNISH = {
     }
     if (R.lv >= 2) {   // a hoist over the middle
       const cx = (x0 + x1) / 2;
-      for (const dx of [-1.0, 1.0]) dput(dbox(0.2, 2.8, 0.2), DM.oakDark, cx + dx, y0 + 1.4, BZ + 0.7);
-      dput(dbox(2.3, 0.22, 0.22), DM.oakDark, cx, y0 + 2.75, BZ + 0.7); dput(dbox(0.03, 1.0, 0.03), DM.rope, cx, y0 + 2.2, BZ + 0.7); dput(dbox(0.2, 0.2, 0.08), DM.iron, cx, y0 + 1.65, BZ + 0.7);
+      for (const dx of [-1.0, 1.0]) dput(dbox(0.2, 2.4, 0.2), DM.oakDark, cx + dx, y0 + 1.2, BZ + 0.7);
+      dput(dbox(2.3, 0.22, 0.22), DM.oakDark, cx, y0 + 2.35, BZ + 0.7); dput(dbox(0.03, 0.7, 0.03), DM.rope, cx, y0 + 1.95, BZ + 0.7); dput(dbox(0.2, 0.2, 0.08), DM.iron, cx, y0 + 1.55, BZ + 0.7);
     }
   },
   depot(R, x0, x1, y0, y1, t) {

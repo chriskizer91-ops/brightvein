@@ -190,6 +190,7 @@ class Villager {
   // what they work with: the job's tool, or the item in their hand when it is made for this job; the watch
   // fights with whatever weapon they carry
   tool() {
+    const st = studyTool(this); if (st) return st;   // studying: the study's tool (keep.js)
     const j = this.d.job; if (!j) return 'hammer';
     const b = jobBuilding(j.bid), type = b ? b.gearJob || b.type : j.bid, it = this.d.gear && this.d.gear.hand;
     if (it) {
@@ -327,7 +328,8 @@ function think(v) {
     if (v.where === 'home') v.plan = [{ type: 'sleep' }];
     return;
   }
-  // idle by day: stroll somewhere pleasant and stand about
+  // idle by day: rest in the Keep a while (keeplife.js), or stroll somewhere pleasant and stand about
+  const rest = keepRestPlan(v); if (rest) { v.plan = rest; return; }
   const K = TOWN.b.keep, front = K ? K.worldPos(0, 0, 9) : new THREE.Vector3(0, 0, 9), any = Object.values(TOWN.b).filter(b => b.tile && !b.pending);
   const o = any[Math.random() * any.length | 0], of = o ? o.worldPos(0, 0, FOOT[o.type].d + 1.5) : front;
   const spots = [[front.x, front.z, 4], [front.x, front.z, 7], [of.x, of.z, 3]];

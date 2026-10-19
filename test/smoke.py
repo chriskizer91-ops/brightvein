@@ -122,6 +122,33 @@ with sync_playwright() as p:
     check('two of a kind side by side merge', r['merged'] and r['upgraded'])
     check('a cave-in, dug clear by the crew', r['cave'] and r['caveCleared'])
     check('Wildlight out of the deep seam, fought off or gone', r['seam'] and r['breach'] and r['wild'] >= 2 and r['breachOver'])
+    # the Keep: each study is furnished from its room's panel (and fitted out in front of you), a student goes in,
+    # walks up the stair to their place, and is shown at work there; the empty room has its sign; nothing new is saved
+    r = pg.evaluate('''(() => { const B = __bv, out = { rooms: {} }, kinds = 'GEARS';
+      B.TOWN.b.keep.show(3); B.GAME.shards += 5000; B.buildInterior(true);
+      const people = B.GAME.villagers.filter(v => !v.d.exp && v.where !== 'ship' && v.where !== 'mast');
+      for (const v of people) if (v.d.study) B.endStudy(v);
+      for (let i = 0; i < 5; i++) B.GAME.rooms[i] = { type: null, level: 0 };
+      B.buildInterior(true); out.sign = B.KEEPV.spots.filter(s => s.kind === 'empty').length >= 4;
+      for (let i = 0; i < 5; i++) {
+        B.UI.open('room', i); const btn = document.querySelectorAll('#panel-body .list .li')[i]; if (btn) btn.click();
+        if (i === 0) out.fit = !!B.KEEPV.fit && B.KEEPV.fit.key === 0;
+        for (const v of people) if (!v.d.study && B.startStudy(v, i, 'student')) break;
+      }
+      B.UI.close();
+      for (let i = 0; i < 150 && B.GAME.villagers.some(v => v.d.study && v.where !== 'study'); i++) B.simulate(1, 0.1);
+      B.keepTick(25, 0.1);
+      for (let i = 0; i < 5; i++) {
+        const R = B.KEEPV.rooms[i], st = B.roomStudents(i);
+        out.rooms[kinds[i]] = { kind: R && R.kind, spots: B.KEEPV.spots.filter(s => s.room === i && s.use === 'student').length, n: st.length,
+          at: st.filter(v => v.isprite.visible && v.kin && v.kin.at && v.kin.goal && v.kin.goal.room === i && Math.abs(v.isprite.position.x - R.cx) < 4.5 && v.isprite.position.y > R.y0 - 0.5 && v.isprite.position.y < R.y0 + 4).length };
+      }
+      B.saveGame(); const sv = JSON.parse(localStorage.getItem('brightvein-keep-v1')); out.saved = JSON.stringify(sv.rooms);
+      for (const v of B.GAME.villagers) if (v.d.study) B.endStudy(v);   // back to work, for the checks after this
+      B.simulate(5, 0.1);
+      return out; })()''')
+    check('each study can be furnished from its panel, and is fitted out', r['sign'] and r['fit'] and all(v['kind'] == k and v['spots'] >= 4 for k, v in r['rooms'].items()), json.dumps(r))
+    check('students walk in and are shown at work in their study', all(v['n'] >= 1 and v['at'] == v['n'] for v in r['rooms'].values()), json.dumps(r['rooms']))
     # nights: a Bright Night brings a boss with a health bar, and it can be brought down; dawn brings the report
     r = pg.evaluate('''(() => { const B = __bv, out = {};
       B.NIGHT.grudge = null; B.GAME.nights = 4; B.forceWeather('clear', 'clear');

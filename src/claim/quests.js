@@ -299,7 +299,7 @@ const _questMark = new THREE.Vector3();
 function questMarker() {
   const K = TOWN.b.keep, wait = questsWaiting();
   let el = document.getElementById('qmark');
-  const show = wait.length && K && VIEW.mode === 'town' && !(SKY && SKY.on) && !BUILD.on && !STORY.shown && !EVT.card && !(UI.cur && UI.cur.kind === 'building' && UI.cur.ref === K);
+  const show = wait.length && K && VIEW.mode === 'town' && !TITLE.on && !frontOpen() && !(SKY && SKY.on) && !BUILD.on && !STORY.shown && !EVT.card && !(UI.cur && UI.cur.kind === 'building' && UI.cur.ref === K);
   if (!show) { if (el) el.hidden = true; return; }
   if (!el) { el = document.createElement('button'); el.type = 'button'; el.id = 'qmark'; el.className = 'qmark'; el.onclick = () => selectBuilding(TOWN.b.keep); $('#app').append(el); }
   const txt = `${castFirst(wait[0])} wants a word${wait.length > 1 ? ` (+${wait.length - 1})` : ''}`;

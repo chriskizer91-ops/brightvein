@@ -270,7 +270,7 @@ function updateVisits(dt) {
     V.s.glow.material.uniforms.uScale.value = 0.6 * renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
   }
 }
-// the cast come ashore as people of the claim (they don't take beds: they sleep aboard)
+// the cast come ashore as people of the claim (guests: they don't count against the Keep's beds)
 function castArrive(ids) {
   const D = LAYOUT.dock;
   for (const id of ids) {

@@ -101,6 +101,7 @@ class Building {
   }
   bake() {
     this.unbake();
+    this.bakeN = (this.bakeN || 0) + 1;   // the town's merge (townMerge) sees the change
     const list = this.pieces.filter(m => m.visible && !isDynamic(m, this.group));
     this.merged = mergeMeshes(this.group, list);
     for (const m of list) m.visible = false;
@@ -109,10 +110,14 @@ class Building {
     // so they still turn, in a few draws instead of one per piece
     const rigid = new Map();
     for (const m of this.pieces) if (m.visible && m.parent && m.parent.userData.rigid) { if (!rigid.has(m.parent)) rigid.set(m.parent, []); rigid.get(m.parent).push(m); }
-    for (const [p, ms] of rigid) { this.merged.push(...mergeMeshes(p, ms)); for (const m of ms) m.visible = false; this.baked.push(...ms); }
+    for (const [p, ms] of rigid) {
+      for (const R of mergeMeshes(p, ms)) { R.userData.rigidCast = R.castShadow; R.castShadow = R.castShadow && QUALITY.level !== 'light'; this.merged.push(R); }   // on Light a turning head casts no shadow (lightCasts)
+      for (const m of ms) m.visible = false; this.baked.push(...ms);
+    }
   }
   unbake() {
     if (!this.merged) return;
+    this.bakeN = (this.bakeN || 0) + 1;
     for (const m of this.merged) { m.parent && m.parent.remove(m); m.geometry.dispose(); }
     for (const m of this.baked) m.visible = true;
     this.merged = null; this.baked = null;
@@ -188,6 +193,61 @@ function mergeStatic(root, skip = () => false) {
   const merged = mergeMeshes(root, list);
   for (const m of list) m.parent.remove(m);
   return merged;
+}
+
+// the turning heads of turrets and lens towers cast no shadow on Light: about thirty fewer draws in the sun's shadow
+function lightCasts() {
+  for (const b of BUILDINGS) for (const m of b.merged || []) if ('rigidCast' in m.userData) m.castShadow = m.userData.rigidCast && QUALITY.level !== 'light';
+}
+// ----------------------------------------------------------------- the whole town's still pieces, merged once more
+// Each building's still pieces are one mesh per material already (bake). The town only has a couple of dozen
+// materials across its twenty-odd buildings, so those meshes are merged again across the buildings: one draw per
+// material for the whole town, in the picture and in the sun's shadow, rather than one per material per building.
+// The buildings keep their own merged meshes for tapping, on PICK_LAYER (the raycaster looks there; the cameras
+// don't). The merge is made again when a building is put up, raised, moved or taken down; in build mode, and while
+// a building is going up, it draws on its own as before.
+const PICK_LAYER = 4;
+const TMERGE = { sig: '', group: null, meshes: [], hidden: [], n: 0, ms: 0 };
+function townMergeSig() {
+  if (BUILD.on) return 'build';
+  let s = '';
+  for (const b of BUILDINGS) {
+    if (!b.group.parent || !b.merged) continue;
+    const p = b.group.position;
+    s += b.id + (b.building || b.pending ? '~' : '') + b.bakeN + '@' + p.x.toFixed(2) + ',' + p.z.toFixed(2) + ',' + b.group.rotation.y.toFixed(3) + (b.group.visible ? ';' : 'h;');
+  }
+  return s;
+}
+function townMerge() {
+  const sig = townMergeSig(); if (sig === TMERGE.sig) return;
+  const t0 = performance.now();
+  TMERGE.sig = sig;
+  for (const m of TMERGE.hidden) m.layers.set(0);
+  TMERGE.hidden = [];
+  if (TMERGE.group) { scene.remove(TMERGE.group); for (const m of TMERGE.meshes) m.geometry.dispose(); TMERGE.group = null; TMERGE.meshes = []; }
+  if (sig === 'build') return;
+  const groups = new Map();
+  for (const b of BUILDINGS) {
+    if (!b.group.parent || !b.merged || b.building || b.pending || !b.group.visible) continue;
+    b.group.updateMatrixWorld(true);
+    for (const m of b.merged) {
+      if (m.parent !== b.group || !m.visible) continue;   // a turret's turning head stays with its building
+      const key = m.material.uuid + (m.castShadow ? 'c' : 'n') + (m.receiveShadow ? 'r' : 'n');
+      if (!groups.has(key)) groups.set(key, { mat: m.material, cast: m.castShadow, recv: m.receiveShadow, geos: [], from: [] });
+      const G0 = groups.get(key), g = m.geometry.clone(); g.applyMatrix4(m.matrixWorld);
+      G0.geos.push(g); G0.from.push(m);
+    }
+  }
+  const grp = new THREE.Group(); grp.name = 'town-merged';
+  for (const G0 of groups.values()) {
+    const g = G0.geos.length > 1 ? mergeGeometries(G0.geos) : G0.geos[0];
+    if (G0.geos.length > 1) for (const x of G0.geos) x.dispose();
+    if (!g) continue;   // they wouldn't merge: leave these to draw on their own
+    const mesh = new THREE.Mesh(g, G0.mat); mesh.castShadow = G0.cast; mesh.receiveShadow = G0.recv; mesh.userData.townMerged = true;
+    grp.add(mesh); TMERGE.meshes.push(mesh);
+    for (const m of G0.from) { m.layers.set(PICK_LAYER); TMERGE.hidden.push(m); }
+  }
+  scene.add(grp); TMERGE.group = grp; TMERGE.n++; TMERGE.ms = Math.round(performance.now() - t0);
 }
 
 // scaffolding: poles and planks around a footprint while it is being built

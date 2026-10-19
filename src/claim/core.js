@@ -99,6 +99,7 @@ function applyQuality() {
   const ms = QUALITY.level === 'high' ? 2048 : QUALITY.level === 'balanced' ? 2048 : 1024;
   if (typeof sun !== 'undefined' && sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   setupComposer(); resize();
+  if (typeof lightCasts === 'function') lightCasts();   // (kit.js)
 }
 function resize() {
   const w = innerWidth, h = innerHeight;

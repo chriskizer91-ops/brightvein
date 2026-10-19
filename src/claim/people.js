@@ -419,7 +419,8 @@ function assignJob(v, bid) {
 }
 function bedsOf(b) { return b && b.type === 'keep' ? DEFS.keep.beds[b.level] || 0 : 0; }
 function totalBeds() { return bedsOf(TOWN.b.keep); }
-// the cast are the claim's guests: they sleep aboard their ships, so only settlers take the Keep's beds
+// the cast are the claim's guests: they never take a settler's bed (a spare bunk, or a bedroll by the fire: keepAssign),
+// so only settlers count against the Keep's beds
 const isGuest = v => !!v.d.hero;
 function bedsUsed() { let n = 0; for (const v of GAME.villagers) if (!isGuest(v)) n++; return n; }
 const guestCount = () => GAME.villagers.length - bedsUsed();

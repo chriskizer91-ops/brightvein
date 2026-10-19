@@ -47,7 +47,7 @@ function updateCamera(dt) {
 }
 
 // ----------------------------------------------------------------- picking
-const ray = new THREE.Raycaster(); ray.camera = camera;
+const ray = new THREE.Raycaster(); ray.camera = camera; ray.layers.enable(PICK_LAYER);   // the buildings' own meshes, drawn merged with the town's (townMerge in kit.js)
 const ndc = new THREE.Vector2();
 let downAt = null;
 canvas.addEventListener('pointerdown', e => { downAt = { x: e.clientX, y: e.clientY, t: performance.now() }; AUDIO.start(); });
@@ -390,7 +390,7 @@ function frame() {
   AUDIO.ambience(TOD.night, !GAME.paused);
   autosaveTick(rdt);   // every few minutes, as Settings says (settings.js)
   slowCheck(rdt);
-  shadowsDraw();   // everyone's shadow in one draw (people.js)
+  shadowsDraw(); crowdDraw(); townMerge();   // everyone's shadow in one draw (people.js), everyone in one more (crowd.js), the town's still pieces one per material (kit.js)
   // On Light the sun's shadows are drawn again every third frame rather than every frame: the sun moves slowly, and
   // it halves what a phone draws. A building being dragged redraws them every frame.
   if (QUALITY.level === 'light') { renderer.shadowMap.autoUpdate = false; if (++shadowTick % 3 === 0 || BUILD.drag || !sun.shadow.map) renderer.shadowMap.needsUpdate = true; }   // no map yet (just switched): draw it now
@@ -464,7 +464,7 @@ function dressScene(rdt, gdt) {
     v.mat.color.setRGB(Math.min(1, r), Math.min(1, g), Math.min(1, bl));
   }
   // cloud puffs drift
-  for (const s of scene.children) if (s.isSprite && s.userData.r) { s.userData.ang += rdt * 0.004; s.position.x = Math.cos(s.userData.ang) * s.userData.r; s.position.z = Math.sin(s.userData.ang) * s.userData.r * 0.85 + 2; }
+  if (worldMats.puff) worldMats.puff.uniforms.uDrift.value += rdt * 0.004;   // one mesh, drifting in its shader (world.js)
   if (DECOR.sundial) DECOR.sundial.children[DECOR.sundial.children.length - 1].rotation.y += rdt * 0.6;
 }
 
@@ -522,14 +522,32 @@ async function boot() {
   const straightIn = (go === 'new' && !save) || (go === 'continue' && !!save);
   if (!straightIn) titleShow(save);
   // the first picture compiles every shader the claim uses: done here, behind the loading screen, not on the title
-  await breathe(); loadStep(0.86, 'Lighting the lamps…'); await breathe();
-  try { applyTimeOfDay(TITLE.on ? titleFrame(0) : GAME.t, 0); if (composer) composer.render(); else renderer.render(scene, camera); } catch (e) { console.warn(e); }
+  await breathe(); loadStep(0.82, 'Airing out the Keep…'); await breathe();
+  warmViews();
+  await breathe(); loadStep(0.9, 'Lighting the lamps…'); await breathe();
+  try { applyTimeOfDay(TITLE.on ? titleFrame(0) : GAME.t, 0); crowdDraw(); if (composer) composer.render(); else renderer.render(scene, camera); } catch (e) { console.warn(e); }
   renderer.setAnimationLoop(frame);
   await breathe();
   loadDone();
   if (straightIn) begin(go === 'new');
   addEventListener('visibilitychange', () => { if (document.hidden && started) saveGame(); });
   addEventListener('pagehide', () => { if (started) saveGame(); });
+}
+// The Keep and the mine are drawn once behind the loading screen, so their shaders, textures and meshes are ready on
+// the card before anyone looks in (the first look into the Keep used to stall for its shaders). Nothing moves.
+function warmViews() {
+  const mode = VIEW.mode, p = camera.position.clone(), t = controls.target.clone();
+  try {
+    buildInterior(); VIEW.mode = 'keep'; frameKeep(true); updateInterior(0, 0); keepLookUpdate(0, 0);
+    drawOnly();
+  } catch (e) { console.warn(e); }
+  VIEW.mode = mode;
+  try {
+    const F = digFrame(), dt = new THREE.Vector3(), dp = new THREE.Vector3(); digCamPose(F.x, F.y, F.d, dt, dp);
+    camera.position.copy(dp); camera.lookAt(dt); camera.updateMatrixWorld();
+    drawOnly();
+  } catch (e) { console.warn(e); }
+  camera.position.copy(p); controls.target.copy(t); camera.lookAt(t); camera.updateMatrixWorld();
 }
 // Into the claim. fresh: a new claim (the open slot is empty; the title's showcase comes down and the starting kit
 // goes back in the tray), straight into laying it out, with the first look at how it works for a new player.
@@ -571,7 +589,7 @@ function simulate(seconds, step = 0.1) {
 // test hook: skip to a time of day (0 = first light, 0.6 dusk, 0.69 night, 0.96 dawn), running everything on the way
 function skipTo(t, step = 0.25) { let guard = 0; while (Math.abs(GAME.t - t) > step / DAY_LEN * 1.5 && guard++ < 20000) simulate(step, step); }
 // test hook: draw one frame as the game does (through the post-processing, if any), without moving anything
-function drawOnly() { shadowsDraw(); const inK = VIEW.mode === 'keep', S = inK ? KSCENE : scene, C = inK ? kcam : camera; if (renderPass) { renderPass.scene = S; renderPass.camera = C; } if (composer) composer.render(); else renderer.render(S, C); }
+function drawOnly() { shadowsDraw(); crowdDraw(); townMerge(); const inK = VIEW.mode === 'keep', S = inK ? KSCENE : scene, C = inK ? kcam : camera; if (renderPass) { renderPass.scene = S; renderPass.camera = C; } if (composer) composer.render(); else renderer.render(S, C); }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
 window.__bv = { DIG, CAGE, ROOMK, digQuick, digSetHead, digTick, recruit: recruitArrives, digOrder, digUpgrade, digCancel, digWhyNot, digDiggable, digIncident, digMerge, digSave, digFrame, DIGCAM, roomAt, digAt, digAutoCrew, DLOOK, GLOW, pickDig,
   JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies,
@@ -583,6 +601,6 @@ Object.assign(window.__bv, { BENCH_T: { benchSalvage, benchOverhaul, benchRetune
 // the front door, saves, settings, tips and toasts, for tests (title.js, saves.js, settings.js, hints.js, ui.js)
 Object.assign(window.__bv, { TITLE, titleShow, titleHide, toTitle, SLOTS, slotRead, slotWrite, slotClear, slotSummary, slotName, exportCode, importCode, codeWhy, reloadInto,
   SETTINGS, setSpeed, applyLookSettings, HINTS, hintShow, hintClose, hintsReset, TOASTS, toast, bedsUsed, guestCount, openMenu, closeMenu, openExport, openImport, openClaims, openAbout,
-  newClaimAsk, introShow, introClose, sheetClose, LOADING, frontOpen, drawOnly, frame });
+  newClaimAsk, introShow, introClose, sheetClose, LOADING, frontOpen, drawOnly, frame, QUALITY, applyQuality, CROWD, crowdDraw, TMERGE, townMerge });
 Object.defineProperty(window.__bv, 'started', { get: () => started });
 boot().catch(e => { console.error(e); clearInterval(LOADING.t); $('#ld-line').textContent = 'The claim could not be built: ' + e.message + '. Try opening the page again.'; $('#loading').classList.add('failed'); });

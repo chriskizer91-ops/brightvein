@@ -24,6 +24,21 @@ with sync_playwright() as p:
       B.exitBuild(); B.simulate(240, 0.1);
       return { day: B.GAME.day, people: B.GAME.villagers.length, shards: Math.round(B.GAME.shards), nights: B.GAME.nights, buildings: Object.keys(B.TOWN.b).length }; })()''')
     check('a day and a night on the claim', r['day'] >= 2 and r['nights'] >= 1, json.dumps(r))
+    # drawing: everyone on the claim in one draw (crowd.js), the town's still pieces merged across its buildings
+    # (townMerge in kit.js), and a tap on a building still finds it
+    r = pg.evaluate('''(() => { const B = __bv, out = {}; B.UI.close(); while (B.STORY.shown) B.talkNext(); B.setView('town'); if (B.VIEW.tween) B.VIEW.tween.t = 0.999; B.frame();
+      out.shown = B.GAME.villagers.filter(v => v.sprite.visible && v.sprite.parent).length; out.drawn = B.CROWD.meshes[0].geometry.instanceCount;
+      out.layered = B.GAME.villagers.every(v => v.crowd == null || v.sprite.layers.mask === 8);
+      out.merged = B.TMERGE.meshes.length; out.keepOwn = B.TOWN.b.keep.merged.every(m => m.layers.mask === 16);
+      const K = B.TOWN.b.keep, cv = document.getElementById('view'); B.camera.updateMatrixWorld(); B.controls.enabled = false;   // a made-up tap has no real pointer for the camera's controls to hold
+      for (const y of [8, 6, 4, 10]) {
+        const p = K.worldPos(0, y, 0).project(B.camera), x = (p.x + 1) / 2 * innerWidth, yy = (1 - p.y) / 2 * innerHeight;
+        cv.dispatchEvent(new PointerEvent('pointerdown', { clientX: x, clientY: yy, bubbles: true })); cv.dispatchEvent(new PointerEvent('pointerup', { clientX: x, clientY: yy, bubbles: true }));
+        out.picked = !!(B.UI.cur && B.UI.cur.kind === 'building' && B.UI.cur.ref === K); if (out.picked) break;
+      }
+      B.UI.close(); B.controls.enabled = true;
+      return out; })()''')
+    check("everyone drawn in one go, the town's pieces merged, and a tap still finds the Keep", r['shown'] > 0 and r['drawn'] == r['shown'] and r['layered'] and r['merged'] >= 8 and r['keepOwn'] and r['picked'], json.dumps(r))
 
     # Odile's bench and the modules: salvage gives materials, an overhaul raises damage, a cell fits, and a module
     # fitted to a sunning yard raises its charge rate (bench.js, fittings.js)
@@ -67,6 +82,7 @@ with sync_playwright() as p:
       const code = await B.exportCode(); out.len = code.length; out.head = code.slice(0, 5);
       const raw = localStorage.getItem('brightvein-keep-v1');   // the export saves the claim first: this is what it carried
       const back = await B.importCode(code); out.same = JSON.stringify(back) === raw;
+      out.fields = ['t', 'ore', 'shards', 'food', 'nights', 'nextId', 'day'].filter(k => typeof back[k] !== 'number');   // every number the claim runs on is in it
       const bad = code.slice(0, 60) + (code[60] === 'A' ? 'B' : 'A') + code.slice(61);
       try { await B.importCode(bad); out.bad = 'accepted'; } catch (e) { out.bad = B.codeWhy(e); }
       try { await B.importCode('hello there'); out.junk = 'accepted'; } catch (e) { out.junk = B.codeWhy(e); }
@@ -75,7 +91,7 @@ with sync_playwright() as p:
       B.GAME.day += 1; B.saveGame(); out.one = B.slotRead(1).day; out.two = B.slotRead(2).day; out.active = B.SLOTS.active;
       out.sum2 = B.slotSummary(2); B.GAME.day -= 1; B.saveGame(); B.slotClear(2); out.cleared = !B.slotRead(2) && !!B.slotRead(1);
       return out; })()''')
-    check('an exported code imports to the same claim', r['same'] and r['head'].startswith('BV1'), json.dumps({k: r[k] for k in ('len', 'head', 'same')}))
+    check('an exported code imports to the same claim, with all its numbers', r['same'] and r['head'].startswith('BV1') and not r['fields'], json.dumps({k: r[k] for k in ('len', 'head', 'same', 'fields')}))
     check('a broken code is refused, with a plain reason', 'broken' in r['bad'] and 'Brightvein code' in r['junk'] and 'broken' in r['cut'], json.dumps({k: r[k] for k in ('bad', 'junk', 'cut')}))
     check('the three claims are kept apart', r['active'] == 1 and r['two'] == r['one'] + 39 and r['cleared'], json.dumps(r))
 
@@ -210,7 +226,9 @@ with sync_playwright() as p:
       }
       B.UI.close();
       for (let i = 0; i < 150 && B.GAME.villagers.some(v => v.d.study && v.where !== 'study'); i++) B.simulate(1, 0.1);
-      B.keepTick(25, 0.1);
+      // someone already resting indoors walks to their seat rather than appearing in it: the top floor is three flights up
+      for (let i = 0; i < 12 && B.GAME.villagers.some(v => v.d.study && !(v.kin && v.kin.at)); i++) B.keepTick(10, 0.1);
+      out.late = B.GAME.villagers.filter(v => v.d.study && !(v.kin && v.kin.at)).map(v => [v.d.name, v.where, v.plan.map(s => s.type).join(','), v.kin ? v.kin.path.length : -1]);
       for (let i = 0; i < 5; i++) {
         const R = B.KEEPV.rooms[i], st = B.roomStudents(i);
         out.rooms[kinds[i]] = { kind: R && R.kind, spots: B.KEEPV.spots.filter(s => s.room === i && s.use === 'student').length, n: st.length,
@@ -221,7 +239,7 @@ with sync_playwright() as p:
       B.simulate(5, 0.1);
       return out; })()''')
     check('each study can be furnished from its panel, and is fitted out', r['sign'] and r['fit'] and all(v['kind'] == k and v['spots'] >= 4 for k, v in r['rooms'].items()), json.dumps(r))
-    check('students walk in and are shown at work in their study', all(v['n'] >= 1 and v['at'] == v['n'] for v in r['rooms'].values()), json.dumps(r['rooms']))
+    check('students walk in and are shown at work in their study', all(v['n'] >= 1 and v['at'] == v['n'] for v in r['rooms'].values()), json.dumps(r['rooms']) + ' late: ' + json.dumps(r['late']))
     # nights: a Bright Night brings a boss with a health bar, and it can be brought down; dawn brings the report
     r = pg.evaluate('''(() => { const B = __bv, out = {};
       B.NIGHT.grudge = null; B.GAME.nights = 4; B.forceWeather('clear', 'clear');
@@ -310,6 +328,8 @@ with sync_playwright() as p:
     # last pays off (Torvald's: a Masterwork from his forge)
     r = pg.evaluate('''(() => { const B = __bv, out = {};
       B.castArrive(['brann']); const v = B.GAME.villagers.find(x => x.d.hero === 'brann'); v.d.arrived = B.GAME.day - 5;
+      B.keepAssign(); const bedOf = p => B.KEEPV.beds.some(b => b.owner === p), folk = B.GAME.villagers.filter(p => !p.d.exp);
+      out.beds = !(folk.some(p => p.d.hero && bedOf(p)) && folk.some(p => !p.d.hero && !bedOf(p))); out.bedsN = B.KEEPV.beds.length + ' beds, ' + B.bedsUsed() + ' settlers, ' + B.guestCount() + ' guests';
       if (!B.STORY.done.includes('wickmoor')) B.STORY.done.push('wickmoor');
       delete B.QST.brann; out.ready = B.questReady('brann'); B.QST.brann = { state: 'offer', step: 0, day: B.GAME.day };
       B.UI.open('building', B.TOWN.b.keep); out.atKeep = !!document.querySelector('#panel-body .qoffer'); B.UI.close();
@@ -322,6 +342,7 @@ with sync_playwright() as p:
       B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1')).story;
       out.saved = s.ch === 9 && s.quests.brann.state === 'done' && s.events.log.length >= 2 && typeof s.mood.v === 'number' && 'nights' in s.act.tally;
       return out; })()''')
+    check("guests don't take a settler's bunk in the Keep", r['beds'], r['bedsN'])
     check("a cast member's story: a step completes, and the last pays off", r['ready'] and r['atKeep'] and r['on'] == 'on' and r['step1'] == 1 and r['gave'] and r['state'] == 'done' and r['mw'] == 'Pike’s Answer' and r['journal'], json.dumps(r))
     check('act two, the stories, the days and the mood are saved', r['saved'], json.dumps(r))
     # a claim saved before the dig, with the deep seam open: its miners keep their places in the matching rooms
@@ -339,6 +360,12 @@ with sync_playwright() as p:
       out.title = B.TITLE.on && !document.getElementById('front').hidden && !c.hidden; out.meta = c.textContent; out.day = s.day;
       out.before = B.started; c.click(); out.after = B.started; out.gone = document.getElementById('front').hidden; out.gameDay = B.GAME.day; out.people = B.GAME.villagers.length; out.saved = s.people.length;
       return out; })()''')
+    r2 = pg.evaluate('''(() => { const B = __bv, s = B.loadSave(), R = B.renderer, out = {};
+      out.fields = ['t', 'ore', 'shards', 'food', 'nights', 'nextId'].filter(k => typeof s[k] !== 'number'); out.nights = B.GAME.nights === s.nights;
+      const p0 = R.info.programs.length, t0 = performance.now(); B.setView('keep'); B.frame(); out.newPrograms = R.info.programs.length - p0; out.ms = Math.round(performance.now() - t0);
+      B.setView('town'); return out; })()''')
+    check("Continue brings back the claim's numbers (time, ore, shards, food, nights)", not r2['fields'] and r2['nights'], json.dumps(r2))
+    check('the Keep was made ready behind the loading screen: no new shaders on the first look in', r2['newPrograms'] <= 2, json.dumps(r2))
     check('the title screen offers the saved claim, and Continue opens it', r['title'] and f"Day {r['day']}" in r['meta'] and 'people' in r['meta'] and not r['before'] and r['after'] and r['gone'] and r['gameDay'] == r['day'] and r['people'] == r['saved'], json.dumps(r))
     r = pg.evaluate('''(() => { const B = __bv; const job = n => { const v = B.GAME.villagers.find(v => v.d.name === n); return v && v.d.job && v.d.job.bid; };
       return { rooms: B.DIG.rooms.map(R => R.id + ' ' + R.kind + ' ' + R.w), upper: job('Upper Test'), lower: job('Lower Test') }; })()''')

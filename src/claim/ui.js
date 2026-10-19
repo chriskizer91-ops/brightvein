@@ -143,7 +143,7 @@ const UI = {
     if (b.type === 'garden') { const net = (GAME.rates && GAME.rates.food || 0) * 60; chips.push(`<span class="chip ${net < 0 ? 'warn' : 'good'}">Claim food ${net >= 0 ? '+' : ''}${net.toFixed(1)} a minute</span>`); }
     if (b.type === 'keep') {
       const n = bedsOf(b), used = bedsUsed(), free = n - used, guests = GAME.villagers.length - used;
-      chips.push(`<span class="chip">${used} of ${n} beds taken</span>`); if (guests) chips.push(`<span class="chip" title="The cast sleep aboard their ships, so they don't take beds">${guests} guest${guests > 1 ? 's' : ''} aboard</span>`);
+      chips.push(`<span class="chip">${used} of ${n} beds taken</span>`); if (guests) chips.push(`<span class="chip" title="The cast are the claim’s guests: they never take a settler’s bed">+${guests} guest${guests > 1 ? 's' : ''}</span>`);
       chips.push(`<span class="chip ${free > 0 ? 'amber' : 'warn'}">${free > 0 ? `Next settler ${Math.round(GAME.recruit * 100)}% of the way` : 'No free beds: raise the Keep'}</span>`);
       chips.push(`<span class="chip">${expOut().length} of ${expLimit()} out in the wilds</span>`);
     }
@@ -249,7 +249,7 @@ const UI = {
     if (typeof key !== 'number') {
       const F = ROOM_FIXED[key];
       body.append(this.h(`<h2>${esc(F.name)}</h2><p>${esc(F.blurb)}</p>`));
-      if (key === 'dorm') body.append(this.h(`<div class="stats-row"><span class="chip">${bedsUsed()} of ${totalBeds()} beds taken</span>${guestCount() ? `<span class="chip">The cast sleep aboard their ships</span>` : ''}</div>`));
+      if (key === 'dorm') body.append(this.h(`<div class="stats-row"><span class="chip">${bedsUsed()} of ${totalBeds()} beds taken</span>${guestCount() ? `<span class="chip">+${guestCount()} guest${guestCount() > 1 ? 's' : ''}, on spare bunks or by the fire</span>` : ''}</div>`));
       const here = keepHere(key);   // who is in this room now (keeplife.js)
       if (here.length && key !== 'lookout') { body.append(this.h(`<h3>Here now</h3>`)); const box = document.createElement('div'); box.className = 'workers'; for (const v of here) { const el = document.createElement('button'); el.type = 'button'; el.className = 'wslot'; el.append(miniSprite(v)); el.append(this.h(`<b>${esc(v.d.name.split(' ')[0])}</b>`)); el.onclick = () => UI.open('villager', v); box.append(el); } body.append(box); }
       return;
@@ -477,7 +477,7 @@ const UI = {
   roster(body) {
     const n = GAME.villagers.length, idle = GAME.villagers.filter(v => !v.d.job && !v.d.exp).length, out = expOut();
     const gs = guestCount();
-    body.append(this.h(`<h2>The crew</h2><p class="sub">${n} people · ${bedsUsed()} of ${totalBeds()} beds taken${gs ? ` · ${gs} guest${gs > 1 ? 's' : ''} aboard their ships` : ''} · ${idle ? idle + ' without work' : 'everyone busy'}</p>`));
+    body.append(this.h(`<h2>The crew</h2><p class="sub">${n} people · ${bedsUsed()} of ${totalBeds()} beds taken${gs ? ` · ${gs} guest${gs > 1 ? 's' : ''}` : ''} · ${idle ? idle + ' without work' : 'everyone busy'}</p>`));
     const tabs = this.h(`<div class="tabs" role="group" aria-label="Show"><button type="button" data-t="crew">Crew</button><button type="button" data-t="wilds">Wilds · ${out.length}/${expLimit()}</button><button type="button" data-t="stash">Stash · ${GAME.stash.length}</button></div>`);
     for (const bt of tabs.querySelectorAll('button')) { bt.setAttribute('aria-pressed', bt.dataset.t === this.tab); bt.onclick = () => { this.tab = bt.dataset.t; this.refresh(); }; }
     body.append(tabs);
@@ -586,13 +586,13 @@ function updateHUD(dt) {
   hudT -= dt; if (hudT > 0) return; hudT = 0.25;
   const set = (id, v) => { const el = $(id + ' b'); if (el.textContent !== v) el.textContent = v; };
   set('#r-ore', fmtHud(GAME.ore)); set('#r-shards', fmtHud(GAME.shards)); set('#r-food', fmtHud(GAME.food));
-  // settlers in the Keep's beds; the cast are guests who sleep aboard, counted on their own
+  // settlers in the Keep's beds; the cast are guests, counted on their own
   const settlers = bedsUsed(), guests = GAME.villagers.length - settlers, pop = $('#r-pop');
   set('#r-pop', settlers + '/' + totalBeds());
   const gk = guests ? '+' + guests : '';
   if (pop.dataset.guests !== gk) {
     let g = pop.querySelector('.gst'); if (!g) { g = document.createElement('i'); g.className = 'gst'; pop.querySelector('b').after(g); }
-    g.textContent = gk; pop.dataset.guests = gk; pop.title = `${settlers} settlers in the Keep’s ${totalBeds()} beds${guests ? `, and ${guests} guest${guests > 1 ? 's' : ''} of the claim (the cast sleep aboard their ships)` : ''}.`; }
+    g.textContent = gk; pop.dataset.guests = gk; pop.title = `${settlers} settlers in the Keep’s ${totalBeds()} beds${guests ? `, and ${guests} guest${guests > 1 ? 's' : ''}: the cast never take a settler’s bed` : ''}.`; }
   const out = expOut().length, eb = $('#exp-badge'); if (eb.textContent !== (out ? String(out) : '')) eb.textContent = out ? String(out) : ''; eb.hidden = !out;
   $('#r-food').classList.toggle('low', GAME.food < 5);
   $('#r-shards').classList.toggle('low', GAME.shards < 10 && TOD.night > 0.3);

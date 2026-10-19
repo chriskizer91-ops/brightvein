@@ -10,10 +10,15 @@ function toast(html, kind = '') {
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const fmt = n => n >= 100 ? Math.floor(n).toString() : n >= 10 ? Math.floor(n).toString() : (Math.floor(n * 10) / 10).toString();
 const SHARD = '<svg viewBox="0 0 20 20" width="13" height="13" style="vertical-align:-2px"><path d="M10 1.5 15.5 9 10 18.5 4.5 9z" fill="#ffb347" stroke="#5a2a10" stroke-width="1.4"/></svg>';
-// a small canvas with one frame of a villager's sheet
+// a small canvas with one frame of a villager's sheet. It is drawn at the screen's own resolution: in whole-pixel
+// steps when there is room for at least two screen pixels per sprite pixel, otherwise smoothly scaled down, so
+// small sizes keep their eyes and hands instead of dropping rows of pixels.
 function miniSprite(v, w = 36, h = 48, col = 0, row = 0) {
-  const c = document.createElement('canvas'); c.width = PX.FW; c.height = PX.FH; c.style.width = w + 'px'; c.style.height = h + 'px';
-  c.getContext('2d').drawImage(v.canvas, col * PX.FW, row * PX.FH, PX.FW, PX.FH, 0, 0, PX.FW, PX.FH);
+  const dpr = Math.min(3, window.devicePixelRatio || 1), cw = Math.round(w * dpr), ch = Math.round(h * dpr);
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch; c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d'), k = Math.min(cw / PX.FW, ch / PX.FH), sx = col * PX.FW, sy = row * PX.FH;
+  if (k >= 2) { const s = Math.floor(k), dw = PX.FW * s, dh = PX.FH * s; ctx.imageSmoothingEnabled = false; ctx.drawImage(v.canvas, sx, sy, PX.FW, PX.FH, Math.round((cw - dw) / 2), ch - dh, dw, dh); }
+  else { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(v.canvas, sx, sy, PX.FW, PX.FH, 0, 0, cw, ch); }
   return c;
 }
 const SHORT_STAT = { G: 'Grit', E: 'Eng', A: 'Agility', R: 'Rapport', S: 'Sowing' };

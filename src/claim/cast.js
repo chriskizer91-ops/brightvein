@@ -54,7 +54,7 @@ const HERO_LOOKS = {
     cape: { col: '#2c3556', trim: '#c9a046', len: 11, flare: 2, hem: 'tattered', open: true, openW: 1 },
     cuffs: '#c9a046',
     pants: '#6b4a32', boots: '#4a3022',
-    pet: 'crow', tool: 'glass',
+    pet: 'crow', straps: '#4a3022', strapBags: '#6a4a30', tool: 'glass',
     glasses: false, scarf: null, satchel: false,
   },
   brann: {
@@ -98,7 +98,7 @@ const HERO_LOOKS = {
     shirt: '#241c24', neck: 'off', sleeves: 'short',
     over: 'corset', overCol: '#2a4aa6', pendant: '#5ac0f0',
     belt: '#4a3226', pouches: '#3e2c24',
-    pants: '#2c2430', legPattern: 'lace', boots: '#3a2a24', bootsTall: true,
+    pants: '#2c2430', legPattern: 'lace', boots: '#3a2a24', bootsTall: true, socks: '#e2ddd2',
     tool: 'dagger', blade: '#d8dce4',
     beard: false, scarf: null, satchel: false,
   },

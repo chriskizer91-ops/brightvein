@@ -49,38 +49,10 @@ if __name__ == '__main__' and '--portraits' in sys.argv:
 
 from playwright.sync_api import sync_playwright
 
-#   python3 test/cast.py --same [git-ref]
-# Checks that ordinary villagers still look exactly as they did: draws 300 random villagers and every hat, hair,
-# clothes and tool with pixel.js from git-ref (default main) and with the current one, and compares every pixel.
-if __name__ == '__main__' and '--same' in sys.argv:
-    import subprocess
-    i = sys.argv.index('--same'); gref = sys.argv[i + 1] if len(sys.argv) > i + 1 else 'main'
-    old = subprocess.run(['git', 'show', gref + ':src/claim/pixel.js'], cwd=ROOT, capture_output=True, text=True, check=True).stdout
-    with open(os.path.join(ROOT, 'src/claim/pixel.js'), encoding='utf8') as h: new = h.read()
-    with open(os.path.join(ROOT, 'src/claim/core.js'), encoding='utf8') as h: mul = next(l for l in h.read().splitlines() if l.startswith('function mulberry'))
-    with sync_playwright() as p:
-        b = p.chromium.launch(); pg = b.new_page()
-        r = pg.evaluate('''([oldSrc, newSrc, mul]) => {
-          const load = src => new Function(mul + '\\n' + src + '\\nreturn { drawVillagerFrame, randomLook, mulberry };')();
-          const A = load(oldSrc), B = load(newSrc), looks = [];
-          for (let s = 1; s <= 300; s++) looks.push(A.randomLook(A.mulberry(s), { gnome: s % 7 === 0 }));
-          const tools = ['pick', 'hammer', 'can', 'crystal', 'book', 'glass', 'lance', 'rope', 'wrench'];
-          let k = 0;
-          for (const hat of [null, 'cap', 'goggles', 'brim', 'flatcap', 'bandana', 'gnome', 'hood']) for (const hairStyle of ['crop', 'bob', 'long', 'bun', 'ponytail', 'curly', 'braids', 'bald']) for (const over of ['vest', 'apron', 'coat', 'overalls', 'none']) {
-            looks.push({ ...A.randomLook(A.mulberry(1000 + k), { hat, hairStyle, over }), tool: tools[k % 9], scarf: k % 3 ? null : '#9a4430', satchel: k % 4 === 0, glasses: k % 5 === 0, beard: k % 2 === 0, gnome: k % 11 === 0 }); k++;
-          }
-          let frames = 0, differ = 0;
-          for (const L of looks) for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) {
-            const a = A.drawVillagerFrame(L, r, c).p, b = B.drawVillagerFrame(L, r, c).p; frames++;
-            if (a.some((v, i) => String(v) !== String(b[i]))) differ++;
-          }
-          return { looks: looks.length, frames, differ };
-        }''', [old, new, mul])
-        b.close()
-    print(f"{r['looks']} villagers, {r['frames']} frames: " + ('all the same as ' + gref if not r['differ'] else f"{r['differ']} frames differ from {gref}"))
-    sys.exit(1 if r['differ'] else 0)
+# (To check every villager option draws, and to compare with the old people: python3 test/people.py --check, and
+# test/people.py's pictures.)
 
-out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'shots', 'cast-review.png')
+out =sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'shots', 'cast-review.png')
 os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
 only = sys.argv[2:]
 stem = out[:-4] if out.endswith('.png') else out
@@ -132,8 +104,8 @@ JS = r'''async ([IMGS, REFS, ONLY]) => {
   const grass = (ctx, w, h) => { ctx.fillStyle = GRASS; ctx.fillRect(0, 0, w, h); ctx.fillStyle = GRASS2; for (let y = 0; y < h; y += 8) for (let x = (y / 8 % 2) * 8; x < w; x += 16) ctx.fillRect(x, y, 8, 8); };
   const label = (ctx, t, x, y, size = 18) => { ctx.font = `bold ${size}px monospace`; ctx.fillStyle = INKC; ctx.fillText(t, x + 1, y + 1); ctx.fillStyle = PAPER; ctx.fillText(t, x, y); };
 
-  // ---- review: sheet at 4x | references | portrait at 3x
-  const S = 4, SW = PX.FW * PX.COLS * S, SH = PX.FH * PX.ROWS * S, PAD = 16, ROWH = SH + 40;
+  // ---- review: sheet at 2x | references | portrait at 3x
+  const S = Math.max(1, Math.round(96 / PX.FW)), SW = PX.FW * PX.COLS * S, SH = PX.FH * PX.ROWS * S, PAD = 16, ROWH = SH + 40;
   const refW = id => (REFS[id] || []).reduce((w, [f, box]) => { const p = pics[f]; if (!p) return w; const bw = box ? box[2] : p.width, bh = box ? box[3] : p.height; return w + Math.round(bw * SH / bh) + PAD; }, 0);
   const W = Math.max(400, ...ids.map(id => SW + PAD * 3 + refW(id) + 112 * 3)) + PAD;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = ROWH * ids.length + PAD;
@@ -156,25 +128,26 @@ JS = r'''async ([IMGS, REFS, ONLY]) => {
   });
   const review = cv.toDataURL('image/png');
 
-  // ---- lineup: villagers then the cast, at 1x and 2x (front stand, side step, back), and every sheet at 1x
+  // ---- lineup: villagers then the cast, at 1x and 2x (front stand, side walk, back, work), and as the game shows them
   const all = [...vill.map((s, i) => ['villager ' + (i + 1), s]), ...ids.map(id => [id, sheets[id]])];
-  const frames = [[0, 0], [2, 1], [1, 0], [0, 3]];
-  const lw = Math.max(all.length * (PX.FW * PX.COLS + 8) + 16, all.length * frames.length * PX.FW * 2 + 16, 800);
-  const lc = document.createElement('canvas'); lc.width = lw; lc.height = 470;
+  const frames = [[0, PX.STAND], [2, PX.WALK], [1, PX.STAND], [0, PX.WORK + 1]], half = Math.ceil(all.length / 2);
+  const per1 = frames.length * PX.FW + 8, lw = Math.max(half * per1 + 16, half * (PX.FW * 2 + 6) + 16, 800);
+  const lc = document.createElement('canvas'); lc.width = lw; lc.height = 40 + 2 * (PX.FH + 8) + 30 + 2 * (PX.FH * 2 + 8) + 30 + 2 * 60 + 30 + 2 * 44;
   const lx = lc.getContext('2d'); lx.imageSmoothingEnabled = false; grass(lx, lw, lc.height);
-  label(lx, 'every sheet at 1x', 8, 18, 14);
-  all.forEach(([, s], i) => lx.drawImage(s, 8 + i * (PX.FW * PX.COLS + 8), 26));
-  for (const [sc, y0, t] of [[1, 150, '1x: front, side step, back, work'], [2, 230, '2x']]) {
-    label(lx, t, 8, y0 - 6, 14);
-    let x = 8;
-    all.forEach(([, s]) => { for (const [r, c] of frames) { lx.drawImage(s, c * PX.FW, r * PX.FH, PX.FW, PX.FH, x, y0, PX.FW * sc, PX.FH * sc); x += PX.FW * sc; } x += sc === 1 ? 6 : 4; });
-  }
-  // as the game shows them: a 2 m sprite about 48 px tall on screen, smoothly filtered (mipmaps)
-  label(lx, 'smooth, about 48 px tall (in game)', 8, 316, 14);
+  let y = 22;
+  label(lx, '1x: front, side walk, back, work', 8, y - 6, 14);
+  all.forEach(([, s], i) => { let x = 8 + (i % half) * per1; const yy = y + Math.floor(i / half) * (PX.FH + 8); for (const [r, c] of frames) { lx.drawImage(s, c * PX.FW, r * PX.FH, PX.FW, PX.FH, x, yy, PX.FW, PX.FH); x += PX.FW; } });
+  y += 2 * (PX.FH + 8) + 22;
+  label(lx, '2x: front', 8, y - 6, 14);
+  all.forEach(([, s], i) => lx.drawImage(s, 0, 0, PX.FW, PX.FH, 8 + (i % half) * (PX.FW * 2 + 6), y + Math.floor(i / half) * (PX.FH * 2 + 8), PX.FW * 2, PX.FH * 2));
+  y += 2 * (PX.FH * 2 + 8) + 22;
+  // as the game shows them: a 2 m sprite about 56 or 40 px tall on screen, smoothly filtered (mipmaps)
   lx.imageSmoothingEnabled = true; lx.imageSmoothingQuality = 'high';
-  let x = 8; all.forEach(([, s]) => { lx.drawImage(s, 0, 0, PX.FW, PX.FH, x, 324, 36, 48); lx.drawImage(s, PX.FW, PX.FH * 2, PX.FW, PX.FH, x + 38, 324, 36, 48); x += 80; });
-  label(lx, 'smooth, about 32 px tall', 8, 400, 14);
-  x = 8; all.forEach(([, s]) => { lx.drawImage(s, 0, 0, PX.FW, PX.FH, x, 408, 24, 32); lx.drawImage(s, PX.FW, PX.FH * 2, PX.FW, PX.FH, x + 26, 408, 24, 32); x += 56; });
+  for (const [h, t] of [[56, 'smooth, about 56 px tall (in game, close)'], [40, 'smooth, about 40 px tall (in game)']]) {
+    label(lx, t, 8, y - 6, 14); const w = Math.round(h * 0.75);
+    all.forEach(([, s], i) => { const x = 8 + (i % half) * (w * 2 + 10), yy = y + Math.floor(i / half) * (h + 4); lx.drawImage(s, 0, 0, PX.FW, PX.FH, x, yy, w, h); lx.drawImage(s, PX.WALK * PX.FW, PX.FH * 2, PX.FW, PX.FH, x + w + 2, yy, w, h); });
+    y += 2 * (h + 4) + 22;
+  }
   return [review, lc.toDataURL('image/png')];
 }'''
 

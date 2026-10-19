@@ -161,7 +161,7 @@ const _cf = new THREE.Vector3(), _tmp = new THREE.Vector3();
 class Villager {
   constructor(d) {
     this.d = d;
-    this.canvas = drawVillagerSheet({ ...d.look, tool: this.tool() });
+    this.canvas = drawVillagerSheet(this.look());
     this.tex = new THREE.CanvasTexture(this.canvas); this.tex.colorSpace = THREE.SRGBColorSpace;
     this.tex.magFilter = THREE.NearestFilter; this.tex.minFilter = THREE.LinearMipmapLinearFilter;
     this.mat = new THREE.SpriteMaterial({ map: this.tex, alphaTest: 0.5, fog: true, toneMapped: false });
@@ -171,10 +171,23 @@ class Villager {
     this.shadow = new THREE.Mesh(shadowGeo, shadowMat); this.shadow.renderOrder = 1; scene.add(this.shadow);
     this.pos = new THREE.Vector3(); this.face = new THREE.Vector2(0, 1); this.vel = new THREE.Vector2();
     this.plan = []; this.where = 'surface'; this.hidden = false; this.working = false; this.anim = Math.random() * 10; this.moving = false; this.replan = true;
-    this.row = 0; this.col = 0; this.mirror = false; this.light = 1;
+    this.row = -1; this.col = 0; this.mirror = false; this.light = 1;
   }
-  tool() { const j = this.d.job; if (!j) return 'hammer'; const b = TOWN.b[j.bid]; return b ? JOB_TOOL[b.type] : (j.bid === 'wall' ? 'lance' : 'hammer'); }
-  redraw() { drawVillagerSheet({ ...this.d.look, tool: this.tool() }, this.canvas); this.tex.needsUpdate = true; }
+  // what they work with: the job's tool, or the item in their hand when it is made for this job; the watch
+  // fights with whatever weapon they carry
+  tool() {
+    const j = this.d.job; if (!j) return 'hammer';
+    const b = TOWN.b[j.bid], type = b ? b.type : j.bid, it = this.d.gear && this.d.gear.hand;
+    if (it) {
+      const { base } = itemBase(it), jobs = (base && base.jobs) || [];
+      if (type === 'wall' && itemWeapon(it)) return it.kind;
+      if (jobs.includes(type) || (type === 'keep' && jobs.includes('hall'))) return it.kind;
+    }
+    return b ? JOB_TOOL[b.type] : (j.bid === 'wall' ? 'lance' : 'hammer');
+  }
+  // the look to draw: their own, with the tool they work with and the weapon they carry
+  look() { const g = gearOf(this); return { ...this.d.look, tool: this.tool(), weapon: g.weapon ? g.weapon.kind : null }; }
+  redraw() { drawVillagerSheet(this.look(), this.canvas); this.tex.needsUpdate = true; }
   place(x, y, z) { this.pos.set(x, y, z); }
   get jobB() { const j = this.d.job; return j ? (j.bid === 'wall' ? WALLB : TOWN.b[j.bid]) : null; }
   eff() {
@@ -197,13 +210,16 @@ class Villager {
     let row = d > 0.45 ? 1 : d < -0.45 ? 0 : 2, mirror = row === 2 && right > 0;
     if (this.climbing) { row = 1; mirror = false; }
     this.anim += dt;
-    let col = 0;
-    if (this.moving) { const f = Math.floor(this.anim * (this.running ? 10 : 7)) % 4; col = [0, 1, 0, 2][f]; }
-    else if (this.working || this.fighting) { col = 3 + (Math.floor(this.anim * (this.fighting ? 4 : 2.2)) % 2); }
+    // walking runs through the four steps, work through its three beats; standing breathes, and blinks now and then
+    let col = PX.STAND;
+    if (this.moving) col = PX.WALK + Math.floor(this.anim * (this.running ? 11 : 7.5)) % 4;
+    else if (this.working || this.fighting) col = PX.WORK + Math.floor(this.anim * (this.fighting ? 6 : 3.2)) % 3;
+    else if (this.anim % 4.3 < 0.14) col = PX.IDLE + 1;
+    else if (Math.floor(this.anim / 1.4) & 1) col = PX.IDLE;
     if (row !== this.row || col !== this.col || mirror !== this.mirror) {
       this.row = row; this.col = col; this.mirror = mirror;
-      this.tex.repeat.set(mirror ? -1 / 5 : 1 / 5, 1 / 3);
-      this.tex.offset.set(mirror ? (col + 1) / 5 : col / 5, 1 - (row + 1) / 3);
+      this.tex.repeat.set(mirror ? -1 / PX.COLS : 1 / PX.COLS, 1 / PX.ROWS);
+      this.tex.offset.set(mirror ? (col + 1) / PX.COLS : col / PX.COLS, 1 - (row + 1) / PX.ROWS);
     }
   }
   update(dt) {

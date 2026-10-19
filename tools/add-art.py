@@ -44,7 +44,7 @@ def main():
             else: nh = round(w * th / tw); im = im.crop((0, (h - nh) // 2, w, (h - nh) // 2 + nh))
             im = im.resize((tw, th), Image.LANCZOS)
             name = os.path.splitext(os.path.basename(f))[0].lower().replace(' ', '-')
-            out = os.path.join(out_dir, name + '.webp'); im.save(out, 'WEBP', quality=86, method=6)
+            out = os.path.join(out_dir, name + '.webp'); im.save(out, 'WEBP', quality=74, method=6)
             print(f'{out}  {os.path.getsize(out) // 1024} KB'); continue
         im = Image.open(f).convert('RGBA')
         col = corners_flat(im)

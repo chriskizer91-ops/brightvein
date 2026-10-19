@@ -295,7 +295,7 @@ UI.building = function (body, b) {
   }
   return _uiBuilding.call(this, body, b);
 };
-const _qm = new THREE.Vector3();
+const _questMark = new THREE.Vector3();
 function questMarker() {
   const K = TOWN.b.keep, wait = questsWaiting();
   let el = document.getElementById('qmark');
@@ -304,10 +304,10 @@ function questMarker() {
   if (!el) { el = document.createElement('button'); el.type = 'button'; el.id = 'qmark'; el.className = 'qmark'; el.onclick = () => selectBuilding(TOWN.b.keep); $('#app').append(el); }
   const txt = `${castFirst(wait[0])} wants a word${wait.length > 1 ? ` (+${wait.length - 1})` : ''}`;
   if (el.textContent !== txt) el.textContent = txt;
-  _qm.copy(K.worldPos(0, 15, 0)).project(camera);
-  const vis = _qm.z < 1 && Math.abs(_qm.x) < 1.05 && Math.abs(_qm.y) < 1.05;
+  _questMark.copy(K.worldPos(0, 15, 0)).project(camera);
+  const vis = _questMark.z < 1 && Math.abs(_questMark.x) < 1.05 && Math.abs(_questMark.y) < 1.05;
   el.hidden = !vis;
-  if (vis) el.style.transform = `translate(${(_qm.x * 0.5 + 0.5) * innerWidth}px, ${(-_qm.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`;
+  if (vis) el.style.transform = `translate(${(_questMark.x * 0.5 + 0.5) * innerWidth}px, ${(-_questMark.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`;
 }
 
 // ---- saving

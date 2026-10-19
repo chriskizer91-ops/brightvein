@@ -25,7 +25,8 @@ with sync_playwright() as p:
     # the roll, so each has a portrait to match their sprite
     pg.wait_for_timeout(1500)
     r = pg.evaluate('''(async () => { const B = __bv, out = { ch0: B.STORY.ch, shown: !!B.STORY.shown };
-      for (let i = 0; i < 40 && B.STORY.ch === 0; i++) { while (B.STORY.shown) B.talkNext(); await new Promise(r => setTimeout(r, 700)); }
+      const until = Date.now() + 180000;  // by the clock, not a count of tries: a loaded machine draws few frames
+      while (Date.now() < until && B.STORY.ch === 0) { while (B.STORY.shown) B.talkNext(); await new Promise(r => setTimeout(r, 700)); }
       out.ch = B.STORY.ch; out.title = B.CHAPTERS[B.STORY.ch].title;
       out.rolled = B.GAME.villagers.filter(v => v.d.portrait).length; out.people = B.GAME.villagers.length;
       return out; })()''')

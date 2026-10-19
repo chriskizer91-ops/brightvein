@@ -28,7 +28,7 @@ class Jumper {
   hurt(d) {
     if (this.dead || this.phase === 'down') return;
     this.hp -= d; FX.sparks(this.pos.clone(), 8, 0xffa060, 3);
-    if (this.hp <= 0) { this.phase = 'down'; this.t = 0; this.downAt = this.root.position.clone(); AUDIO.play('crack'); jumperDowned(this); }
+    if (this.hp <= 0) { this.phase = 'down'; this.t = 0; this.downAt = this.root.position.clone(); AUDIO.play('jumperdown', this.root.position); jumperDowned(this); }
   }
   die() { if (this.phase !== 'down') { this.phase = 'flee'; this.t = 0; this.fleeFrom = this.root.position.clone(); } }
   update(dt) {
@@ -51,7 +51,7 @@ class Jumper {
         if (best && bd < 60) {
           const at = new THREE.Vector3(best.L.x + (Math.random() - 0.5) * 4, 0.6, best.L.z + (Math.random() - 0.5) * 3);
           for (let i = 0; i < 2; i++) fireBeam(P.clone().add(new THREE.Vector3(0, 0.5, 0)), at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2)), 0xff5a40, 0.8);
-          FX.sparks(at, 14, 0xffb050, 3); AUDIO.play('zap');
+          FX.sparks(at, 14, 0xffb050, 3); AUDIO.play('volley', P);
           const take = Math.min(Math.max(0, GAME.shards), best.type === 'yard' ? 7 : 3);
           GAME.shards -= take; this.stolen += take;
         }
@@ -91,7 +91,7 @@ function dockGuns(dt) {
   let best = null, bd = 75; for (const j of JUMP.list) { if (j.phase === 'down' || j.phase === 'in') continue; const d = j.pos.distanceTo(at); if (d < bd) { bd = d; best = j; } }
   if (!best) return;
   dockGunT = 2.2;
-  fireBeam(at, best.pos.clone(), 0xffd08a, 1.2); best.hurt(DOCK_GUN[s.recipe.id] || 16); AUDIO.play('thunk');
+  fireBeam(at, best.pos.clone(), 0xffd08a, 1.2); best.hurt(DOCK_GUN[s.recipe.id] || 16); AUDIO.play('cannon', at);
 }
 // every few days, by day, once Tallow knows the claim is there; not once the Chandlery is taken
 const jumpersActive = () => JUMP.list.some(j => !j.dead && j.phase !== 'down');
@@ -105,5 +105,5 @@ function jumpersTick(dt) {
   const kinds = STORY.ch <= 3 ? ['skiff'] : STORY.ch <= 5 ? ['skiff', 'skiff'] : ['cutter', 'skiff'];
   kinds.forEach((k, i) => { const j = new Jumper(k, i, kinds.length); JUMP.list.push(j); WL.list.push(j); });
   toast(`<b>Rust-red sails over the rim!</b> Tallow's jumpers have come for the yards. Turrets, the Lark and your ship will fire on them.`, 'night');
-  AUDIO.play('bell');
+  AUDIO.play('warhorn');
 }

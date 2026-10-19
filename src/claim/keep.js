@@ -58,8 +58,8 @@ function updateStudies(dt, away = false) {
 function announceStudy(ups) {
   for (const u of ups) {
     const first = esc(u.v.d.name.split(' ')[0]);
-    if (u.to >= STAT_MAX) { toast(`<b>${first}</b> has mastered ${STAT_NAMES[u.k]}: <b>${esc(STUDY[u.k].perk)}</b>. ${esc(STUDY[u.k].perkText)}.`); AUDIO.play('dawn'); }
-    else { toast(`<b>${first}</b>'s ${STAT_NAMES[u.k]} is now <b>${u.to}</b>.`); AUDIO.play('chime'); }
+    if (u.to >= STAT_MAX) { toast(`<b>${first}</b> has mastered ${STAT_NAMES[u.k]}: <b>${esc(STUDY[u.k].perk)}</b>. ${esc(STUDY[u.k].perkText)}.`); AUDIO.play('levelup'); }
+    else { toast(`<b>${first}</b>'s ${STAT_NAMES[u.k]} is now <b>${u.to}</b>.`); AUDIO.play('statup'); }
   }
   if (ups.length) UI.refresh();
 }

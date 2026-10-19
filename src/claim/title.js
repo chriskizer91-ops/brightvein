@@ -201,9 +201,9 @@ async function openExport() {
     <p class="small" id="ex-note"></p>
     <ol class="steps"><li>Send the code to yourself (a message or an email), or keep the file.</li><li>Open Brightvein on the other device, then <b>Claims › Load a claim from a code</b> on the title screen (or Settings › Saving).</li><li>Paste it in. Everything comes along: the town, its people, the stash, the fleet and the story.</li></ol>
     <p class="small">The code is the claim as it is right now. Keep playing here and it falls behind.</p>`, 'codes');
-  const S = slotSummary(SLOTS.active); c.querySelector('#ex-sum').textContent = S ? summaryLine(S) : '';
   let code;
   try { code = await exportCode(); } catch (e) { c.querySelector('#ex-note').textContent = 'The code couldn’t be made: ' + (e.message === 'empty' ? 'there’s nothing saved yet.' : 'this browser refused.'); return; }
+  const S = slotSummary(SLOTS.active); c.querySelector('#ex-sum').textContent = S ? summaryLine(S) : '';   // after the export saved it: the claim as it is now
   const ta = c.querySelector('#ex-code'); ta.value = code;
   c.querySelector('#ex-len').textContent = `${code.length.toLocaleString()} letters. Copy all of it: one letter missing and it won’t open.`;
   const copy = c.querySelector('#ex-copy'), file = c.querySelector('#ex-file'), note = c.querySelector('#ex-note');

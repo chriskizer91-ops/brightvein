@@ -4,7 +4,7 @@ let QUIET = false;
 // faster and dropping its oldest everyday lines. They sit low, above the controls (or above the panel, or beside it
 // on a wide screen), clear of the banners at the top. While a card is up (a scene, a day event, the dawn report, the
 // settings) they hold still and out of sight, and pick up where they were when it's gone.
-const TOASTS = { q: [], live: [], max: () => innerWidth < 560 ? 2 : 3, shown: 0 };
+const TOASTS = { q: [], live: [], max: () => TOASTS.tight ? 1 : innerWidth < 560 ? 2 : 3, shown: 0, placeN: 0, tight: false };
 function toast(html, kind = '', o = {}) {
   if (QUIET) return;
   const same = !o.el && [...TOASTS.live, ...TOASTS.q].find(t => !t.el && t.html === html);
@@ -22,6 +22,7 @@ function toastsHeld() {
 function toastPump() {
   if (toastsHeld()) return;
   const box = $('#toasts');
+  if (TOASTS.q.length && TOASTS.live.length < 3) toastPlace();   // how many fit where they'll go
   while (TOASTS.live.length < TOASTS.max() && TOASTS.q.length) {
     const t = TOASTS.q.shift();
     if (!t.el) { t.el = document.createElement('div'); t.el.className = 'toast ' + t.kind; t.el.innerHTML = t.html; }
@@ -42,6 +43,7 @@ setInterval(() => {
   const hurry = TOASTS.q.length > 2 ? 1.6 : 1;
   for (const t of TOASTS.live.slice()) { if (!t.el.isConnected) { TOASTS.live.splice(TOASTS.live.indexOf(t), 1); continue; } if ((t.left -= dt * hurry) <= 0) toastGone(t); }
   toastPump();
+  if (TOASTS.live.length && ++TOASTS.placeN % 3 === 0) toastPlace();   // a panel, the tray or the night's wave chip may have come up since
 }, 100);
 // where the stack sits: above the bottom bar, the build tray or a phone's panel; beside a wide screen's panel
 function toastPlace() {
@@ -64,14 +66,21 @@ function toastPlace() {
     const r = tip.getBoundingClientRect();
     if (r.bottom > H - bottom - 140) { if (W >= 900 && r.right < W / 2) lo = r.right + 8; else bottom = Math.max(bottom, H - r.top + 8); }
   }
-  box.style.bottom = `calc(env(safe-area-inset-bottom, 0px) + ${Math.round(bottom)}px)`;
+  // a phone's panel nearly as tall as the screen leaves no room above it: one toast at a time, just under the top bar
+  // (over the panel's heading), never over the stores
+  const top = $('.topbar'), boss = document.getElementById('bossbar');
+  let topY = top ? top.getBoundingClientRect().bottom : 50;
+  if (boss && !boss.hidden) topY = Math.max(topY, boss.getBoundingClientRect().bottom);
+  TOASTS.tight = H - bottom - topY < 96;
+  if (TOASTS.tight) { box.style.top = Math.round(topY + 6) + 'px'; box.style.bottom = 'auto'; }
+  else { box.style.top = ''; box.style.bottom = `calc(env(safe-area-inset-bottom, 0px) + ${Math.round(bottom)}px)`; }
   box.style.left = Math.round((lo + hi) / 2) + 'px';
   box.style.width = Math.round(Math.min(460, W * 0.92, hi - lo - 24)) + 'px';
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const fmt = n => n >= 100 ? Math.floor(n).toString() : n >= 10 ? Math.floor(n).toString() : (Math.floor(n * 10) / 10).toString();
-// the top bar's numbers stay short: 12.4k, not 12437
-const fmtHud = n => n >= 99950 ? Math.round(n / 1000) + 'k' : n >= 9999.5 ? (Math.floor(n / 100) / 10).toFixed(1) + 'k' : fmt(n);
+// the top bar's numbers stay short: 12.4k, not 12437 (on a phone 12k, so four numbers and the clock fit one row)
+const fmtHud = n => n >= 99950 ? Math.round(n / 1000) + 'k' : n >= 9999.5 ? (innerWidth <= 430 ? Math.floor(n / 1000) + 'k' : (Math.floor(n / 100) / 10).toFixed(1) + 'k') : fmt(n);
 const SHARD = '<svg viewBox="0 0 20 20" width="13" height="13" style="vertical-align:-2px"><path d="M10 1.5 15.5 9 10 18.5 4.5 9z" fill="#ffb347" stroke="#5a2a10" stroke-width="1.4"/></svg>';
 // a small canvas with one frame of a villager's sheet. It is drawn at the screen's own resolution: in whole-pixel
 // steps when there is room for at least two screen pixels per sprite pixel, otherwise smoothly scaled down, so

@@ -39,10 +39,17 @@ function hintShow(id) {
     $('#app').append(el);
   }
   el.querySelector('.hc-t').textContent = H.title; el.querySelector('.hc-x').textContent = H.text;
-  el.dataset.where = H.where; el.hidden = false; el.classList.remove('out'); void el.offsetWidth; el.classList.add('in');
+  el.dataset.where = H.where; el.hidden = false; el.style.bottom = ''; el.classList.remove('out'); void el.offsetWidth; el.classList.add('in');
+  hintPlace(el);
   $('#app').style.setProperty('--hint-h', el.offsetHeight + 'px');   // a day event's card makes room for it on a phone (style.css)
   HINTS.cur = { id, t: 0 };
   AUDIO.play('chime');
+}
+// the layout tip sits just above the build tray, however tall the tray's heading makes it on this screen
+function hintPlace(el) {
+  if (!el || el.dataset.where !== 'build') return;
+  const tray = $('#buildbar');
+  if (tray && !tray.hidden) el.style.bottom = Math.round(innerHeight - tray.getBoundingClientRect().top + 10) + 'px';
 }
 function hintClose() {
   const el = $('#hintcard'); HINTS.cur = null;
@@ -67,7 +74,7 @@ function hintsTick(rdt) {
   for (const id of Object.keys(hintNow)) if (!HINTS.seen[id] && hintNow[id]()) hintWant(id);
   const C = HINTS.cur;
   if (C) {
-    C.t += 0.3;
+    C.t += 0.3; hintPlace($('#hintcard'));
     // the moment passed (the build is done, the event card closed, the panel shut) or it's been up a good while
     if ((!hintNow[C.id]() && C.t > 1.5) || C.t > 40 || STORY.shown) hintClose();
     return;

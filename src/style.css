@@ -58,7 +58,7 @@ button { font: inherit; color: inherit; }
 .seg button[aria-pressed="true"] { background: var(--cream); color: var(--plum); border-color: var(--cream); }
 
 /* ---------- toasts: a short queue low on the screen, above the controls (ui.js places it) */
-#toasts { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 68px); display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 6; pointer-events: none; width: min(92vw, 460px);
+#toasts { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 68px); display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 8; pointer-events: none; width: min(92vw, 460px);
   transition: opacity .25s, bottom .3s ease-out, left .3s ease-out; }
 #toasts.held { opacity: 0; visibility: hidden; transition: none; }
 .toast { max-width: 100%; box-sizing: border-box; background: color-mix(in srgb, var(--plum) 94%, transparent); border: 1px solid var(--cream-2); border-radius: 10px; padding: 8px 14px; font-size: 14px; line-height: 1.4; text-align: center; box-shadow: 0 6px 18px rgba(0,0,0,.45);
@@ -167,6 +167,8 @@ button { font: inherit; color: inherit; }
   #r-mood { display: none; }
   #r-pop .ic { display: none; }
   #r-pop .ic.mood-ic { display: block; }
+  #r-pop .ic.mood-ic:empty { display: none; }   /* before the mood is first shown (laying out a new claim): the people icon */
+  #r-pop:has(.mood-ic:empty) .ic:not(.mood-ic) { display: block; }
   #r-pop { cursor: pointer; }
 }
 .pill.mood b::after { font-size: 10px; margin-left: 2px; vertical-align: 2px; }
@@ -350,7 +352,7 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
 #save-where b { color: var(--gold); font-weight: 600; }
 .menu-card .row { display: flex; justify-content: space-between; align-items: center; gap: 8px 10px; margin: 9px 0; flex-wrap: wrap; }
 .menu-card .seg button { padding: 7px 10px; font-size: 13px; min-height: 36px; }
-.menu-card .row.vol label { font-size: 14px; }
+.menu-card .row.vol label { font-size: 14px; min-width: 4.6em; }   /* the two sliders start together */
 .menu-card input[type="range"] { flex: 1 1 160px; max-width: 260px; height: 32px; accent-color: var(--amber); background: transparent; cursor: pointer; touch-action: pan-x; }
 .mbox { border: 1px solid color-mix(in srgb, var(--cream) 28%, transparent); border-radius: 10px; padding: 8px 12px; margin: 10px 0; }
 .mbox summary { cursor: pointer; font-weight: 600; font-size: 14px; list-style-position: inside; }
@@ -859,5 +861,19 @@ ol.steps { margin: 10px 0; padding-left: 20px; font-size: 13.5px; line-height: 1
   .panel h2 { margin-right: 46px; }
   .seg.mini button { min-height: 36px; }
   .hc-off { padding: 10px 4px; }
+  .menu-card input[type="range"] { height: 40px; }
+  .slot-name { min-height: 40px; }
+}
+/* a phone's bottom bar: the round buttons keep a thumb's width; the view buttons and the edges give up the room */
+@media (max-width: 430px) {
+  .bottombar { gap: 5px; padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); }
+  .bottombar .btn.icon, .bottombar #b-people { flex: none; width: 40px; }
+  .bottombar #b-build { flex: none; padding: 8px 9px; }
+  .bottombar .seg { min-width: 0; }
+  .bottombar .seg button { padding: 8px 7px; }
+}
+@media (max-width: 350px) {
+  .bottombar .btn.icon, .bottombar #b-people { width: 36px; }
+  .bottombar .seg button { padding: 8px 5px; font-size: 12.5px; }
 }
 #dawn { max-height: calc(100% - env(safe-area-inset-top, 0px) - 80px); overflow: auto; overscroll-behavior: contain; touch-action: pan-y; border-radius: 16px; }

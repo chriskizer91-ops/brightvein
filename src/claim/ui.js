@@ -36,6 +36,12 @@ function portraitOf(v, size = 128) {
   c.className = 'crop'; wrap.append(c);
   return wrap;
 }
+// a person's face for list rows: their painted portrait where there is one, else their little sprite
+function faceOf(v) {
+  const src = (v.d.hero && ART.cast && ART.cast[v.d.hero]) || portraitSrc(v.d);
+  if (!src) return miniSprite(v, 30, 40);
+  const im = new Image(); im.src = src; im.alt = ''; im.className = 'face'; return im;
+}
 // an item's picture: its painted one where there is one (assets/items), otherwise its pixel icon
 function itemPicture(it, size = 48) {
   const { relic } = itemBase(it), src = ART.items && (ART.items[it.base] || (relic && relic.base && ART.items[relic.base]));
@@ -124,7 +130,7 @@ const UI = {
       const s = statOf(v, stat);
       const jb = v.d.job ? (v.jobB ? v.jobB.def.job.title + ', ' + (v.jobB.name || v.jobB.def.name) : 'Working') : 'No job';
       const el = document.createElement('button'); el.type = 'button'; el.className = 'li';
-      el.append(miniSprite(v, 30, 40));
+      el.append(faceOf(v));
       el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${esc(jb)}</span></span><span class="fit">${stars(s)} <em>${STAT_NAMES[stat]} ${s}</em></span>`));
       el.onclick = () => { if (assignJob(v, b.id)) { v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now a ${def.job.title.toLowerCase()}.`); AUDIO.play('tap'); } UI.open('building', b); };
       list.append(el);
@@ -224,7 +230,7 @@ const UI = {
       const can = ok(v), s = v.d.stats[k], el = document.createElement('button'); el.type = 'button'; el.className = 'li'; if (!can) { el.disabled = true; el.style.opacity = 0.45; }
       const now = v.d.study ? `${v.d.study.role === 'tutor' ? 'Teaching' : 'Studying'} · ${STUDY[GAME.rooms[v.d.study.room].type].name}` : v.jobB ? v.jobB.def.job.title + ', ' + (v.jobB.name || v.jobB.def.name) : 'No job';
       const side = role === 'tutor' ? `${stars(statOf(v, k))} <em>${STAT_NAMES[k]} ${statOf(v, k)}</em>` : s >= STAT_MAX ? '<em>Mastered</em>' : `<em>${s}→${s + 1} · ${fmtReal(pointTime(s) / studyRate(i))}</em>`;
-      el.append(miniSprite(v, 30, 40));
+      el.append(faceOf(v));
       el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${esc(now)}</span></span><span class="fit">${side}</span>`));
       el.onclick = () => { if (!can) return; if (startStudy(v, i, role)) { toast(`<b>${esc(v.d.name.split(' ')[0])}</b> heads into the Keep to ${role === 'tutor' ? 'teach' : 'study'} in the ${esc(S.name)}.`); AUDIO.play('tap'); } UI.open('room', i); };
       list.append(el);
@@ -256,7 +262,7 @@ const UI = {
     body.append(this.h(`<h2>While you were away</h2><p class="sub">${fmtReal(A.sec)} passed${A.sec >= AWAY_CAP ? ' (time away counts up to 8 hours)' : ''}. Training and expeditions kept going; the claim itself waited for you.</p>`));
     if (!A.lines.length) body.append(this.h(`<p>Nobody was studying or out in the wilds, so nothing changed.</p>`));
     const list = document.createElement('div'); list.className = 'list';
-    for (const l of A.lines) { const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; el.style.gridTemplateColumns = '40px 1fr'; el.append(miniSprite(l.v, 30, 40)); el.append(this.h(`<span><span class="jb" style="color:var(--cream);font-size:13.5px">${esc(l.text)}</span></span>`)); el.onclick = () => UI.open(l.v.d.exp ? 'exp' : 'villager', l.v); list.append(el); }
+    for (const l of A.lines) { const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; el.style.gridTemplateColumns = '40px 1fr'; el.append(faceOf(l.v)); el.append(this.h(`<span><span class="jb" style="color:var(--cream);font-size:13.5px">${esc(l.text)}</span></span>`)); el.onclick = () => UI.open(l.v.d.exp ? 'exp' : 'villager', l.v); list.append(el); }
     body.append(list);
   },
   // A person's card: portrait, name and trade; their five GEARS stats, with what training and gear add; a paper doll of
@@ -268,7 +274,7 @@ const UI = {
     const card = document.createElement('div'); card.className = 'sheet';
     // the header
     const head = document.createElement('div'); head.className = 'sh-head';
-    head.append(portraitOf(v, 116));
+    head.append(portraitOf(v, 156));
     const ms = [...'GEARS'].filter(k => mastered(v, k));
     head.append(this.h(`<div class="sh-id"><p class="eyebrow">${esc(title)}</p><h2>${esc(d.name)}</h2>
       <div class="sh-tags"><span class="chip amber" title="${esc(TRAITS[d.trait] || '')}">${esc(d.trait)}</span>${ms.map(k => `<span class="chip good" title="${esc(STUDY[k].perkText)}">${esc(STUDY[k].perk)}</span>`).join('')}</div>
@@ -419,7 +425,7 @@ const UI = {
       for (const v of [...GAME.villagers].sort((a, b) => order(a).localeCompare(order(b)))) {
         const b = v.jobB, top = Object.entries(v.d.stats).sort((x, y) => statOf(v, y[0]) - statOf(v, x[0]))[0][0];
         const el = document.createElement('button'); el.type = 'button'; el.className = 'li';
-        el.append(miniSprite(v, 30, 40));
+        el.append(faceOf(v));
         const st = v.d.study ? `${v.d.study.role === 'tutor' ? 'Teaching' : 'Studying'} · ${STUDY[GAME.rooms[v.d.study.room].type].name}` : null;
         el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${v.d.exp ? 'In the wilds' : st ? esc(st) : b ? esc(b.def.job.title + ' · ' + (b.name || b.def.name)) : 'No job'}</span></span><span class="fit"><em>${STAT_NAMES[top]}</em> ${statOf(v, top)}</span>`));
         el.onclick = () => { SEL.villager = v; FOLLOW.v = null; UI.open('villager', v); if (!v.hidden) focusOn(v.pos); };
@@ -429,7 +435,7 @@ const UI = {
       body.append(this.h(`<p class="small">Down the rope stair in the cut face: scree, then gorse moor, old-age ruins and the wreck fields under the Thinning. The longer they stay, the farther they get. ${out.length} of ${expLimit()} out; raise the Keep to send more.</p>`));
       for (const v of out) {
         const E = v.d.exp, el = document.createElement('button'); el.type = 'button'; el.className = 'li';
-        el.append(miniSprite(v, 30, 40));
+        el.append(faceOf(v));
         const st = E.state === 'leaving' ? 'Heading for the rope stair' : E.state === 'out' ? `${fmtSpan(E.out)} out · ${WILDS.zones[E.zone].name}` : E.state === 'back' ? `Coming home · ${fmtSpan(Math.max(0, E.ret))} away` : 'Climbing up';
         el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${esc(st)}</span></span><span class="fit">${E.haul.items.length} finds <em>· ${Math.round(E.hp)}/${E.maxHp}</em></span>`));
         el.onclick = () => UI.open('exp', v); list.append(el);

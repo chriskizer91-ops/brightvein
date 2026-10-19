@@ -215,10 +215,16 @@ async function openExport() {
     note.textContent = ok ? 'Copied. Paste it wherever you like.' : 'This browser won’t copy for us. The code is selected: copy it yourself (hold on it, or Ctrl+C).';
     if (ok) AUDIO.play('chime');
   };
-  file.onclick = () => {
+  file.onclick = async () => {
     const S2 = slotSummary(SLOTS.active);
-    try { downloadText(`brightvein-${fileSafe(slotName(SLOTS.active))}-day-${S2 ? S2.day : 1}.txt`, code); note.textContent = 'Saved as a file (look in your downloads). If nothing appeared, use Copy instead.'; }
-    catch (e) { note.textContent = 'This browser won’t save files from here. Use Copy instead.'; }
+    try {
+      const how = await downloadText(`brightvein-${fileSafe(slotName(SLOTS.active))}-day-${S2 ? S2.day : 1}.txt`, code);
+      note.textContent = how === 'saved' ? 'Saved as a file.' : 'Saved as a file (look in your downloads). If nothing appeared, use Copy instead.';
+    } catch (e) {
+      note.textContent = e && e.code === 'declined' ? 'Not saved. Tap Save as a file again, or use Copy instead.'
+        : e && e.code === 'rate_limited' ? 'A save is already waiting for an answer. Try again in a moment.'
+        : 'This browser won’t save files from here. Use Copy instead.';
+    }
   };
   ta.onfocus = () => ta.select();
 }

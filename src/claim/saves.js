@@ -123,11 +123,17 @@ async function importCode(text) {
   return s;
 }
 const codeWhy = e => CODE_WHY[e && e.message] || CODE_WHY.broken;
-// a file with the code in it, to save on this device
-function downloadText(name, text) {
+// a file with the code in it, to save on this device. At Chris's claude.ai link the page may not start a download itself,
+// so it asks the viewer through the artifact's downloads capability (they confirm the save); a copy opened as a plain
+// file has no window.claude and uses an ordinary download link. Rejects with { code } (e.g. 'declined') when not saved.
+async function downloadText(name, text) {
+  let dl = null;
+  try { if (window.claude && typeof window.claude.use === 'function') dl = await window.claude.use('downloads'); } catch (e) { dl = null; }
+  if (dl) { await dl.save({ filename: name, data: text }); return 'saved'; }
   const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' })), a = document.createElement('a');
   a.href = url; a.download = name; a.rel = 'noopener'; document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return 'linked';
 }
 const fileSafe = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'claim';
 

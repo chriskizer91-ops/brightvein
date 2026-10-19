@@ -73,6 +73,12 @@ button { font: inherit; color: inherit; }
 .tag.plot { border-style: dashed; border-color: var(--cream-2); color: var(--cream-2); font-weight: 500; }
 .tag.build { border-color: var(--amber); }
 .tag small { color: var(--amber-2); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.tag.room { font-size: 11px; font-weight: 500; padding: 1px 7px; border-color: rgba(230,185,85,.6); }
+.tag.alarm { border-color: var(--bad); color: #ffe2d8; background: color-mix(in srgb, #5a1a14 88%, transparent); animation: alarm 1s ease-in-out infinite; }
+@keyframes alarm { 50% { box-shadow: 0 0 0 3px rgba(239,122,98,.35); } }
+.power.alarm { border-color: var(--bad); }
+.power.alarm .hp { margin-top: 6px; }
+.dkico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 9px; background: rgba(0,0,0,.25); box-shadow: 0 0 0 1px rgba(232,196,120,.35); }
 
 /* ---------- the panel */
 .panel { position: absolute; z-index: 7; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);

@@ -134,7 +134,11 @@ const CAST = [
   { name: 'Corwin Ashlar', title: 'Wallwright', job: 'wall', stats: { G: 8, E: 8, A: 4, R: 2, S: 3 }, trait: 'Steady', look: { hairStyle: 'bald', hair: '#2a1d1c', beard: true, hat: null, shirt: '#4f5660', over: 'vest', overCol: '#5a4632', skin: '#7a4a32', glasses: false, scarf: null, satchel: true } },
   { name: 'Absalom Pockett', title: 'Assayer of the claim', job: 'keep', stats: { G: 2, E: 7, A: 3, R: 8, S: 4 }, trait: 'Warm', look: { gnome: true, hair: '#efece4', hat: 'gnome', hatCol: '#9a4430', over: 'coat', overCol: '#6b3a5e', shirt: '#e7dcc2', glasses: true, beard: true, skin: '#eebd93', scarf: null, satchel: false } },
 ];
-const JOB_TOOL = { keep: 'book', ballista: 'hammer', head: 'pick', yard: 'crystal', shop: 'hammer', garden: 'can', lens: 'glass', wall: 'lance', mast: 'rope' };
+const JOB_TOOL = { keep: 'book', ballista: 'hammer', head: 'pick', yard: 'crystal', shop: 'hammer', garden: 'can', lens: 'glass', wall: 'lance', mast: 'rope',
+  // the dig's rooms (src/claim/mine.js)
+  face: 'pick', seam: 'pick', dig: 'pick', grotto: 'hammer', pump: 'spanner', shore: 'hammer', depot: 'rope', assay: 'glass', lamp: 'can' };
+// what a job's bid names: a building, the wall's watch, or a room (or dig site) down the mine
+const jobBuilding = bid => bid === 'wall' ? WALLB : TOWN.b[bid] || DIG.byId[bid] || null;
 function makePerson(R, o = {}) {
   // settlers come off the roll in folk.js (a name, a portrait and a look that match); a random stranger only if it's spent
   const f = o.noFolk ? null : nextFolk(o.pref);
@@ -187,7 +191,7 @@ class Villager {
   // fights with whatever weapon they carry
   tool() {
     const j = this.d.job; if (!j) return 'hammer';
-    const b = TOWN.b[j.bid], type = b ? b.type : j.bid, it = this.d.gear && this.d.gear.hand;
+    const b = jobBuilding(j.bid), type = b ? b.gearJob || b.type : j.bid, it = this.d.gear && this.d.gear.hand;
     if (it) {
       const { base } = itemBase(it), jobs = (base && base.jobs) || [];
       if (type === 'wall' && itemWeapon(it)) return it.kind;
@@ -199,14 +203,15 @@ class Villager {
   look() { const g = gearOf(this); return { ...this.d.look, tool: this.tool(), weapon: g.weapon ? g.weapon.kind : null }; }
   redraw() { drawVillagerSheet(this.look(), this.canvas); this.tex.needsUpdate = true; }
   place(x, y, z) { this.pos.set(x, y, z); }
-  get jobB() { const j = this.d.job; return j ? (j.bid === 'wall' ? WALLB : TOWN.b[j.bid]) : null; }
+  get jobB() { const j = this.d.job; return j ? jobBuilding(j.bid) : null; }
   eff() {
     const b = this.jobB; if (!b || !this.working) return 0;
     const def = b.def.job, night = TOD.night > 0.5;
-    let e = statOf(this, def.stat) / 10;
+    let e = def.stat2 ? (statOf(this, def.stat) + statOf(this, def.stat2)) / 20 : statOf(this, def.stat) / 10;
     if (this.d.trait === 'Steady') e *= 1.1;
+    if (this.shaken > 0) e *= 0.6;   // shaken by a cave-in or a fight down the mine
     if (this.d.trait === 'Night owl') e *= night ? 1.35 : 0.85;
-    const g = gearOf(this); e *= 1 + outFor(g, b.type) / 100; if (night) e *= 1 + g.night / 100;
+    const g = gearOf(this); e *= 1 + outFor(g, b.gearJob || b.type) / 100; if (night) e *= 1 + g.night / 100;
     if (mastered(this, def.stat)) e *= 1.2;
     if (GAME.food <= 0) e *= 0.5;
     return e;
@@ -252,7 +257,9 @@ class Villager {
 
 // ----------------------------------------------------------------- plans
 const HEAD_ENTRY = () => TOWN.b.head.worldPos(0, 0.3, 1.6);
-const SHAFT_X = 28.0, SHAFT_Z = MINE.walkZ;
+// where people wait for the lift cage on each landing (the cage itself rides in the middle of the shaft)
+const SHAFT_X = MINE.shaft.x0 + 1.0, SHAFT_Z = MINE.walkZ;
+const liftLanding = y => new THREE.Vector3(SHAFT_X, y, SHAFT_Z);
 function homeEntry(v) { const b = TOWN.b.keep; return b ? b.worldPos(0, 0, 4.4) : new THREE.Vector3(0, 0, 9); }
 function stationFor(v) {
   const j = v.d.job; if (!j) return null;
@@ -262,8 +269,8 @@ function stationFor(v) {
     if (!onPlateau(x, z) || distToOutline(x, z) < 3.3) { x = s.mx - ix * 1.6; z = s.mz - iz * 1.6; }
     return { kind: 'surface', pos: new THREE.Vector3(x, 0, z), face: Math.atan2(s.mx - x, s.mz - z) };
   }
-  const b = TOWN.b[j.bid]; if (!b) return null;
-  if (b.type === 'head') { const m = MINE_STATIONS[j.slot]; const G = m.g === 1 ? MINE.g1 : MINE.g2; return { kind: 'mine', gy: G.y0, pos: new THREE.Vector3(m.x, G.y0, SHAFT_Z), face: m.x < SHAFT_X ? -Math.PI / 2 : Math.PI / 2 }; }
+  const b = jobBuilding(j.bid); if (!b) return null;
+  if (b.isRoom) return digStation(v, b, j.slot);
   if (b.type === 'mast') { const d = STATIONS.mast[j.slot].deck; return { kind: 'ship', deck: d }; }
   const S = (STATIONS[b.type] || [])[j.slot] || { x: 0, z: (b.L.d || 6) / 2 + 1.5, f: Math.PI };
   const p = b.worldPos(S.x, 0, S.z);
@@ -273,13 +280,15 @@ function stationFor(v) {
 const isNightJob = v => { const b = v.jobB; return !!(b && b.def.job && b.def.job.night); };
 // steps out of wherever the villager is now, back to open ground
 function exitSteps(v) {
-  if (v.where === 'mine') return [{ type: 'line', to: new THREE.Vector3(SHAFT_X, v.pos.y, SHAFT_Z) }, { type: 'climb', to: new THREE.Vector3(SHAFT_X, 0.3, SHAFT_Z) }, { type: 'line', to: HEAD_ENTRY(), then: () => v.where = 'surface' }];
+  if (v.where === 'mine') return [...toWalkLine(v), { type: 'line', to: liftLanding(v.pos.y) }, { type: 'lift', to: 0.3 }, { type: 'line', to: HEAD_ENTRY(), then: () => v.where = 'surface' }];
   if (v.where === 'tower') { const b = v.towerB; return [{ type: 'hide', t: 1.2 }, { type: 'warp', to: b.worldPos(0, 0, 2.7), then: () => { v.where = 'surface'; v.setHidden(false); } }]; }
   if (v.where === 'ship') { if (SHIP.state !== 'docked') return [{ type: 'wait', t: 2 }]; const M = TOWN.b.mast; return [{ type: 'line', to: M.worldPos(0.4, 14.25, 0), then: () => { v.where = 'mast'; v.deck = null; } }, { type: 'climb', to: M.worldPos(0, 0, 2.2), then: () => v.where = 'surface' }]; }
   if (v.where === 'home' || v.where === 'study') return [{ type: 'warp', to: homeEntry(v), then: () => { v.where = 'surface'; v.setHidden(false); } }];
   return [];
 }
 function walkTo(v, target, o = {}) { return { type: 'walk', to: target.clone(), run: o.run, then: o.then }; }
+// down the mine everyone keeps to the walkway along the front of the rooms, so they go through the doors
+const toWalkLine = v => Math.abs(v.pos.z - SHAFT_Z) > 0.3 ? [{ type: 'line', to: new THREE.Vector3(v.pos.x, v.pos.y, SHAFT_Z) }] : [];
 function think(v) {
   if (v.d.study) {   // off to study in the Keep
     v.plan = v.where === 'study' ? [{ type: 'study' }] : [...exitSteps(v), walkTo(v, homeEntry(v)), { type: 'enterStudy' }, { type: 'study' }];
@@ -291,9 +300,12 @@ function think(v) {
   if (atWork) {
     const out = [];
     if (S.kind === 'mine') {
-      if (v.where !== 'mine') out.push(...exitSteps(v), walkTo(v, HEAD_ENTRY()), { type: 'line', to: new THREE.Vector3(SHAFT_X, 0.3, SHAFT_Z) }, { type: 'climb', to: new THREE.Vector3(SHAFT_X, S.gy, SHAFT_Z), then: () => v.where = 'mine' });
-      else if (Math.abs(v.pos.y - S.gy) > 0.5) out.push({ type: 'line', to: new THREE.Vector3(SHAFT_X, v.pos.y, SHAFT_Z) }, { type: 'climb', to: new THREE.Vector3(SHAFT_X, S.gy, SHAFT_Z) });
-      out.push({ type: 'line', to: S.pos }, { type: 'work', face: S.face });
+      // down by the lift cage (or the ladder, if the cage is long in coming), along the walkway, then to the station
+      if (v.where === 'mine' && v.pos.distanceTo(S.pos) < 0.4) { v.plan = [S.idle ? { type: 'wait', t: 2 } : { type: 'work', face: S.face }]; return; }
+      if (v.where !== 'mine') out.push(...exitSteps(v), walkTo(v, HEAD_ENTRY()), { type: 'line', to: liftLanding(0.3) }, { type: 'lift', to: S.gy });
+      else if (Math.abs(v.pos.y - S.gy) > 0.5) out.push(...toWalkLine(v), { type: 'line', to: liftLanding(v.pos.y) }, { type: 'lift', to: S.gy });
+      else out.push(...toWalkLine(v));
+      out.push({ type: 'line', to: new THREE.Vector3(S.pos.x, S.gy, SHAFT_Z) }, { type: 'line', to: S.pos }, S.idle ? { type: 'wait', t: 2 } : { type: 'work', face: S.face });
     } else if (S.kind === 'tower') {
       if (v.where !== 'tower' || v.towerB !== S.b) out.push(...exitSteps(v), walkTo(v, S.door), { type: 'hide', t: 1.6 }, { type: 'warp', to: S.pos, then: () => { v.where = 'tower'; v.towerB = S.b; v.setHidden(false); } });
       out.push({ type: 'work', face: S.face });
@@ -350,6 +362,7 @@ function runStep(v, s, dt) {
     }
     case 'line': if (moveToward(v, s.to, sp, dt, false)) done(); break;
     case 'climb': { v.climbing = true; if (moveToward(v, s.to, 1.8, dt, false)) done(); v.moving = true; v.climbing = true; break; }
+    case 'lift': if (liftStep(v, s, dt)) done(); break;
     case 'warp': v.pos.copy(s.to); done(); break;
     case 'hide': s.t0 = s.t0 ?? s.t; if (!v.hidden) v.setHidden(true); s.t -= dt; if (s.t <= 0) done(); break;
     case 'enter': v.setHidden(true); v.where = 'home'; done(); break;
@@ -379,10 +392,10 @@ function runStep(v, s, dt) {
 const WALLB = { id: 'wall', type: 'wall', name: 'Rim Wall', def: DEFS.wall, get level() { return TOWN.wallLevel; }, slots() { return DEFS.wall.job.slots[TOWN.wallLevel]; } };
 
 // ----------------------------------------------------------------- jobs and homes
-function slotsOf(b) { if (!b) return 0; if (b === WALLB) return WALLB.slots(); return b.def.job ? b.def.job.slots[b.level] || 0 : 0; }
+function slotsOf(b) { if (!b) return 0; if (b.slots) return b.slots(); return b.def.job ? b.def.job.slots[b.level] || 0 : 0; }
 function workersOf(bid) { return GAME.villagers.filter(v => v.d.job && v.d.job.bid === bid); }
 function freeSlot(bid) {
-  const b = bid === 'wall' ? WALLB : TOWN.b[bid], n = slotsOf(b), used = new Set(workersOf(bid).map(v => v.d.job.slot));
+  const b = jobBuilding(bid), n = slotsOf(b), used = new Set(workersOf(bid).map(v => v.d.job.slot));
   for (let i = 0; i < n; i++) if (!used.has(i)) return i;
   return -1;
 }
@@ -417,7 +430,7 @@ function autoAssign() {
   for (const v of GAME.villagers) {
     if (v.d.job || v.d.exp || v.d.study || !v.d.pref) continue;
     if (v.d.pref === 'wall') { assignJob(v, 'wall'); continue; }
-    const b = Object.values(TOWN.b).find(b => b.type === v.d.pref && !b.pending && b.level > 0 && freeSlot(b.id) >= 0);
+    const b = Object.values(TOWN.b).find(b => b.type === v.d.pref && !b.pending && b.level > 0 && freeSlot(b.id) >= 0) || digRoomFor(v.d.pref);
     if (b) assignJob(v, b.id);
   }
 }

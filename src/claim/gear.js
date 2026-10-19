@@ -52,10 +52,12 @@ function gearOf(v) {
 }
 const outFor = (g, type) => g.outAny + (g.outByJob[type] || 0);
 // damage a second against a foe, and reach. Without a weapon the watch still carries a plain crystal lance.
+// the cast's gifts in a fight: Sol drills the watch, Brann sharpens every blade
+const castEdge = v => (castPerk('sol') && v.d.job && v.d.job.bid === 'wall' ? 1.25 : 1) * (castPerk('brann') ? 1.1 : 1);
 function fightOf(v, foe = 'glimmer') {
   const g = gearOf(v), mk = mastered(v, 'G') ? 1.2 : 1, bare = 2.2 * statOf(v, 'G') * (v.d.trait === 'Bold' ? 1.25 : 1) * mk;
   if (!g.weapon) return { dps: bare, range: 1.6 };
-  const w = itemWeapon(g.weapon), d = dpsOf(g.weapon, statOf(v, w.stat), foe) * (1 + g.vsWild / 100) * (v.d.trait === 'Bold' ? 1.1 : 1) * mk;
+  const w = itemWeapon(g.weapon), d = dpsOf(g.weapon, statOf(v, w.stat), foe) * (1 + g.vsWild / 100) * (v.d.trait === 'Bold' ? 1.1 : 1) * mk * castEdge(v);
   return w.range > 3 ? { dps: d, range: Math.min(w.range, 16), cd: w.cd, ranged: true, aspect: g.weapon.aspect || w.aspect } : { dps: Math.max(bare, d), range: Math.max(1.6, w.range * 0.8) };
 }
 function maxHpOf(v) { const g = gearOf(v); return Math.round(50 + statOf(v, 'G') * 5 + g.hp); }
@@ -85,7 +87,7 @@ function addHaul(r) {   // the result of foeDrops / raidCrates
 }
 function mineFindHere() {
   const deep = workersOf('head').some(v => v.working && MINE_STATIONS[v.d.job.slot].g === 2);
-  const g = gearOf; let luck = 0; for (const v of workersOf('head')) luck = Math.max(luck, g(v).findLuck);
+  const g = gearOf; let luck = castPerk('fox') ? 0.3 : 0; for (const v of workersOf('head')) luck = Math.max(luck, g(v).findLuck);
   const f = LOOT.mineFind(deep && Math.random() < 0.5 ? 'deep' : deep ? 'lower' : 'upper', { night: Math.max(1, GAME.nights), findLuck: luck });
   if (f.item) { const it = addToStash(f.item, true); toast(`The miners turned something up: <b style="color:${rarityOf(it).color}">${esc(it.name)}</b>`); }
   else if (f.cell) { GAME.cells[f.cell] = (GAME.cells[f.cell] || 0) + 1; toast(`The miners found a <b>${esc(D.CELLS[f.cell].name)}</b> in the rock.`); }
@@ -146,7 +148,7 @@ function economy(dt) {
     if (b.type !== 'yard' || b.level < 1) continue;
     const tend = sum(b.id), mult = b.level >= 3 ? 1.5 : b.level >= 2 ? 1.25 : 1;
     const light = b.level >= 3 ? Math.max(sun, 0.35 * (1 - night)) : sun;
-    let want = tend * RATES.charge * mult * light * dt;
+    let want = tend * RATES.charge * mult * light * dt * (castPerk('tock') ? 1.2 : 1);
     want = Math.min(want, GAME.ore);
     GAME.ore -= want; charged += want * cutBonus;
     b.chargeK = lerp(b.chargeK || 0, tend > 0 && GAME.ore > 0.5 ? light : 0, Math.min(1, dt * 2));
@@ -163,7 +165,7 @@ function economy(dt) {
   // lights at night cost shards
   if (night > 0.3) {
     const lit = DECOR.lamps.filter(l => l.lit).length;
-    const drain = RATES.nightDrain * (0.4 + lit / 40) * (TOWN.b.keep.level >= 3 ? 1.4 : 1);
+    const drain = RATES.nightDrain * (0.4 + lit / 40) * (TOWN.b.keep.level >= 3 ? 1.4 : 1) * (castPerk('io') ? 0.67 : 1);
     GAME.shards -= drain * dt;
   }
   if (GAME.shards <= 0) { GAME.shards = 0; if (POWER.on) { POWER.on = false; toast('The shards are spent. <b>The lamps go dark.</b>', 'night'); } }

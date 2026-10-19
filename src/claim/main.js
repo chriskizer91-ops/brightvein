@@ -323,7 +323,7 @@ function saveGame() {
       buildings: Object.values(TOWN.b).filter(b => !b.pending).map(b => ({ id: b.id, type: b.type, level: b.level, tx: b.tile ? b.tile.tx : null, tz: b.tile ? b.tile.tz : null })),
       stash: GAME.stash, mats: GAME.mats, cells: GAME.cells, blueprints: GAME.blueprints, rooms: GAME.rooms, savedAt: Date.now(),
       people: GAME.villagers.map(v => ({ ...v.d })),
-      sky: FLEET ? FLEET.data : undefined,
+      sky: FLEET ? FLEET.data : undefined, story: storySave(),
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
   } catch (e) { }
@@ -361,7 +361,7 @@ function frame() {
   // out in the skies: they draw instead, and the claim's time stands still until the ship is home
   if (SKY && SKY.on) { AUDIO.ambience(0.7, true); if (SKY.frame(rdt)) return; }
   elapsed += rdt;
-  const gdt = started && !GAME.paused && !BUILD.on && !(SKY && SKY.on) ? rdt * GAME.speed : 0;
+  const gdt = started && !GAME.paused && !BUILD.on && !GAME.talk && !(SKY && SKY.on) ? rdt * GAME.speed : 0;
   if (started) {
     GAME.t += gdt / DAY_LEN;
     if (GAME.t >= 1) { GAME.t -= 1; GAME.day++; }
@@ -386,7 +386,7 @@ function frame() {
   FX.update(rdt * (GAME.paused ? 0.2 : Math.min(GAME.speed, 2)));
   wallUpdate(rdt); mineBreakUpdate(now);
   dressScene(rdt, gdt);
-  dockUpdate(rdt); updateLife(rdt, TOD.night);
+  dockUpdate(rdt); updateLife(rdt, TOD.night); storyTick(rdt); talkFrame(rdt);
   updateCamera(rdt);
   updateHUD(rdt); updateLabels();
   AUDIO.ambience(TOD.night, !GAME.paused);
@@ -490,6 +490,9 @@ async function boot() {
       else if (d.study) { v.setHidden(true); v.where = 'study'; v.plan = [{ type: 'study' }]; }
     }
     autoAssign();
+    // settlers from before the roll take a place on it (keeping their names), so their sprite matches a portrait
+    for (const v of GAME.villagers) if (!v.d.portrait && !v.d.named && !v.d.hero) { const f = nextFolk(v.d.pref); if (f) { v.d.portrait = f.id; v.d.look = { ...v.d.look, ...f.look }; v.redraw(); } }
+    storyLoad(save.story);
     if (save.savedAt) GAME.away = catchUp((Date.now() - save.savedAt) / 1000);
     if (save.migrated) setTimeout(() => toast('Your claim is on the new build grid. Everyone lives in <b>the Keep</b> now. Tap <b>Build</b> to rearrange.'), 2500);
   } else { starterStash(); seedVillagers(); }
@@ -531,5 +534,5 @@ function simulate(seconds, step = 0.1) {
   }
 }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
-window.__bv = { get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin };
+window.__bv = { STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin };
 boot().catch(e => { console.error(e); $('#loading').textContent = 'The town could not be raised: ' + e.message; });

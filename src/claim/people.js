@@ -136,6 +136,16 @@ const CAST = [
 ];
 const JOB_TOOL = { keep: 'book', ballista: 'hammer', head: 'pick', yard: 'crystal', shop: 'hammer', garden: 'can', lens: 'glass', wall: 'lance', mast: 'rope' };
 function makePerson(R, o = {}) {
+  // settlers come off the roll in folk.js (a name, a portrait and a look that match); a random stranger only if it's spent
+  const f = o.noFolk ? null : nextFolk(o.pref);
+  if (f) {
+    const keys = ['G', 'E', 'A', 'R', 'S'], stats = {};
+    for (const k of keys) stats[k] = 2 + (R() * 5 | 0);
+    stats[f.focus] = 6 + (R() * 4 | 0);
+    if (f.look.gnome) { stats.E = Math.min(10, stats.E + 2); stats.G = Math.max(1, stats.G - 2); }
+    const traits = Object.keys(TRAITS);
+    return { id: GAME.nextId++, name: f.name, portrait: f.id, stats, trait: traits[R() * traits.length | 0], look: randomLook(R, { ...f.look }), seed: R() * 1e9 | 0, job: null, home: null, gear: {}, pref: o.pref || f.pref };
+  }
   const gnome = o.gnome ?? R() < 0.1;
   const name = gnome ? GNOME_FIRST[R() * GNOME_FIRST.length | 0] + ' ' + GNOME_LAST[R() * GNOME_LAST.length | 0] : FIRST[R() * FIRST.length | 0] + ' ' + LAST[R() * LAST.length | 0];
   const keys = ['G', 'E', 'A', 'R', 'S'], focus = o.focus || keys[R() * 5 | 0], stats = {};

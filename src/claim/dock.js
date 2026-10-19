@@ -157,6 +157,8 @@ function dockHome(r) {
   controls.enabled = VIEW.mode !== 'keep'; kcontrols.enabled = VIEW.mode === 'keep';
   clock.getDelta();
   dockMoor();
+  // Quill's gift: a tenth more shards from every voyage
+  if (r && r.got && castPerk('quill')) { const extra = Math.round(r.got * 0.1); GAME.shards += extra; r.got += extra; }
   // a raid: the place is ours for now, and its crates are opened at home
   if (r && r.raid && r.raid.taken) {
     const R = FLEET.data.raids[r.raid.id]; R.won++; R.day = GAME.day;

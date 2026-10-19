@@ -44,6 +44,12 @@
   </nav>
 
   <div id="hint" class="hint" hidden></div>
+  <div id="journal" class="journal" hidden role="button" tabindex="0" aria-label="The journal: this chapter's goals"></div>
+  <div id="talk" class="talk" hidden role="dialog" aria-live="polite">
+    <p id="talk-title" class="talk-title"></p>
+    <div class="talk-card"><div id="talk-por" class="talk-por"></div><div class="talk-body"><b id="talk-name"></b><p id="talk-text"></p><span class="talk-more" aria-hidden="true">▾</span></div></div>
+    <button type="button" id="talk-skip" class="btn talk-skip">Skip</button>
+  </div>
 
   <div id="buildbar" class="buildbar" hidden>
     <div class="bb-head">

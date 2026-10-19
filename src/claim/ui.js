@@ -21,8 +21,8 @@ const SHORT_STAT = { G: 'Grit', E: 'Eng', A: 'Agility', R: 'Rapport', S: 'Sowing
 // head and shoulders of their sprite, close up)
 function portraitOf(v, size = 128) {
   const wrap = document.createElement('div'); wrap.className = 'pframe'; wrap.style.width = wrap.style.height = size + 'px';
-  const src = v.d.hero && ART.cast && ART.cast[v.d.hero];
-  if (src) { const im = new Image(); im.src = src; im.alt = ''; wrap.append(im); return wrap; }
+  const src = (v.d.hero && ART.cast && ART.cast[v.d.hero]) || portraitSrc(v.d);
+  if (src) { const im = new Image(); im.src = src; im.alt = ''; wrap.append(im); wrap.classList.add('painted'); return wrap; }
   try {
     if (typeof drawPortrait === 'function') { const c = document.createElement('canvas'); drawPortrait({ ...v.d.look }, c); if (c.width > 1) { wrap.append(c); return wrap; } }
   } catch (e) { console.warn(e); }
@@ -51,7 +51,7 @@ const UI = {
     body.innerHTML = '';
     requestAnimationFrame(() => { panel.scrollTop = keep; });
     if (!c) return;
-    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock, haul: this.haul }[c.kind];
+    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock, haul: this.haul, journal: this.journal }[c.kind];
     if (fn) fn.call(this, body, c.ref);
   },
   h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content; },

@@ -12,6 +12,8 @@ const IDS = ['skiff', 'cutter', 'brig', 'frigate'];
 function fresh() {
   return {
     v: 1, skies: 'fair', flying: 'skiff', best: { fair: 0, cross: 0, mael: 0 }, voyages: 0, downed: 0,
+    // the jumpers' places: how often each was taken, and on which claim day (they're manned again a few days later)
+    raids: Object.fromEntries(['camp', 'outpost', 'galleon', 'citadel'].map((id) => [id, { won: 0, day: -99 }])),
     ships: Object.fromEntries(IDS.map((id) => [id, { owned: id === 'skiff', power: 0, mods: { armour: 0, canvas: 0, drill: 0, crystals: 0 } }])),
   };
 }

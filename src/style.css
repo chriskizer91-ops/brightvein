@@ -234,3 +234,9 @@ button { font: inherit; color: inherit; }
 .step { display: inline-flex; align-items: center; border: 1px solid rgba(241,228,198,.3); border-radius: 10px; overflow: hidden; }
 .step button { width: 40px; height: 38px; background: transparent; border: 0; font-size: 18px; cursor: pointer; }
 .step span { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* ---------- the Sky Dock's raids */
+.li.raid { grid-template-columns: 28px 1fr auto; }
+.li.raid .rk { font-size: 18px; color: var(--amber-2); text-align: center; }
+.li.raid[disabled] { opacity: .55; cursor: default; }
+.li.raid .side { font-size: 12px; color: var(--amber-2); text-align: right; max-width: 9em; }

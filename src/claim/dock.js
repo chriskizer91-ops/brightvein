@@ -145,19 +145,28 @@ function setupDock(save) {
   SKY = makeSky({ renderer, canvas, progress: FLEET, onLeave: dockHome });
   SKY.art.then(() => setTimeout(dockMoor, 50)).catch(e => console.error(e));
 }
-function openSky(mode) {
+function openSky(mode, opts) {
   if (!SKY || SKY.on) return;
   if (BUILD.on) return;
   UI.close(); FOLLOW.v = null; VIEW.tween = null;
   controls.enabled = false; kcontrols.enabled = false;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  SKY.open(mode).catch(e => { console.error(e); toast('The skies could not be opened: ' + esc(e.message)); dockHome({}); });
+  SKY.open(mode, opts).catch(e => { console.error(e); toast('The skies could not be opened: ' + esc(e.message)); dockHome({}); });
 }
 function dockHome(r) {
   controls.enabled = VIEW.mode !== 'keep'; kcontrols.enabled = VIEW.mode === 'keep';
   clock.getDelta();
   dockMoor();
-  if (r && r.ship) {
+  // a raid: the place is ours for now, and its crates are opened at home
+  if (r && r.raid && r.raid.taken) {
+    const R = FLEET.data.raids[r.raid.id]; R.won++; R.day = GAME.day;
+    const before = GAME.stash.length, haul = LOOT.raidCrates(r.raid.loot);
+    addHaul({ ...haul, items: [] });
+    const items = haul.items.map(it => addToStash(it, true));
+    toast(`<b>${esc(r.raid.name)}</b> is taken. The crates hold ${SHARD} ${haul.shards} and ${items.length} find${items.length > 1 ? 's' : ''}.`);
+    void before;
+    setTimeout(() => UI.open('haul', { name: r.raid.name, items, shards: haul.shards, got: r.got }), 600);
+  } else if (r && r.ship) {
     toast(r.lost ? `<b>The ${esc(r.ship)} went down.</b> Her crew brought her home${r.got ? ` with ${SHARD} ${r.got} shards` : ''}.`
       : r.got ? `<b>The ${esc(r.ship)} is home</b> with ${SHARD} ${r.got} shards for the claim${r.downed ? `, and ${r.downed} raider${r.downed > 1 ? 's' : ''} downed` : ''}.` : `<b>The ${esc(r.ship)} is home.</b>`);
     AUDIO.play('chime');
@@ -177,5 +186,26 @@ UI.dock = function (body) {
   acts.querySelector('#dk-yard').onclick = () => openSky('port');
   acts.querySelector('#dk-skies').onclick = () => openSky('title');
   body.append(acts);
-  body.append(this.h(`<p class="small">While she's out, the claim waits: nobody works and night won't fall until she's home. Bring down raiders in waves; after each one, sail on or come home with the shards.</p>`));
+  body.append(this.h(`<p class="small">On patrol, raiders come in waves; after each one, sail on or come home with the shards. While she's out, the claim waits: nobody works and night won't fall until she's home.</p>`));
+  // the jumpers' places, to raid
+  body.append(this.h(`<h3>Raids on the claim-jumpers</h3>`));
+  const list = document.createElement('div'); list.className = 'list';
+  for (const s of SITES) {
+    const st = d.raids[s.id], after = s.after && SITES.find(x => x.id === s.after), locked = after && !d.raids[after.id].won;
+    const wait = st.won ? s.regrow - (GAME.day - st.day) : 0;
+    const el = document.createElement('button'); el.type = 'button'; el.className = 'li raid';
+    el.append(this.h(`<span class="rk">${locked ? '?' : st.won ? '⚑' : '◆'}</span><span><span class="nm">${esc(locked ? 'Somewhere out there' : s.name)}</span><span class="jb">${esc(locked ? `Take ${after.short} first.` : s.line)}</span></span><span class="side">${locked ? '' : wait > 0 ? `Manned again in ${wait} day${wait > 1 ? 's' : ''}` : `${s.crates} crates · Raid`}</span>`));
+    el.disabled = !!locked || wait > 0;
+    el.onclick = () => openSky('raid', { site: s.id });
+    list.append(el);
+  }
+  body.append(list);
+};
+// what a raid brought home
+UI.haul = function (body, h) {
+  body.append(this.h(`<h2>The crates from ${esc(h.name)}</h2><p class="sub">${SHARD} ${h.shards} shards in the crates${h.got ? `, and ${SHARD} ${h.got} gathered on the way` : ''}. Everything else is in the stash.</p>`));
+  const list = document.createElement('div'); list.className = 'list';
+  for (const it of h.items) list.append(this.itemRow(it, '', () => UI.open('item', { it, back: () => UI.open('haul', h) })));
+  body.append(list);
+  this.back(body, 'To the Sky Dock', () => UI.open('dock'));
 };

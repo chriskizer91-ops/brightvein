@@ -15,6 +15,8 @@ import tile9 from '../../assets/map/tile-9.avif';
 export const MAP = { w: 23040, h: 15360, px: 5 }; // metres; x runs east, z runs south, the map's centre at the origin
 export const SUN = new THREE.Vector3(-0.55, 0.52, 0.25).normalize();
 export const CLOUD_Y = 430, THINNING = 2400;
+// Brightvein on the map: a high plateau in the Ironspire Peaks, north-east of the Hearthsea
+export const HOME = { x: 6900, z: -3100, name: 'Brightvein' };
 
 // The regions, a 12 x 8 grid over the map read off Chris's painting (names from the Magpie page)
 const GRID = ['sssswwsppppp', 'sssswwhppppp', 'swwwwhhppppp', 'swwwwhhppkks', 'sggwwhhkkkks', 'sggwwfhkkkks', 'sswfffkkkkss', 'ssssssssssss'];

@@ -8,7 +8,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 // the skies (src/sky/): voyages, the shipyard and the fleet's save, from the airship game
-import { makeSky, SKIES, SHIPS } from './sky/voyage.js';
+import { makeSky, SKIES, SHIPS, SITES } from './sky/voyage.js';
 import { makeProgress } from './sky/progress.js';
 
 const $ = s => document.querySelector(s);

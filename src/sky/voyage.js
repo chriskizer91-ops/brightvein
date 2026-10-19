@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { loadShipArt } from '../ship/materials.js';
 import { buildShip } from '../ship/build.js';
 import { SHIPS, FLEET } from '../ships/index.js';
-import { makeWorld, regionAt, SUN, HAZE, MAP, THINNING } from './world.js';
+import { makeWorld, regionAt, SUN, HAZE, MAP, THINNING, HOME } from './world.js';
 import { makeInput } from './input.js';
 import { makeFlyer, WIND, windHelp } from './flight.js';
 import { makeBolts, makeGunnery, batteryFor, BATTERY_NAMES, intercept } from './guns.js';
@@ -22,9 +22,10 @@ import { makePickups } from './pickups.js';
 import { makePort } from './port.js';
 import { hitZones, firstHit } from './damage.js';
 import { makeSmoke, smokeFrom } from './effects.js';
+import { makeSites, SITES } from './sites.js';
 import minimapUrl from '../../assets/map/minimap.webp';
 
-export { SKIES, SHIPS };
+export { SKIES, SHIPS, SITES };
 const $ = (id) => document.getElementById(id);
 const touch = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1 && matchMedia('(hover: none)').matches;
 const PARTS = ['hull', 'sails', 'crystals'];
@@ -33,8 +34,7 @@ const compassDeg = (heading) => ((180 - THREE.MathUtils.radToDeg(heading)) % 360
 const NUMBER = ['', 'a', 'two', 'three', 'four', 'five', 'six'];
 const fmt = (n) => Math.round(n).toLocaleString('en');
 
-// Brightvein on the map: a high plateau in the Ironspire Peaks, north-east of the Hearthsea
-export const HOME = { x: 6900, z: -3100, name: 'Brightvein' };
+export { HOME };
 
 // renderer, canvas: the claim's. progress: the fleet (./progress.js). onLeave({ got, downed, waves, lost, ship }) when
 // the Captain comes home from a voyage, or ({}) leaving the shipyard.
@@ -63,7 +63,8 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
   const input = makeInput(canvas, document.body);
   input.active = false;
   const mini = $('minimap'), mctx = mini.getContext('2d'), mimg = new Image(); mimg.src = minimapUrl;
-  let region = '', regionTimer = 0, hudTimer = 0, hurt = 0, time = 0, held = null, locked = null, reach = true;
+  let region = '', regionTimer = 0, hudTimer = 0, hurt = 0, time = 0, held = null, locked = null, lockedTower = null, reach = true;
+  const STILL = new THREE.Vector3();
 
   async function prepare() {
     if (S) return S;
@@ -87,9 +88,10 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
       const skies = () => SKIES[progress.data.skies];
       const bolts = makeBolts(scene), smoke = makeSmoke(scene), pickups = makePickups(scene);
       const raiders = makeRaiders(scene, A, bolts, skies);
+      const sites = makeSites(scene, bolts, smoke, raiders, skies);
       const port = makePort({ renderer, env: scene.environment, progress, shipFor: shipNow, onSail: (id) => sail(id), onMode: (m) => enter(m), onHome: () => close() });
       port.mode = 'off';
-      S = { scene, world, art: A, sun, skies, bolts, smoke, pickups, raiders, port, zones: new Map() };
+      S = { scene, world, art: A, sun, skies, bolts, smoke, pickups, raiders, sites, port, zones: new Map() };
       resize();
       return S;
     })();
@@ -101,19 +103,22 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     input.active = m === 'voyage' && !paused;
     if (m !== 'voyage' && document.pointerLockElement) document.exitPointerLock();
   }
-  // open the skies over the claim: 'port' (the shipyard), 'title' (choosing the skies) or 'voyage' (set sail now)
-  async function open(m = 'port') {
+  // open the skies over the claim: 'port' (the shipyard), 'title' (choosing the skies), 'voyage' (set sail now, on
+  // patrol) or 'raid' (set sail for one of the jumpers' places: opts.site, an id from SITES)
+  async function open(m = 'port', opts = {}) {
     root.hidden = false; document.body.classList.add('sky-on');
     const wait = $('sky-loading'); wait.hidden = !!S;
     if (mode === 'off') enter('loading');
     await prepare();
     wait.hidden = true;
     if (m === 'voyage') sail(progress.data.flying);
+    else if (m === 'raid') sail(progress.data.flying, false, opts.site);
     else S.port.setMode(m);
   }
   // back to the claim
   function close(result = {}) {
-    if (S) { S.raiders.clear(); S.bolts.clear(); S.pickups.clear(); S.port.mode = 'off'; }
+    if (S) { S.raiders.clear(); S.bolts.clear(); S.pickups.clear(); S.sites.clear(); S.port.mode = 'off'; }
+    for (const el of [...$('tags').children]) el.remove();
     for (const id of ['paused', 'calm', 'title', 'port']) $(id).hidden = true;
     paused = false;
     enter('off');
@@ -123,12 +128,16 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
 
   // ---------- set sail: a fresh voyage in this ship, built as it stands in the shipyard, from Brightvein ----------
   // (`force` sails a ship not owned, for tests)
-  function sail(id, force = false) {
+  function sail(id, force = false, siteId = null) {
     const d = progress.data;
     if (!S || (!d.ships[id].owned && !force)) return;
     const R = SHIPS.find((s) => s.id === id), ship = shipNow(R), L = loadout(id, d.ships[id]);
-    // out from the claim's rim, heading away from home
-    const a = Math.random() * Math.PI * 2, at = { pos: new THREE.Vector3(HOME.x + Math.sin(a) * 900, 680, HOME.z + Math.cos(a) * 900), heading: a };
+    S.raiders.clear(); S.bolts.clear(); S.pickups.clear(); S.smoke.puffs.length = 0; S.sites.clear();
+    for (const el of [...$('tags').children]) el.remove();
+    // out from the claim's rim: heading away from home on patrol, or towards the place on a raid
+    const site = SITES.find((x) => x.id === siteId) ?? null;
+    const a = Math.random() * Math.PI * 2, at = site ? S.sites.start(site) : { pos: new THREE.Vector3(HOME.x + Math.sin(a) * 900, 680, HOME.z + Math.cos(a) * 900), heading: a };
+    W.raid = site;
     ship.root.rotation.set(0, at.heading, 0); ship.root.position.copy(at.pos);
     player = makeFlyer(ship, L.stats, at, L.tune);
     if (!S.zones.has(id)) S.zones.set(id, hitZones(ship));
@@ -140,15 +149,17 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     S.sun.shadow.camera.updateProjectionMatrix();
     cam.dist = R.length * 1.35 + 16;
     $('ship-name').textContent = R.name; $('ship-cls').textContent = `${R.cls} · ${R.length} m`;
-    S.raiders.clear(); S.bolts.clear(); S.pickups.clear(); S.smoke.puffs.length = 0;
-    Object.assign(V, { shards: 0, downed: 0, hits: 0 }); Object.assign(W, { n: 0, state: 'calm', timer: 5, lost: 0, choose: 0, sunk: false });
+    Object.assign(V, { shards: 0, downed: 0, hits: 0 }); Object.assign(W, { n: 0, state: site ? 'fight' : 'calm', timer: 5, lost: 0, choose: 0, sunk: false, next: null });
     cam.yaw = 0; cam.pitch = 0.2; cam.zoom = 1;
     newWind();
     paused = false; $('paused').hidden = true; $('calm').hidden = true;
     S.port.mode = 'voyage'; $('title').hidden = true; $('port').hidden = true;
     enter('voyage');
     region = regionAt(at.pos.x, at.pos.z); // the region's name shows when you cross into the next one
-    banner(`The ${R.name} sets sail`, `From ${HOME.name} · ${S.skies().name} · ${windWords()}`);
+    if (site) {
+      const to = new THREE.Vector3(site.x, at.pos.y, site.z).sub(at.pos), km = (Math.hypot(to.x, to.z) / 1000).toFixed(1);
+      banner(`Raid: ${site.short}`, `${km} km to the ${COMPASS[Math.round(compassDeg(Math.atan2(to.x, to.z)) / 45) % 8]} · ${site.line}`);
+    } else banner(`The ${R.name} sets sail`, `From ${HOME.name} · ${S.skies().name} · ${windWords()}`);
   }
   // home to the claim: keep this share of the voyage's shards
   function endVoyage(keep) {
@@ -156,7 +167,8 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     d.shards += got; d.best[d.skies] = Math.max(d.best[d.skies], W.n);
     d.voyages = (d.voyages ?? 0) + 1; d.downed = (d.downed ?? 0) + V.downed;
     progress.save();
-    const result = { got, downed: V.downed, waves: W.n, lost: W.sunk || !!player?.down, ship: player?.ship.recipe.name };
+    const raid = W.raid ? { id: W.raid.id, loot: W.raid.loot, name: W.raid.short, taken: !!S.sites.cur?.taken && !player?.down } : null;
+    const result = { got, downed: V.downed, waves: W.n, lost: W.sunk || !!player?.down, ship: player?.ship.recipe.name, raid };
     if (player) player.ship.root.removeFromParent();
     close(result);
     return got;
@@ -193,15 +205,25 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
       const ang = v.angleTo(cam.look), tol = Math.max(0.05, Math.atan((r.R.length * 0.8) / along));
       if (ang < tol && ang < bestA) { bestA = ang; locked = r; }
     }
+    // or on the gun tower nearest the crosshair, when there's no ship to lock on to
+    lockedTower = null;
+    if (!locked && S.sites.cur) for (const t of S.sites.cur.towers) {
+      if (!t.alive) continue;
+      const v = t.world.clone().sub(camera.position), along = v.dot(cam.look);
+      if (along <= 0 || along > 1600) continue;
+      const ang = v.angleTo(cam.look), tol = Math.max(0.04, Math.atan(7 / along));
+      if (ang < tol && ang < bestA) { bestA = ang; lockedTower = t; }
+    }
     aimPoint.copy(target).addScaledVector(cam.look, 800);
   }
   function aimFor(battery) {
     reach = true;
-    if (!locked) return;
+    if (!locked && !lockedTower) return;
     player.ship.root.updateMatrixWorld(true);
     const m = gunnery.muzzle(battery);
     if (!m) { reach = false; return; }
-    aimPoint.copy(intercept(m.p, player.velocity, locked.f.aimAt(), locked.f.velocity, m.K.speed));
+    if (lockedTower) aimPoint.copy(intercept(m.p, player.velocity, lockedTower.world, STILL, m.K.speed));
+    else aimPoint.copy(intercept(m.p, player.velocity, locked.f.aimAt(), locked.f.velocity, m.K.speed));
     reach = gunnery.reaches(battery, aimPoint);
   }
 
@@ -210,12 +232,22 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
   function hitTest(b, a, c) {
     if (b.owner === 'player') {
       const h = S.raiders.hitBy(a, c);
-      if (!h) return false;
-      h.r.f.hit(h.h.part, b.damage); V.hits++;
-      S.bolts.burst(h.h.at, ...BURST[h.h.part]);
+      if (h) {
+        h.r.f.hit(h.h.part, b.damage); V.hits++;
+        S.bolts.burst(h.h.at, ...BURST[h.h.part]);
+        return true;
+      }
+    }
+    // the jumpers' rock and its gun towers
+    const g = S.sites.hitBy(a, c, b.owner);
+    if (g) {
+      if (g.tower) {
+        V.hits++; S.bolts.burst(g.at, 0xffa040, 22, 1);
+        if (S.sites.damageTower(g.tower, b.damage)) { const n = S.sites.towersLeft; toast(n ? `A gun tower silenced: ${NUMBER[n] === 'a' ? 'one' : NUMBER[n]} left` : 'The last gun tower is silenced'); }
+      } else S.bolts.burst(g.at, 0xb8a48a, 10, 0.6);
       return true;
     }
-    if (player.down) return false;
+    if (b.owner === 'player' || player.down) return false;
     const h = firstHit(S.zones.get(player.ship.recipe.id), player.ship.body, a, c);
     if (!h) return false;
     player.hit(h.part, b.damage);
@@ -254,6 +286,7 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     }
     if (player.down) { W.lost = 4; $('calm').hidden = true; banner(`The ${player.ship.recipe.name} is going down`, 'All hands to the boats'); return; }
     if (W.state !== 'fight') player.repair(dt * 0.12); // between fights the crew patch her up
+    if (W.raid) { raidStep(dt); return; }
     if (W.state === 'calm') {
       if ((W.timer -= dt) <= 0) {
         const wave = W.next ?? waveAt(W.n, skies().extra), a = raiders.spawnWave(wave, player);
@@ -272,6 +305,7 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
         const next = waveAt(W.n, skies().extra);
         W.next = next;
         $('calm-line').textContent = `◆ ${fmt(bonus)} for the wave · ◆ ${fmt(V.shards)} this voyage. Next: ${next.captain >= 0 ? 'a raider captain, with ' : ''}${describe(next.ids)}. Sail on for more, or go home to ${HOME.name} and keep them.`;
+        $('btn-sail-on').hidden = false; $('btn-go-port').textContent = `Home to ${HOME.name}`;
         $('calm').hidden = false;
       }
     } else if (W.state === 'choose') {
@@ -284,8 +318,28 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     if (W.state !== 'choose') return;
     $('calm').hidden = true; W.state = 'calm'; W.timer = 4; newWind();
   }
+  // a raid: the place's guards come out wave by wave, its gun towers fire while you're in reach, and once both are done
+  // it strikes its colours
+  function raidStep(dt) {
+    const site = W.raid, ev = S.sites.update(dt, player), cur = S.sites.cur;
+    if (ev === 'guards' || ev === 'wave') {
+      const w = site.guard[cur.wave];
+      banner(ev === 'guards' ? `${site.short}: the guards come out` : 'More guards', `${describe(w.ids)}${site.towers ? ` · ${site.towers} gun tower${site.towers > 1 ? 's' : ''} on the rock` : ''}`);
+    }
+    if (ev === 'taken' || ev === 'lost') {
+      W.state = ev;
+      const taken = ev === 'taken';
+      $('calm-title').textContent = taken ? `${site.short} strikes ${site.moving ? 'her' : 'its'} colours` : site.moving && cur.prize?.escaped ? `${site.short} got away` : `${site.short} went down with her crates`;
+      $('calm-line').textContent = taken
+        ? `Your crew load ${NUMBER[site.crates] === 'a' ? 'one crate' : `${NUMBER[site.crates]} crates`} aboard · ◆ ${fmt(V.shards)} gathered. Take them home to ${HOME.name} to open them.`
+        : `◆ ${fmt(V.shards)} gathered. There'll be another run.`;
+      $('btn-sail-on').hidden = true; $('btn-go-port').textContent = taken ? `Home with the crates` : `Home to ${HOME.name}`;
+      $('calm').hidden = false;
+      banner(taken ? `${site.short} is taken` : 'The prize is lost', taken ? 'Brightvein\'s colours fly over it' : '');
+    }
+  }
   $('btn-sail-on').addEventListener('click', sailOn);
-  $('btn-go-port').addEventListener('click', () => { if (W.state === 'choose') endVoyage(1); });
+  $('btn-go-port').addEventListener('click', () => { if (W.state === 'choose' || W.state === 'taken' || W.state === 'lost') endVoyage(1); });
   function pause(on) {
     if (mode !== 'voyage' || W.sunk) return;
     paused = on; input.active = !on;
@@ -352,7 +406,23 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
       for (let j = 0; j < i; j++) { const b = placed[j]; if (Math.abs(a.x - b.x) < 84 && a.y - b.y < 40) a.y = b.y + 40; }
       a.el.style.transform = `translate(${a.x}px, ${a.y}px) translate(-50%, -100%)`;
     });
-    for (const el of [...$('tags').children]) if (!S.raiders.list.some((r) => r.tag === el)) el.remove();
+    // the place being raided: a gold tag over it, or at the edge pointing to it
+    const cur = S.sites.cur;
+    if (cur && !(cur.def.moving && cur.prize)) {
+      let el = cur.tag;
+      if (!el) { el = cur.tag = document.createElement('div'); el.className = 'tag captain site'; el.innerHTML = `<span class="arrow">▲</span><b>Raid · ${cur.def.short}</b> <span class="d"></span>`; }
+      if (!el.parentNode) $('tags').append(el);
+      proj.copy(cur.center); proj.y += cur.def.size * 0.4 + 24; proj.project(camera);
+      const behind = proj.z > 1;
+      let x = proj.x * W2 * (behind ? -1 : 1), y = -proj.y * H2 * (behind ? -1 : 1);
+      const k = Math.max(Math.abs(x) / (W2 - 50), Math.abs(y) / (H2 - 46)), edge = behind || k > 1;
+      if (edge) { x /= Math.max(k, 1e-6); y /= Math.max(k, 1e-6); el.querySelector('.arrow').style.transform = `rotate(${Math.atan2(x, -y)}rad)`; }
+      el.classList.toggle('edge', edge);
+      el.style.transform = `translate(${W2 + x}px, ${H2 + y}px) translate(-50%, -100%)`;
+      const n = S.sites.towersLeft, dist = cur.center.distanceTo(player.pos);
+      el.querySelector('.d').textContent = `${dist > 2000 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist) + ' m'}${n ? ` · ${n} gun${n > 1 ? 's' : ''}` : cur.taken ? ' · taken' : ''}`;
+    }
+    for (const el of [...$('tags').children]) if (!S.raiders.list.some((r) => r.tag === el) && el !== cur?.tag) el.remove();
   }
   function hud(dt, battery) {
     hudTimer -= dt;
@@ -360,9 +430,9 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     $('hurt').style.opacity = String(Math.max(hurt, player.down ? 0.6 : 0));
     const n = gunnery.count(battery), rl = gunnery.ready[battery], full = gunnery.reload(battery);
     $('battery-name').textContent = n ? BATTERY_NAMES[battery] : `No ${BATTERY_NAMES[battery].toLowerCase()}`;
-    $('battery-count').textContent = !n ? '–' : locked && !reach ? 'out of reach' : `${n} gun${n > 1 ? 's' : ''}`;
+    $('battery-count').textContent = !n ? '–' : (locked || lockedTower) && !reach ? 'out of reach' : `${n} gun${n > 1 ? 's' : ''}`;
     $('reload-bar').style.width = `${n ? (1 - rl / full) * 100 : 0}%`;
-    $('aim').className = locked ? (reach ? 'locked' : 'locked far') : '';
+    $('aim').className = locked || lockedTower ? (reach ? 'locked' : 'locked far') : '';
     tags();
     if (hudTimer > 0) return;
     hudTimer = 0.1;
@@ -403,6 +473,8 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
       mctx.lineWidth = Math.max(1, s / 5); mctx.strokeStyle = '#3a1631';
       mctx.fillStyle = '#ffcf85';
       mctx.beginPath(); mctx.moveTo(mx(HOME.x), mz(HOME.z) - s); mctx.lineTo(mx(HOME.x) + s * 0.7, mz(HOME.z)); mctx.lineTo(mx(HOME.x), mz(HOME.z) + s); mctx.lineTo(mx(HOME.x) - s * 0.7, mz(HOME.z)); mctx.closePath(); mctx.fill(); mctx.stroke();
+      const site = S.sites.cur;
+      if (site) { const p = S.sites.where(); mctx.fillStyle = site.taken ? '#7a3a6a' : '#ff9a3a'; mctx.fillRect(mx(p.x) - s * 0.8, mz(p.z) - s * 0.8, s * 1.6, s * 1.6); mctx.strokeRect(mx(p.x) - s * 0.8, mz(p.z) - s * 0.8, s * 1.6, s * 1.6); }
       mctx.fillStyle = '#ff4636';
       for (const q of S.raiders.list) if (!q.f.down) { mctx.beginPath(); mctx.arc(mx(q.f.pos.x), mz(q.f.pos.z), s * 0.45, 0, Math.PI * 2); mctx.fill(); mctx.stroke(); }
       mctx.save(); mctx.translate(x, y); mctx.rotate(-player.heading + Math.PI);
@@ -426,6 +498,7 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
       else if (k === 'Enter') sailOn();
     }
     player.update(dt, inp);
+    S.sites.keepOut(player);
     player.ship.root.updateMatrixWorld(true);
     const gone = raiders.update(dt, player, camera);
     placeCamera(dt, inp);
@@ -468,8 +541,8 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     get on() { return mode !== 'off'; }, get mode() { return mode; }, get paused() { return paused; },
     // for tests
     get player() { return player; }, get gunnery() { return gunnery; }, cam, input, waves: W, voyage: V, progress,
-    get raiders() { return S?.raiders; }, get port() { return S?.port; }, get scene() { return S?.scene; }, camera,
-    sail, endVoyage, pause, sailOn, wind: WIND,
+    get raiders() { return S?.raiders; }, get parts() { return S; }, get port() { return S?.port; }, get scene() { return S?.scene; }, camera,
+    sail, endVoyage, pause, sailOn, wind: WIND, get sites() { return S?.sites; }, raid: (site, id) => sail(id ?? progress.data.flying, true, site),
     fly: (id) => sail(id, true), // a voyage in any ship, owned or not
     get hits() { return V.hits; }, get downed() { return V.downed; }, get locked() { return locked; },
     // run a voyage's clock without drawing, holding these controls (for tests on slow software rendering)

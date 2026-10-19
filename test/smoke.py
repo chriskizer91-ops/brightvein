@@ -60,6 +60,20 @@ with sync_playwright() as p:
     r = pg.evaluate('''(() => { const B = __bv; B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
       return { saved: !!s.sky && s.sky.voyages === 1 && !('shards' in s.sky), moored: B.DOCK.ship.root.parent === B.scene }; })()''')
     check('the fleet is saved with the claim, and she is moored again', r['saved'] and r['moored'], json.dumps(r))
+
+    # a raid on the jumpers' prospect camp: the guards come out (struck down here: shooting ships is checked above),
+    # the gun tower is shot down with the guns locked on to it, the camp strikes its colours, and its crates come home
+    src = open(os.path.join(ROOT, 'test', 'raid.py')).read()
+    pg.evaluate(src.split("AUTOPILOT = '''")[1].split("'''")[0])
+    pg.evaluate('__bv.openSky("port")')
+    pg.wait_for_function('__bv.SKY.mode === "port"', timeout=60000)
+    r = pg.evaluate('__raidPilot("camp", "skiff", 300)')
+    check('raided the prospect camp and took it', r['state'] == 'taken', json.dumps({k: r[k] for k in ('t', 'state', 'downed', 'card')}))
+    before = pg.evaluate('__bv.GAME.stash.length')
+    pg.evaluate('document.getElementById("btn-go-port").click()')
+    pg.wait_for_timeout(1200)
+    r = pg.evaluate('({ stash: __bv.GAME.stash.length, won: __bv.FLEET.data.raids.camp.won, panel: __bv.UI.cur && __bv.UI.cur.kind })')
+    check("the camp's crates opened at home", r['stash'] >= before + 2 and r['won'] == 1 and r['panel'] == 'haul', json.dumps(r))
     extra = os.environ.get('SMOKE_EXTRA')
     if extra: print(pg.evaluate(extra))
     b.close()

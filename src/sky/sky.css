@@ -172,6 +172,8 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .tag.locked { border-color: #ffd36a; box-shadow: 0 0 10px rgba(255, 200, 90, 0.6); }
 .tag.captain { background: rgba(26, 18, 8, 0.82); border-color: #ffd36a; }
 .tag.captain b { color: #ffd36a; }
+.tag.site { background: rgba(40, 26, 8, 0.85); border-color: #ffb347; }
+.tag.site b { color: #ffcf85; }
 #banner { position: fixed; left: 50%; top: 33%; translate: -50% 0; width: max-content; max-width: 92vw; text-align: center; pointer-events: none; opacity: 0; }
 #banner.on { animation: region 4.4s ease-in-out forwards; }
 #banner-title { margin: 0; font: 400 clamp(30px, 6vw, 56px)/1 var(--display); color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 24px rgba(0, 0, 0, 0.9); }

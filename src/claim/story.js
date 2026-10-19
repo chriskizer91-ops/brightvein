@@ -285,6 +285,7 @@ function storyTick(dt) {
   if (!STORY.started) {
     STORY.started = true; STORY.at = { day: GAME.day, nights: GAME.nights };
     if (C.visit) { if (C.visit.ship) visitShip(C.visit.ship); castArrive(C.visit.cast || []); }
+    if (C.id === 'letter' || (C.visit && C.visit.ship)) AUDIO.play('horn');
     playScene({ lines: C.open, title: C.title, chapter: STORY.ch });
     journalHUD(); return;
   }
@@ -298,7 +299,7 @@ function storyTick(dt) {
       if (C.leave) castLeave(C.leave);
       STORY.done.push(C.id);
       toast(`<b>${esc(C.title)}</b>: chapter done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${(R.crew || []).length ? ` · ${R.crew.map(id => CAST_NAMES[id].name.split(' ')[0]).join(' and ')} join${R.crew.length > 1 ? '' : 's'} the crew` : ''}${(R.codex || []).length ? ' · new in the journal' : ''}.`);
-      AUDIO.play('dawn');
+      AUDIO.play('chapter');
       STORY.ch++; STORY.started = false; STORY.at = null; storyT = 6;
       journalHUD(); saveGame();
     } });
@@ -359,7 +360,7 @@ function journalHUD() {
   const el = $('#journal'), C = CHAPTERS[STORY.ch];
   if (!started || !BUILD.setupDone || !C || !STORY.started) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = `<b>${STORY.ch ? `Chapter ${STORY.ch}` : 'Prologue'} · ${esc(C.title)}</b>` + C.goals.map(g => { const ok = g.done(), p = g.prog && g.prog(); return `<span class="${ok ? 'ok' : ''}"><i>${ok ? '✓' : '◇'}</i>${esc(g.text)}${p && !ok ? ` <em>${p[0]}/${p[1]}</em>` : ''}</span>`; }).join('');
+  el.innerHTML = `<b>${STORY.ch ? `Chapter ${STORY.ch}` : 'Prologue'} · ${esc(C.title)}</b>` + C.goals.map(g => { const ok = g.done(), p = g.prog && g.prog(); if (ok && g.seen === false && !g.rang) { g.rang = true; AUDIO.play('goal'); } g.seen = ok; return `<span class="${ok ? 'ok' : ''}"><i>${ok ? '✓' : '◇'}</i>${esc(g.text)}${p && !ok ? ` <em>${p[0]}/${p[1]}</em>` : ''}</span>`; }).join('');
 }
 $('#journal').onclick = () => UI.open('journal');
 UI.journal = function (body) {

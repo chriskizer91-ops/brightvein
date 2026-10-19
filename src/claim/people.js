@@ -264,6 +264,7 @@ function homeEntry(v) { const b = TOWN.b.keep; return b ? b.worldPos(0, 0, 4.4) 
 function stationFor(v) {
   const j = v.d.job; if (!j) return null;
   if (j.bid === 'wall') {
+    const mend = wallRepairSpot(v); if (mend) return mend;   // by day the watch mends the wall (nights.js)
     const segs = WALL.segs, n = segs.length, s = segs[Math.floor((j.slot * 2 + 1) / (2 * Math.max(1, WALLB.slots())) * n) % n];
     const ix = -Math.sin(s.ang), iz = Math.cos(s.ang); let x = s.mx + ix * 1.6, z = s.mz + iz * 1.6;
     if (!onPlateau(x, z) || distToOutline(x, z) < 3.3) { x = s.mx - ix * 1.6; z = s.mz - iz * 1.6; }
@@ -344,7 +345,7 @@ function moveToward(v, to, speed, dt, flat = true) {
   return false;
 }
 function runStep(v, s, dt) {
-  const sp = (s.run || v.running ? 3.8 : 2.1) * (1 + clamp(gearOf(v).speed, -30, 40) / 100);
+  const sp = (s.limp ? 1.0 : s.run || v.running ? 3.8 : 2.1) * (1 + clamp(gearOf(v).speed, -30, 40) / 100) * (v.where === 'mine' ? 1 : wxWalk());   // the hurt limp; rain slows everyone above ground (nights.js, weather.js)
   const done = () => { v.plan.shift(); s.then && s.then(); };
   v.working = false; v.fighting = false;
   switch (s.type) {

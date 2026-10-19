@@ -142,7 +142,7 @@ function setupDock(save) {
   modelDock(b); b.show(1);
   DOCK.b = b;
   FLEET = makeProgress({ wallet: { get: () => GAME.shards, set: n => { GAME.shards = n; } }, load: () => save && save.sky, store: () => saveGame() });
-  SKY = makeSky({ renderer, canvas, progress: FLEET, onLeave: dockHome });
+  SKY = makeSky({ renderer, canvas, progress: FLEET, onLeave: dockHome, sound: (k, at) => AUDIO.play(k, at) });
   SKY.art.then(() => setTimeout(dockMoor, 50)).catch(e => console.error(e));
 }
 function openSky(mode, opts) {

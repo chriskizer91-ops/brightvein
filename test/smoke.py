@@ -23,9 +23,11 @@ with sync_playwright() as p:
 
     # the story: the prologue opened when the claim started, and closes after the first night; the settlers came off
     # the roll, so each has a portrait to match their sprite
-    pg.wait_for_timeout(1500)
+    # the first frame after a simulated night compiles a lot of shaders, which is slow in software: wait for it
+    pg.wait_for_function('__bv.STORY.started', timeout=240000)
     r = pg.evaluate('''(async () => { const B = __bv, out = { ch0: B.STORY.ch, shown: !!B.STORY.shown };
-      for (let i = 0; i < 40 && B.STORY.ch === 0; i++) { while (B.STORY.shown) B.talkNext(); await new Promise(r => setTimeout(r, 700)); }
+      const until = Date.now() + 180000;  // by the clock, not a count of tries: a loaded machine draws few frames
+      while (Date.now() < until && B.STORY.ch === 0) { while (B.STORY.shown) B.talkNext(); await new Promise(r => setTimeout(r, 700)); }
       out.ch = B.STORY.ch; out.title = B.CHAPTERS[B.STORY.ch].title;
       out.rolled = B.GAME.villagers.filter(v => v.d.portrait).length; out.people = B.GAME.villagers.length;
       return out; })()''')
@@ -37,6 +39,7 @@ with sync_playwright() as p:
     check('a ship moored at the Sky Dock', pg.evaluate('__bv.DOCK.ship.recipe.id') == 'skiff')
     pg.evaluate('__bv.GAME.shards = 1000; __bv.openSky("voyage")')
     pg.wait_for_function('__bv.SKY.mode === "voyage"', timeout=120000)
+    pg.wait_for_function('BV_AUDIO.AUDIO.status().theme === "skies"', timeout=30000)
     r = pg.evaluate('''(() => {
       const B = __bv, g = B.SKY, P = g.player, out = { t0: B.GAME.t, shards0: Math.round(B.GAME.shards) };
       g.wind.strength = 0;
@@ -51,6 +54,7 @@ with sync_playwright() as p:
           c = { fire: true, turn: Math.max(-1, Math.min(1, -g.cam.yaw * 2)), climb: Math.max(-1, Math.min(1, (live[0].f.pos.y - P.pos.y) / 40)) };
         }
         g.step(0.25, c); t += 0.25;
+        if (g.waves.state === 'fight' && !out.fightWant) out.fightWant = BV_AUDIO.MUSIC.want();
       }
       out.wave1 = Math.round(t); out.choose = !document.getElementById('calm').hidden; out.won = Math.round(g.voyage.shards);
       document.getElementById('btn-sail-on').click(); g.step(5, {});
@@ -65,6 +69,7 @@ with sync_playwright() as p:
       return out; })()''')
     check('set sail from the Sky Dock', r['sailed'], json.dumps(r))
     check('wave 1 beaten, then sail on to wave 2', r['choose'] and r['won'] > 0 and r['wave2'])
+    check('the music sails with her, and a fight brings in the drums', r.get('fightWant', {}).get('theme') == 'skies' and r['fightWant'].get('i') == 2, json.dumps(r.get('fightWant')))
     check('lost the ship, and the crew got her home with half', r['sunk'] and r['home'] and abs(r['banked'] - r['half']) <= 1)
     check("the claim's time stood still while she was away", r['claimStill'] and r['voyages'] == 1)
     pg.wait_for_function('__bv.DOCK.ship.root.parent === __bv.scene', timeout=20000)
@@ -117,6 +122,55 @@ with sync_playwright() as p:
     check('two of a kind side by side merge', r['merged'] and r['upgraded'])
     check('a cave-in, dug clear by the crew', r['cave'] and r['caveCleared'])
     check('Wildlight out of the deep seam, fought off or gone', r['seam'] and r['breach'] and r['wild'] >= 2 and r['breachOver'])
+    # nights: a Bright Night brings a boss with a health bar, and it can be brought down; dawn brings the report
+    r = pg.evaluate('''(() => { const B = __bv, out = {};
+      B.NIGHT.grudge = null; B.GAME.nights = 4; B.forceWeather('clear', 'clear');
+      B.skipTo(0.62); out.banner = !document.getElementById('nightbanner').hidden && document.getElementById('nightbanner').textContent;
+      out.plan = B.NIGHT.plan && B.NIGHT.plan.n; out.bright = B.NIGHT.plan && B.NIGHT.plan.bright;
+      for (let i = 0; i < 200 && !(B.WL.night && B.WL.night.boss); i++) B.simulate(1, 0.1);
+      const f = B.WL.night && B.WL.night.boss; out.boss = !!f && f.boss && f.name; out.hp = f && Math.round(f.hp);
+      const bb = document.getElementById('bossbar'); out.bar = !bb.hidden && getComputedStyle(bb).position === 'absolute' && bb.getBoundingClientRect().height > 20 && bb.textContent;
+      const stash = B.GAME.stash.length, shards = B.GAME.shards;
+      if (f) { f.hurt(1e6, 'lark'); B.simulate(1, 0.1); }
+      out.dead = !!f && f.dead; out.killed = B.WL.night && B.WL.night.bossKilled; out.loot = B.GAME.stash.length - stash; out.bonus = Math.round(B.GAME.shards - shards);
+      B.skipTo(0.975);
+      const d = document.getElementById('dawn'); out.dawn = !!d && !d.hidden && d.textContent.slice(0, 80); out.last = B.NIGHT.last && B.NIGHT.last.bossKilled;
+      return out; })()''')
+    check('a Bright Night names itself at dusk', bool(r['banner']) and r['bright'] and r['plan'] == 5, json.dumps({k: r[k] for k in ('banner', 'plan', 'bright')}))
+    check('a Bright Night brings a boss with a health bar', bool(r['boss']) and bool(r['bar']), json.dumps({k: r[k] for k in ('boss', 'hp', 'bar')}))
+    check('the boss can be brought down, and leaves something good', r['dead'] and r['killed'] and r['loot'] >= 1 and r['bonus'] >= 60, json.dumps({k: r[k] for k in ('dead', 'killed', 'loot', 'bonus')}))
+    check('the dawn report comes up', bool(r['dawn']) and r['last'], json.dumps({k: r[k] for k in ('dawn', 'last')}))
+    # the wall: a section knocked down shows a gap, is saved, and the watch mends it by day
+    r = pg.evaluate('''(() => { const B = __bv, s = B.WALL.segs[10], out = {};
+      B.wallHit(s, 2); out.broken = s.broken; B.saveGame(); const sv = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
+      out.saved = sv.night && sv.night.broken[10] === 1 && sv.night.wall[10] < 0.5;
+      B.GAME.shards = Math.max(B.GAME.shards, 300); if (!B.workersOf('wall').length) { const v = B.GAME.villagers.find(x => !x.d.exp); B.assignJob(v, 'wall'); }
+      B.skipTo(0.45); out.mended = !s.broken; out.hp = Math.round(s.hp * 100);
+      return out; })()''')
+    check('a broken wall section is saved, and mended by day', r['broken'] and r['saved'] and r['mended'], json.dumps(r))
+    # weather: each kind can be forced, shows in the clock, and is saved
+    r = pg.evaluate('''(() => { const B = __bv, out = {};
+      for (const k of Object.keys(B.WEATHERS)) { B.forceWeather(k, 'fog'); B.applyTimeOfDay(B.GAME.t, 0); B.saveGame(); const sv = B.loadSave();
+        out[k] = sv.weather && sv.weather.today === k && sv.weather.next === 'fog' && document.getElementById('wx').textContent.includes(B.WEATHERS[k].name); }
+      B.forceWeather('fog'); B.applyTimeOfDay(0.3, 0); out.fogFar = Math.round(B.scene.fog.far);
+      B.forceWeather('clear'); B.applyTimeOfDay(0.3, 0); out.clearFar = Math.round(B.scene.fog.far);
+      return out; })()''')
+    check('each weather can be forced, shown and saved', all(r[k] for k in ('clear', 'overcast', 'rain', 'fog', 'storm')), json.dumps(r))
+    check('fog closes in', r['fogFar'] < 400 < r['clearFar'], json.dumps(r))
+    # an Aether storm: a Lightning Rod catches a bolt and turns it into shards
+    r = pg.evaluate('''(() => { const B = __bv; B.forceWeather('storm'); B.GAME.shards += 100; const rod = B.addBuilding('rod', null, null, 1, { hint: [0, 10] }); const s0 = B.GAME.shards;
+      const hit = B.lightningStrike(new B.THREE.Vector3(rod.L.x + 4, 0, rod.L.z + 2)); return { kind: hit.kind, gain: Math.round(B.GAME.shards - s0), caught: rod.caught || 0 }; })()''')
+    check('a Lightning Rod catches a bolt and turns it into shards', r['kind'] == 'rod' and r['gain'] >= 12 and r['caught'] == 1, json.dumps(r))
+    r = pg.evaluate('''(async () => { const B = __bv, A = BV_AUDIO.AUDIO, out = { before: A.status().theme };
+      B.GAME.t = 0.8;
+      const until = Date.now() + 90000;   // the dawn cue (18 s) may still be playing from the nights check before this
+      while (Date.now() < until && A.status().theme !== 'night') { while (B.STORY.shown) B.talkNext(); B.GAME.t = 0.8; B.applyTimeOfDay(0.8, 0); await new Promise(r => setTimeout(r, 400)); }
+      out.night = A.status().theme; out.want = BV_AUDIO.MUSIC.want().theme;
+      B.simulate(60); await new Promise(r => setTimeout(r, 4000));
+      const s = A.status(); out.voices = s.voices; out.persist = s.persist; out.state = s.state; out.dropped = s.dropped;
+      return out; })()''')
+    check('the music turns to the night watch at night', r['night'] == 'night', json.dumps(r))
+    check("a minute of play doesn't pile up sounds", r['state'] == 'running' and r['voices'] < 72 and r['persist'] < 200, json.dumps(r))
     # a claim saved before the dig, with the deep seam open: its miners keep their places in the matching rooms
     pg.evaluate('''(() => { const B = __bv; B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
       delete s.dig; for (const b of s.buildings) if (b.type === 'head') b.level = 2;
@@ -130,6 +184,20 @@ with sync_playwright() as p:
     check('an old save loads: the galleries are rooms, the miners keep their places', 'm:0.8 face 2' in r['rooms'] and 'm:2.8 face 2' in r['rooms'] and 'm:5.8 seam 2' in r['rooms'] and r['upper'] == 'm:0.8' and r['lower'] == 'm:2.8', json.dumps(r))
     extra = os.environ.get('SMOKE_EXTRA')
     if extra: print(pg.evaluate(extra))
+    pg.evaluate('__bv.renderer.setAnimationLoop(null)'); pg.close()   # the next page loads faster on its own
+    pg2 = b.new_page(viewport={'width': 480, 'height': 360})
+    pg2.add_init_script('delete window.AudioContext; delete window.webkitAudioContext; delete window.OfflineAudioContext; delete window.webkitOfflineAudioContext;')
+    quiet = []
+    pg2.on('pageerror', lambda e: quiet.append(str(e)))
+    pg2.route('**/fonts.g*/**', lambda r: r.fulfill(body='', content_type='text/css'))
+    pg2.goto('file://' + ROOT + '/dist/test.html', timeout=300000)
+    pg2.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=240000)
+    r = pg2.evaluate('''(async () => { const B = __bv, A = BV_AUDIO.AUDIO; B.begin(true); B.exitBuild(); B.simulate(30, 0.1);
+      for (const k of A.names()) A.play(k, { x: 0, y: 0, z: 0 }); A.loot('sunforged'); A.rain(0.5); A.ambience(); A.vol('music', 0.5);
+      document.getElementById('b-menu').click(); document.querySelector('#mb-list .mb-play').click(); document.getElementById('menu-close').click();
+      return { missing: A.missing, status: A.status().state, render: await A.render({ theme: 'day', seconds: 1 }) }; })()''')
+    check('with no sound in the browser, nothing breaks', not quiet and r['missing'] and r['render'] is None, json.dumps(r) + ' ' + '; '.join(quiet))
+    pg2.close()
     b.close()
 for e in errors: print('  -', e)
 print('all good' if not errors else f'{len(errors)} problem(s)')

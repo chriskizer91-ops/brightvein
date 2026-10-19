@@ -530,6 +530,7 @@ function applyTimeOfDay(t, time) {
   const envK = lerp(1, 0.18, TOD.night);
   for (const m of ENV_MATS) m.envMapIntensity = m.userData.env * envK;
   if (bloom) { bloom.strength = lerp(0.42, 0.95, TOD.night); bloom.threshold = lerp(0.88, 0.62, TOD.night); }
+  weatherMood(t, time);   // cloud, rain, fog and storm over the hour's light (weather.js)
 }
 const ENV_MATS = [];
 function trackEnv(m, k) { if (!m.envMap) m.envMap = envTex; m.envMapIntensity = k; m.userData.env = k; ENV_MATS.push(m); return m; }

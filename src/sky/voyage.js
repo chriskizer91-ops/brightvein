@@ -40,8 +40,9 @@ const fmt = (n) => Math.round(n).toLocaleString('en');
 export { HOME };
 
 // renderer, canvas: the claim's. progress: the fleet (./progress.js). onLeave({ got, downed, waves, lost, ship }) when
-// the Captain comes home from a voyage, or ({}) leaving the shipyard.
-export function makeSky({ renderer, canvas, progress, onLeave }) {
+// the Captain comes home from a voyage, or ({}) leaving the shipyard. sound(name, position): the claim's effects.
+export function makeSky({ renderer, canvas, progress, onLeave, sound }) {
+  const sfx = (k, at) => { try { sound?.(k, at); } catch (e) { /* the skies fly on without sound */ } };
   if (touch) document.body.classList.add('touch');
   const root = $('sky');
   const camera = new THREE.PerspectiveCamera(55, 1, 1, 70000);
@@ -90,6 +91,8 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
       scene.add(hemi, sun, sun.target);
       const skies = () => SKIES[progress.data.skies];
       const bolts = makeBolts(scene), smoke = makeSmoke(scene), pickups = makePickups(scene);
+      const fire0 = bolts.fire; let shotT = -1;
+      bolts.fire = (from, dir, kind, owner, ...rest) => { if (owner === 'raider' && time - shotT > 0.15) { shotT = time; sfx('cannonfar', from); } return fire0(from, dir, kind, owner, ...rest); };
       const raiders = makeRaiders(scene, A, bolts, skies);
       const sites = makeSites(scene, bolts, smoke, raiders, skies);
       const port = makePort({ renderer, env: scene.environment, progress, shipFor: shipNow, onSail: (id) => sail(id), onMode: (m) => enter(m), onHome: () => close() });
@@ -140,7 +143,7 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     // out from the claim's rim: heading away from home on patrol, or towards the place on a raid
     const site = SITES.find((x) => x.id === siteId) ?? null;
     const a = Math.random() * Math.PI * 2, at = site ? S.sites.start(site) : { pos: new THREE.Vector3(HOME.x + Math.sin(a) * 900, 680, HOME.z + Math.cos(a) * 900), heading: a };
-    W.raid = site;
+    W.raid = site; sfx('sail');
     ship.root.rotation.set(0, at.heading, 0); ship.root.position.copy(at.pos);
     player = makeFlyer(ship, L.stats, at, L.tune);
     if (!S.zones.has(id)) S.zones.set(id, hitZones(ship));
@@ -236,7 +239,7 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     if (b.owner === 'player') {
       const h = S.raiders.hitBy(a, c);
       if (h) {
-        h.r.f.hit(h.h.part, b.damage); V.hits++;
+        h.r.f.hit(h.h.part, b.damage); V.hits++; sfx('raiderhit', h.h.at);
         S.bolts.burst(h.h.at, ...BURST[h.h.part]);
         return true;
       }
@@ -246,14 +249,15 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     if (g) {
       if (g.tower) {
         V.hits++; S.bolts.burst(g.at, 0xffa040, 22, 1);
-        if (S.sites.damageTower(g.tower, b.damage)) { const n = S.sites.towersLeft; toast(n ? `A gun tower silenced: ${NUMBER[n] === 'a' ? 'one' : NUMBER[n]} left` : 'The last gun tower is silenced'); }
+        sfx('raiderhit', g.at);
+        if (S.sites.damageTower(g.tower, b.damage)) { sfx('tower', g.at); const n = S.sites.towersLeft; toast(n ? `A gun tower silenced: ${NUMBER[n] === 'a' ? 'one' : NUMBER[n]} left` : 'The last gun tower is silenced'); }
       } else S.bolts.burst(g.at, 0xb8a48a, 10, 0.6);
       return true;
     }
     if (b.owner === 'player' || player.down) return false;
     const h = firstHit(S.zones.get(player.ship.recipe.id), player.ship.body, a, c);
     if (!h) return false;
-    player.hit(h.part, b.damage);
+    player.hit(h.part, b.damage); sfx('hullhit', h.at);
     S.bolts.burst(h.at, ...BURST[h.part]);
     hurt = Math.min(1, hurt + 0.45); cam.shake = 0.3;
     return true;
@@ -270,7 +274,7 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
   function waves(dt, gone) {
     const { bolts, pickups, raiders, skies } = S;
     for (const r of gone) {
-      V.downed++;
+      V.downed++; sfx('raiderdown', r.f.pos);
       bolts.burst(r.f.pos, 0xff8a3a, 60, 2.2); bolts.burst(r.f.pos.clone().add({ x: 0, y: 3, z: 0 }), 0xffe08a, 30, 1.6);
       pickups.spill(r.f.pos.clone().add({ x: 0, y: 2, z: 0 }), r.f.velocity, r.bounty * skies().shards * (1 + 0.1 * W.n));
       toast(`${r.name} ${r.f.down.why === 'hull' ? 'going down' : r.f.down.why === 'struck' ? 'strikes her colours' : 'sinking, crystals dead'}: fly through the shards`);
@@ -287,7 +291,7 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
       }
       return;
     }
-    if (player.down) { W.lost = 4; $('calm').hidden = true; banner(`The ${player.ship.recipe.name} is going down`, 'All hands to the boats'); return; }
+    if (player.down) { W.lost = 4; sfx('sunk'); $('calm').hidden = true; banner(`The ${player.ship.recipe.name} is going down`, 'All hands to the boats'); return; }
     if (W.state !== 'fight') player.repair(dt * 0.12); // between fights the crew patch her up
     if (W.raid) { raidStep(dt); return; }
     if (W.state === 'calm') {
@@ -296,14 +300,14 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
         W.next = null;
         const title = wave.ids.includes('galleon') ? `Wave ${W.n + 1}: a treasure ship` : wave.captain >= 0 ? `Wave ${W.n + 1}: a raider captain` : wave.ids.includes('manowar') ? `Wave ${W.n + 1}: a Man-o'-war` : `Raiders, wave ${W.n + 1}`;
         banner(title, `${describe(wave.ids)}, to the ${COMPASS[Math.round(compassDeg(a) / 45) % 8]} · ${windWords()}${wave.ids.includes('galleon') ? ' · shoot her sails to catch her' : ''}`);
-        W.state = 'fight';
+        W.state = 'fight'; sfx('warhorn');
       }
     } else if (W.state === 'fight') {
       if (!raiders.list.some((r) => !r.f.down)) {
         W.n++;
         const bonus = Math.round(20 * W.n * skies().shards);
         V.shards += bonus;
-        W.state = 'choose'; W.choose = 25;
+        W.state = 'choose'; W.choose = 25; sfx('goal');
         $('calm-title').textContent = `Wave ${W.n} beaten`;
         const next = waveAt(W.n, skies().extra);
         W.next = next;
@@ -330,7 +334,7 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
       banner(ev === 'guards' ? `${site.short}: the guards come out` : 'More guards', `${describe(w.ids)}${site.towers ? ` · ${site.towers} gun tower${site.towers > 1 ? 's' : ''} on the rock` : ''}`);
     }
     if (ev === 'taken' || ev === 'lost') {
-      W.state = ev;
+      W.state = ev; sfx(ev === 'taken' ? 'raidwon' : 'raidlost');
       const taken = ev === 'taken';
       $('calm-title').textContent = taken ? `${site.short} strikes ${site.moving ? 'her' : 'its'} colours` : site.moving && cur.prize?.escaped ? `${site.short} got away` : `${site.short} went down with her crates`;
       $('calm-line').textContent = taken
@@ -508,13 +512,13 @@ export function makeSky({ renderer, canvas, progress, onLeave }) {
     const battery = batteryFor(cam.yaw);
     aimFor(battery);
     gunnery.update(dt);
-    if (inp.fire && !player.down) gunnery.fire(battery, aimPoint, bolts, 'player', player.velocity);
+    if (inp.fire && !player.down && gunnery.fire(battery, aimPoint, bolts, 'player', player.velocity)) sfx('cannon', player.pos);
     bolts.update(dt, hitTest, camera);
     smokeFrom(player, smoke, bolts.spark, dt);
     for (const r of raiders.list) smokeFrom(r.f, smoke, bolts.spark, dt);
     smoke.update(dt, camera);
     const got = pickups.update(dt, player.ship.body.localToWorld(new THREE.Vector3(0, 0.5, 0)), player.ship.recipe.length * 0.6 + 8, camera);
-    if (got && !player.down) { V.shards += got; flash($('score')); }
+    if (got && !player.down) { V.shards += got; flash($('score')); sfx('pickup'); }
     waves(dt, gone);
     if (mode !== 'voyage') return; // the voyage ended this step
     // a Surge widens the view a little

@@ -62,7 +62,7 @@ const UI = {
     body.innerHTML = '';
     requestAnimationFrame(() => { panel.scrollTop = keep; });
     if (!c) return;
-    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock, haul: this.haul, journal: this.journal, dig: this.dig }[c.kind];
+    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock, haul: this.haul, journal: this.journal, weather: this.weather, dig: this.dig }[c.kind];
     if (fn) fn.call(this, body, c.ref);
   },
   h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content; },
@@ -85,8 +85,10 @@ const UI = {
     }
     if (b.type === 'lens') chips.push(`<span class="chip">Reach ${lv >= 2 ? 27 : 21} m · 1 shard a shot · needs a crew</span>`);
     if (b.type === 'ballista') chips.push(`<span class="chip">Reach ${lv >= 2 ? 17 : 14} m · ${lv >= 2 ? 14 : 10} a bolt · no crew, no shards</span>`);
-    if (isWall) { const br = WALL.segs.filter(s => s.broken).length; chips.push(`<span class="chip ${br ? 'warn' : 'good'}">${br ? br + ' breaches, mended at dawn by the watch' : 'Sound all the way round'}</span>`); }
+    if (isWall) { const br = WALL.segs.filter(s => s.broken).length, hit = WALL.segs.filter(s => s.hp < 1).length; chips.push(`<span class="chip ${hit ? 'warn' : 'good'}">${hit ? `${hit} damaged${br ? `, ${br} broken through` : ''}: the watch mends it by day` : 'Sound all the way round'}</span>`); }
     if (b.type === 'mast') chips.push(`<span class="chip">${SHIP.state === 'docked' ? 'Moored' : 'On patrol'}</span>`);
+    if (b.type === 'rod') chips.push(`<span class="chip amber">Catches lightning within ${ROD_REACH} m · ${b.caught || 0} bolts so far</span>`);
+    if (b.scorch > 0.02) chips.push(`<span class="chip warn">Scorched by lightning: working slower until it’s patched</span>`);
     if (chips.length) body.append(this.h(`<div class="stats-row">${chips.join('')}</div>`));
     if (def.job) {
       const n = slotsOf(b), ws = workersOf(b.id);

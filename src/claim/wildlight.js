@@ -114,7 +114,7 @@ class Wildlight {
   }
   hurt(n, src) {
     if (this.dead) return;
-    this.hp -= n; this.flash = 0.15;
+    this.hp -= n * (castPerk('halcyon') ? 1.2 : 1); this.flash = 0.15;   // Seraphine's vigil
     if (this.hp <= 0) this.die(true);
   }
   die(killed) {

@@ -8,7 +8,7 @@ const ROOT = path.dirname(path.dirname(new URL(import.meta.url).pathname));
 const src = fs.readFileSync(path.join(ROOT, 'src/claim/folk.js'), 'utf8');
 const { FOLK_FOUNDERS, FOLK_OTHERS, FOLK } = new Function(`${src}; return { FOLK_FOUNDERS, FOLK_OTHERS, FOLK };`)();
 
-const STYLE = `Detailed HD pixel-art character portrait, in the same style as the cast portraits already in the game (Io, Sol, Quill, Brann, the Fox): crisp high-detail pixel art like a modern JRPG's dialogue portrait, a head-and-shoulders bust facing the viewer with a slight three-quarter turn, large expressive eyes with bright highlights, rich soft shading with plum-tinted shadows and warm cream highlights, dark coloured outlines (not pure black), gentle warm light from the upper left. A steampunk-solarpunk frontier in a world of airships and amber sunstone crystal: brass, canvas, leather, wool, small amber crystal details. Transparent background (or a flat dark plum, #2a1b2f, if transparency isn't possible). No text, no frame, no border. Square.`;
+const STYLE = `Detailed HD pixel-art character portrait, in the same style as the visitors' portraits already in the game (assets/cast): crisp high-detail pixel art like a modern JRPG's dialogue portrait, a head-and-shoulders bust facing the viewer with a slight three-quarter turn, large expressive eyes with bright highlights, rich soft shading with plum-tinted shadows and warm cream highlights, dark coloured outlines (not pure black), gentle warm light from the upper left. A steampunk-solarpunk frontier in a world of airships and amber sunstone crystal: brass, canvas, leather, wool, small amber crystal details. Transparent background (or a flat dark plum, #2a1b2f, if transparency isn't possible). No text, no frame, no border. Square.`;
 
 const lines = [];
 lines.push('# Portraits for everyone on the claim');
@@ -22,7 +22,7 @@ lines.push('');
 lines.push('- Make each picture square, at least 1024 × 1024. The game shrinks them to 256 × 256.');
 lines.push('- Save each as the file name given (PNG or WebP) and send them to me in the chat, a few at a time or all at once. They go in `assets/portraits/`.');
 lines.push('- Anyone without a picture yet gets a bust drawn from their sprite, so there\'s no need to do them all at once. The six founders and the Baron come first.');
-lines.push('- The ten visitors (Io, Sol, Halcyon, Quill, Brann, Tock and the four Moon Faire witches) already have portraits from your own games, so they aren\'t here.');
+lines.push('- The ten visitors (Tamsin, Brisa, Dame Seraphine, Barnabus, Nib, Torvald and the Moon Faire\'s four) already have portraits, borrowed from your other games, so they aren\'t here.');
 lines.push('');
 lines.push('## The style, for every picture');
 lines.push('');

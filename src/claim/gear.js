@@ -52,7 +52,7 @@ function gearOf(v) {
 }
 const outFor = (g, type) => g.outAny + (g.outByJob[type] || 0);
 // damage a second against a foe, and reach. Without a weapon the watch still carries a plain crystal lance.
-// the cast's gifts in a fight: Sol drills the watch, Brann sharpens every blade
+// the cast's gifts in a fight: Brisa drills the watch, Torvald sharpens every blade
 const castEdge = v => (castPerk('sol') && v.d.job && v.d.job.bid === 'wall' ? 1.25 : 1) * (castPerk('brann') ? 1.1 : 1);
 function fightOf(v, foe = 'glimmer') {
   const g = gearOf(v), mk = mastered(v, 'G') ? 1.2 : 1, bare = 2.2 * statOf(v, 'G') * (v.d.trait === 'Bold' ? 1.25 : 1) * mk;

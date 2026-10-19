@@ -1,8 +1,11 @@
 // ===================================================================== STORY: the claim's chapters, its visitors, the codex
 // Brightvein's own story (docs/story.md): the founders stake the claim, the Wildlight come up the cliffs, and Baron
 // Ambrose Tallow, whose candle-works the sunstone claims are putting out of business, sends his claim-jumpers. Along
-// the way Io and Sol come in on the Magpie, Quill and Tock follow, Brann wants his forge back, and the Moon Faire
-// tours in for a festival night. Visitors can stay as crew, each with a gift for the claim (CAST_PERKS).
+// the way Tamsin and Brisa come in on the Nightjar, Barnabus and Nib follow, Torvald wants his forge back, the Moon
+// Faire tours in for a festival night, and a knight of the Thinwatch comes when the deep seam wakes. Visitors can stay
+// as crew, each with a gift for the claim (CAST_CREW).
+// The visitors wear the looks and portraits of characters from Chris's other games (cast.js; their ids are those
+// games' names), but Brightvein is hundreds of years later: here they're new people, with the names in CAST_NAMES.
 // Each chapter opens with a scene, sets a few goals the player can see in the journal, and closes with a scene and a
 // reward. Scenes pause the claim. The story's state is saved with the claim as `story`.
 const STORY = { ch: 0, started: false, at: null, codex: [], done: [], queue: [], shown: null };
@@ -12,16 +15,28 @@ const WHO = {
   hesper: { name: 'Hesper Lark', founder: 'Hesper Lark' }, odile: { name: 'Odile Fenn', founder: 'Odile Fenn' },
   pip: { name: 'Pip Kettleby', founder: 'Pip Kettleby' }, marigold: { name: 'Marigold Thresh', founder: 'Marigold Thresh' },
   corwin: { name: 'Corwin Ashlar', founder: 'Corwin Ashlar' }, absalom: { name: 'Absalom Pockett', founder: 'Absalom Pockett' },
-  io: { name: 'Io', hero: 'io' }, sol: { name: 'Sol', hero: 'sol' }, quill: { name: 'Quill', hero: 'quill' }, tock: { name: 'Tock', hero: 'tock' },
-  brann: { name: 'Brann', hero: 'brann' }, jester: { name: 'The Jester', hero: 'jester' }, ranger: { name: 'The Ranger', hero: 'ranger' },
-  herbal: { name: 'The Herbal Witch', hero: 'herbal' }, fox: { name: 'The Fox', hero: 'fox' },
   tallow: { name: 'Baron Ambrose Tallow', letter: true },
 };
+// the visitors, by the id of the look they wear: their names and callings in Brightvein
+const CAST_NAMES = {
+  io: { name: 'Tamsin Vey', title: 'The lamp-witch' },
+  sol: { name: 'Brisa Hale', title: 'Sword of the Brass Road' },
+  halcyon: { name: 'Dame Seraphine Vael', title: 'Knight of the Thinwatch' },
+  quill: { name: 'Barnabus Teague', title: 'The old skyman' },
+  tock: { name: 'Nib Tolliver', title: 'Gnome shipwright' },
+  brann: { name: 'Torvald Pike', title: 'The smith' },
+  jester: { name: 'Mirabel Quell', title: 'The New Moon, of the Moon Faire' },
+  ranger: { name: 'Rowan Thorne', title: 'The Full Moon, of the Moon Faire' },
+  herbal: { name: 'Hazel Brightwater', title: 'The Waxing Moon, of the Moon Faire' },
+  fox: { name: 'Clem Fennick', title: 'The Waning Moon, of the Moon Faire' },
+};
+for (const [id, c] of Object.entries(CAST_NAMES)) WHO[id] = { name: c.name, hero: id };
 
 // the cast as crew: their stats, trade, trait and the gift they bring the whole claim while they're on it
 const CAST_CREW = {
-  io: { stats: { G: 4, E: 6, A: 6, R: 9, S: 9 }, trait: 'Warm', pref: 'garden', perk: 'Moonlore', perkText: 'The lamps burn a third less charge at night.' },
-  sol: { stats: { G: 10, E: 4, A: 7, R: 4, S: 3 }, trait: 'Bold', pref: 'wall', perk: "Warden's drill", perkText: 'Everyone on the watch hits a quarter harder.' },
+  io: { stats: { G: 4, E: 6, A: 6, R: 9, S: 9 }, trait: 'Warm', pref: 'garden', perk: 'Lamp-craft', perkText: 'The lamps burn a third less charge at night.' },
+  sol: { stats: { G: 10, E: 4, A: 7, R: 4, S: 3 }, trait: 'Bold', pref: 'wall', perk: 'Convoy drill', perkText: 'Everyone on the watch hits a quarter harder.' },
+  halcyon: { stats: { G: 10, E: 5, A: 8, R: 4, S: 2 }, trait: 'Steady', pref: 'wall', perk: 'Thinwatch vigil', perkText: 'Wildlight on the plateau take a fifth more harm from everything.' },
   quill: { stats: { G: 5, E: 7, A: 8, R: 7, S: 4 }, trait: 'Steady', pref: 'mast', perk: 'Old skyman', perkText: 'Voyages bring home a tenth more shards.' },
   tock: { stats: { G: 3, E: 10, A: 6, R: 5, S: 4 }, trait: 'Tinkerer', pref: 'shop', perk: 'Gnome mirrors', perkText: 'The sunning yards charge a fifth faster.' },
   brann: { stats: { G: 9, E: 8, A: 4, R: 5, S: 3 }, trait: 'Steady', pref: 'head', perk: "Smith's edge", perkText: 'Every weapon on the claim hits a tenth harder.' },
@@ -35,8 +50,9 @@ const CODEX = {
   wildlight: { title: 'The Wildlight', text: 'Loose light, the old prospectors called it: sunstone glow that has come away from its stone and wanders. Glimmers, Flarehounds, Lodestars. They climb toward anything brighter than themselves, and drink it. They hate smoked glass and the ring of a tuning fork.' },
   sunstone: { title: 'Sunstone', text: 'Raw, it is dull amber rock. Laid out in the sun it charges, and charged it lifts ships, lights towns and fires the lens towers. Shards of it are Aethermoor’s money.' },
   tallow: { title: 'Baron Ambrose Tallow', text: 'He made his fortune in candles and lamp oil, back when the dark was cheap to sell against. Every sunstone claim that opens puts more of his wicks out of work, so he jumps them. His crews fly rust-red sails; his citadel is the Chandlery, a candle-works on a lifted rock.' },
-  magpie: { title: 'The Magpie', text: 'Io’s ship: small, black-hulled and quick, with a lantern on the bowsprit. Quill gave her to Io. Tock keeps her in the air.' },
-  wardens: { title: 'The Ember Wardens', text: 'An old order who walked the sunstone roads, kept the nodes lit and escorted sunstone to the shipyards. Each took a bird’s name at the oath. Sol is the last of them.' },
+  nightjar: { title: 'The Nightjar', text: 'Tamsin’s ship: small, black-hulled and quick, with a lantern on the bowsprit. Barnabus gave her to Tamsin. Nib keeps her in the air.' },
+  convoys: { title: 'The Brass Road', text: 'Sunstone travels from the claims to the shipyards in armed convoys along the Brass Road. Brisa Hale guarded them for years, until Tallow bought the road and the company folded.' },
+  thinwatch: { title: 'The Thinwatch', text: 'An old order of knights who kept watch wherever sunstone runs deep, because something bright always climbs out of a deep seam once it’s opened. Seraphine Vael is the last of them.' },
   wickmoor: { title: 'The Wickmoor', text: 'Tallow’s supply galleon: fat, slow and full of other people’s things. Shoot her sails and she strikes her colours. Sink her and her crates go down with her.' },
   moonfaire: { title: 'The Moon Faire', text: 'A travelling festival on a painted airship, run by four witches who each answer to a phase of the moon. They follow the brightest lights.' },
   deepseam: { title: 'The deep seam', text: 'Below the lower gallery the vein runs on, brighter and older. At night it hums. Something down there wakes when the seam is opened.' },
@@ -103,25 +119,25 @@ const CHAPTERS = [
       ['odile', 'Then we’d better be brighter than he is.'],
     ],
     reward: { shards: 80, codex: ['tallow'] } },
-  { id: 'magpie', title: 'The Magpie', line: 'A small black ship with a lantern on her bowsprit comes in at dusk.',
+  { id: 'magpie', title: 'The Nightjar', line: 'A small black ship with a lantern on her bowsprit comes in at dusk.',
     visit: { ship: 'magpie', cast: ['io', 'sol'] },
     open: [
       ['pip', 'Ship off the north rim! Small, black hull, a lantern on the bowsprit. She’s not one of Tallow’s.'],
       ['io', 'Hello! Sorry. Hello. We saw your light from the far side of the peaks. I thought a star had come down.'],
       ['sol', 'She thought that. I thought it was a fire.'],
-      ['io', 'I’m Io. I keep a Moonwell, a long way west of here. This is Sol. She’s a Warden.'],
-      ['sol', 'The last one. Wardens walked the sunstone roads, once, and kept the light where it belonged. Somebody ought to keep yours.'],
+      ['io', 'I’m Tamsin. I tend lamps, mostly. The kind that don’t need oil. This is Brisa. She guards sunstone convoys.'],
+      ['sol', 'Guarded. The company folded when Tallow bought the Brass Road. Now I guard whoever’s worth it. You’ve got a lot of light lying out in the open.'],
       ['hesper', 'We could use the help. There’s a baron who wants our light, and something that climbs the cliffs every night that wants it more.'],
-      ['io', 'The Wildlight. We saw them on the rim as we came in. They seemed… lost. Light with nowhere to go.'],
-      ['sol', 'Lost or not, they bite. Give me your watch for a week.'],
+      ['io', 'The Wildlight. We saw them on the rim as we came in. They seemed… lost. Light with nowhere to go. I’d like to understand them.'],
+      ['sol', 'Understand them later. They bite. Give me your watch for a week.'],
     ],
-    goals: [GOAL.jobs(['io', 'sol'], 'Give Io and Sol a job each (tap them)'), GOAL.nightsHere(1, 'Hold the claim through a night with them')],
+    goals: [GOAL.jobs(['io', 'sol'], 'Give Tamsin and Brisa a job each (tap them)'), GOAL.nightsHere(1, 'Hold the claim through a night with them')],
     close: [
-      ['io', 'The Magpie’s crystals are cracked. Odile says she can recut them, if we stay a while.'],
+      ['io', 'The Nightjar’s crystals are cracked. Odile says she can recut them, if we stay a while.'],
       ['odile', 'Beautiful stones. Badly treated.'],
       ['sol', 'We’re staying a while.'],
     ],
-    reward: { shards: 60, codex: ['magpie', 'wardens'], crew: ['io', 'sol'] } },
+    reward: { shards: 60, codex: ['nightjar', 'convoys'], crew: ['io', 'sol'] } },
   { id: 'redspire', title: 'Redspire', line: 'Tallow’s crews fly out of a red crag south-west of the claim.',
     open: [
       ['sol', 'Tallow’s crews fly out of a red crag south-west of here. Redspire. That’s where they’ll come from, when they come.'],
@@ -132,8 +148,8 @@ const CHAPTERS = [
     close: [
       ['quill', 'Ahoy the claim! An old skyman begs a mooring, and a gnome who won’t stop talking about your ship’s rudder.'],
       ['tock', 'It’s too small. The rudder. Lovely ship. Rudder’s too small. I’ll fix it. Small fee. Smaller than the rudder.'],
-      ['io', 'Quill! He gave me the Magpie. And Tock keeps her in the air.'],
-      ['quill', 'Tallow’s been buying up every shipwright between here and the coast. Tock’s the one he couldn’t buy.'],
+      ['io', 'Barnabus! He gave me the Nightjar. And Nib keeps her in the air.'],
+      ['quill', 'Tallow’s been buying up every shipwright between here and the coast. Nib’s the one he couldn’t buy.'],
     ],
     visitAfter: { cast: ['quill', 'tock'] },
     reward: { shards: 120, crew: ['quill', 'tock'] } },
@@ -177,13 +193,19 @@ const CHAPTERS = [
     close: [
       ['sol', 'That thing that came up the shaft. That was no spark.'],
       ['io', 'It was so bright. It went back down when the sun came up. I don’t think it was angry. I think it was hungry.'],
+      ['halcyon', 'It was a Brightmaw. One climbs out wherever a deep seam is opened. I have followed their kind across the Ironspire for longer than I care to say.'],
+      ['hesper', 'And who are you, coming up my bridge in armour at dawn?'],
+      ['halcyon', 'Seraphine Vael, of the Thinwatch. There is one of us left. I knew someone would dig too deep here. I would stand your nights, if you will have me.'],
+      ['sol', 'She’s good. I watched her come up the cliff. Have her.'],
     ],
-    reward: { shards: 200, codex: ['deepseam'] } },
+    visitAfter: { cast: ['halcyon'] },
+    reward: { shards: 200, codex: ['deepseam', 'thinwatch'], crew: ['halcyon'] } },
   { id: 'chandlery', title: 'The Chandlery', line: 'Every crew Tallow has left is at his citadel.',
     open: [
       ['hesper', 'Every crew Tallow has left is at the Chandlery. Six gun towers, his frigate and a Man-o’-war.'],
       ['sol', 'Then we need a bigger ship.'],
       ['tock', 'I know a brig. I know a frigate. I know a shipyard. You know where the shards are.'],
+      ['halcyon', 'And when the Chandlery is dark, its lights will still need keeping.'],
     ],
     goals: [GOAL.ship(['brig', 'frigate'], 'Own a Brig or a Frigate (Shipyard)'), GOAL.raid('citadel', 'Take the Chandlery')],
     close: [
@@ -201,7 +223,7 @@ function storyLoad(s) {
   if (!s) return;
   Object.assign(STORY, { ch: s.ch || 0, started: !!s.started, at: s.at || null, codex: s.codex || [], done: s.done || [] });
   // the cast keep their latest looks
-  for (const v of GAME.villagers) if (v.d.hero && HERO_LOOKS[v.d.hero]) { v.d.look = { ...HERO_LOOKS[v.d.hero] }; v.redraw(); }
+  for (const v of GAME.villagers) if (v.d.hero && HERO_LOOKS[v.d.hero]) { v.d.look = { ...HERO_LOOKS[v.d.hero] }; Object.assign(v.d, CAST_NAMES[v.d.hero]); v.redraw(); }
   const C = CHAPTERS[STORY.ch];
   if (C && STORY.started && C.visit && C.visit.ship) visitShip(C.visit.ship, true);
   if (GAME.villagers.some(v => v.d.hero === 'io' || v.d.hero === 'sol')) visitShip('magpie', true);
@@ -211,7 +233,7 @@ function storyLoad(s) {
 const VISIT = { ships: {} };
 function visitShip(kind, quiet) {
   if (VISIT.ships[kind] || !SKY || !SKY.shipArt) { if (!VISIT.ships[kind] && SKY) SKY.art.then(() => visitShip(kind, quiet)); return; }
-  // the Magpie: small and black-hulled; the Moon Faire's ship: a brig painted teal, with rose-violet sails
+  // the Nightjar: small and black-hulled; the Moon Faire's ship: a brig painted teal, with rose-violet sails
   const A = SKY.shipArt, M = { ...A.M, hull: A.M.hull.clone(), canvas: A.M.canvas.clone() };
   M.canvas.onBeforeCompile = A.M.canvas.onBeforeCompile; M.canvas.customProgramCacheKey = A.M.canvas.customProgramCacheKey;
   if (kind === 'faire') { M.hull.color.set(0x5f9aa0); M.canvas.color.set(0xe0a0dc); M.canvas.emissive.set(0x5a2050); }
@@ -236,8 +258,8 @@ function castArrive(ids) {
   const D = LAYOUT.dock;
   for (const id of ids) {
     if (GAME.villagers.some(v => v.d.hero === id) || !HERO_LOOKS[id]) continue;
-    const L = HERO_LOOKS[id], C = CAST_CREW[id] || { stats: { G: 5, E: 5, A: 6, R: 8, S: 5 }, trait: 'Warm', pref: null };
-    const d = { id: GAME.nextId++, hero: id, name: L.name, title: L.title.replace(/^the /, 'The '), stats: { ...C.stats }, trait: C.trait, look: { ...L }, named: true, job: null, home: 'keep', gear: {}, pref: C.pref || null, guest: !CAST_CREW[id] };
+    const L = HERO_LOOKS[id], N = CAST_NAMES[id], C = CAST_CREW[id] || { stats: { G: 5, E: 5, A: 6, R: 8, S: 5 }, trait: 'Warm', pref: null };
+    const d = { id: GAME.nextId++, hero: id, name: N.name, title: N.title, stats: { ...C.stats }, trait: C.trait, look: { ...L }, named: true, job: null, home: 'keep', gear: {}, pref: C.pref || null, guest: !CAST_CREW[id] };
     const v = addVillager(d, new THREE.Vector3(D.x - 8 + Math.random() * 2, 0, D.z + 6 + Math.random() * 2));
     v.replan = true;
   }
@@ -275,7 +297,7 @@ function storyTick(dt) {
       for (const k of R.codex || []) if (!STORY.codex.includes(k)) STORY.codex.push(k);
       if (C.leave) castLeave(C.leave);
       STORY.done.push(C.id);
-      toast(`<b>${esc(C.title)}</b>: chapter done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${(R.crew || []).length ? ` · ${R.crew.map(id => HERO_LOOKS[id].name).join(' and ')} join${R.crew.length > 1 ? '' : 's'} the crew` : ''}${(R.codex || []).length ? ' · new in the journal' : ''}.`);
+      toast(`<b>${esc(C.title)}</b>: chapter done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${(R.crew || []).length ? ` · ${R.crew.map(id => CAST_NAMES[id].name.split(' ')[0]).join(' and ')} join${R.crew.length > 1 ? '' : 's'} the crew` : ''}${(R.codex || []).length ? ' · new in the journal' : ''}.`);
       AUDIO.play('dawn');
       STORY.ch++; STORY.started = false; STORY.at = null; storyT = 6;
       journalHUD(); saveGame();
@@ -351,7 +373,7 @@ UI.journal = function (body) {
   const crew = Object.keys(CAST_CREW).filter(castHere);
   if (crew.length) {
     body.append(this.h(`<h3>The cast on the claim</h3>`));
-    for (const id of crew) body.append(this.h(`<p><b>${esc(HERO_LOOKS[id].name)}</b> · ${esc(CAST_CREW[id].perk)}: ${esc(CAST_CREW[id].perkText)}</p>`));
+    for (const id of crew) body.append(this.h(`<p><b>${esc(CAST_NAMES[id].name)}</b> · ${esc(CAST_CREW[id].perk)}: ${esc(CAST_CREW[id].perkText)}</p>`));
   }
   if (STORY.codex.length) {
     body.append(this.h(`<h3>Codex</h3>`));

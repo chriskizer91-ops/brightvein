@@ -5,15 +5,15 @@
 - This is the only repository to write to for Brightvein.
 - These sibling repositories are read-only references, set in the same world. Reuse their assets, mechanics and code when useful, but never commit to them:
   - `chriskizer91-ops/airship-game-in-aethermoor-` (the skies: flight, guns, raiders, the six ships, the map)
-  - `chriskizer91-ops/envoi-on-the-longest-night` (Io, Sol, Halcyon, Quill, Brann and the gnomes; their sprites and portraits)
-  - `chriskizer91-ops/moon-faire` (the four witch performers and their festival airship)
+  - `chriskizer91-ops/envoi-on-the-longest-night` (the looks and portraits Brightvein's visiting cast wear)
+  - `chriskizer91-ops/moon-faire` (the looks of the four Moon Faire performers and their festival airship)
 - When copying assets or code from a sibling repo, note the source repo and path in the commit message.
-- A sibling's own lore outranks anything written here about its characters. Envoi's retired lore stays out: the Drowned Mother, Old Snuff, the mandrakes and Mother's Hollow.
+- Brightvein is hundreds of years after Chris's other games (Chris, October 18). It reuses their art and borrows their world, but its people are new: the visiting cast wear the looks and portraits of Envoi's and the Moon Faire's characters under new names and new stories (`CAST_NAMES` in `src/claim/story.js`). Never use the old names (Io, Sol, Halcyon, Quill, Brann, Tock, the Magpie) or those games' plots in what players see. The cast's ids in the code (`io`, `sol`, ...) are only the names of the art. Envoi's retired lore stays out: the Drowned Mother, Old Snuff, the mandrakes and Mother's Hollow.
 
 ## Project
 
 - *Brightvein*: a sunstone claim on a plateau under the Thinning, in Aethermoor (Chris's D&D world). Fallout Shelter's staffed rooms and people with stats, Clash of Clans' base building and defence, and the airship game's skies.
-- Its own story: the claim, the Wildlight and the claim-jumpers are Brightvein's. Characters from Chris's other games visit (Io and Sol arrive on the Magpie, the Moon Faire's airship tours in) and can stay as special crew. Don't retell their games' plots.
+- Its own story (`docs/story.md`): the claim, the Wildlight, Baron Tallow and his claim-jumpers are Brightvein's. Visitors arrive in its chapters (Tamsin and Brisa on the Nightjar, Barnabus and Nib, Torvald, the Moon Faire's four, Dame Seraphine of the Thinwatch) and can stay as special crew.
 - Design notes: `docs/design.md` (the whole game), `docs/keep.md` (the Keep and study), the claude.ai project docs `brightvein-design.md` and `brightvein-keep-design.md`.
 - Look: HD-2D. A lit 3D diorama with pixel-art people as camera-facing sprites. People are hand-pixeled in code (`src/claim/pixel.js`): 24 × 32 frames, 5 columns (stand, step A, step B, work up, work down) × 3 rows (facing you, facing away, facing left; right is mirrored).
 - Desktop first (Chris, October 18), but phones must keep working: touch controls and the Light detail setting.

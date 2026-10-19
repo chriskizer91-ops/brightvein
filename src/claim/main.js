@@ -47,7 +47,7 @@ function updateCamera(dt) {
   }
   // keep the view over the claim
   const t = controls.target, before = t.clone();
-  if (VIEW.mode === 'town') { t.x = clamp(t.x, -46, 46); t.z = clamp(t.z, -40, 38); t.y = clamp(t.y, -2, 6); }
+  if (VIEW.mode === 'town') { t.x = clamp(t.x, -46, 46); t.z = clamp(t.z, -52, 38); t.y = clamp(t.y, -2, 6); }
   else { t.x = clamp(t.x, -24, 36); t.y = clamp(t.y, -26, 2); t.z = clamp(t.z, 30, 40); }
   camera.position.add(t.clone().sub(before));
   controls.update();
@@ -59,7 +59,7 @@ const ndc = new THREE.Vector2();
 let downAt = null;
 canvas.addEventListener('pointerdown', e => { downAt = { x: e.clientX, y: e.clientY, t: performance.now() }; AUDIO.start(); });
 canvas.addEventListener('pointerup', e => {
-  if (!downAt) return;
+  if (!downAt || (SKY && SKY.on)) { downAt = null; return; }
   const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y), dt = performance.now() - downAt.t; downAt = null;
   if (moved > 8 || dt > 600) return;
   if (BUILD.on) { selectInBuild(pickBuildingAt(e.clientX, e.clientY)); return; }
@@ -77,19 +77,19 @@ function pick(x, y) {
     const tol = 0.9 + along * 0.008;
     if (dist < tol && along < bd) { bd = along; bestV = v; }
   }
-  const objs = [...Object.values(TOWN.b).map(b => b.group), TOWN.ship.ship, ...Object.values(WALL.mesh), scene.getObjectByName('ground'), scene.getObjectByName('face')];
+  const objs = [...Object.values(TOWN.b).map(b => b.group), TOWN.ship.ship, DOCK.b && DOCK.b.group, DOCK.ship && DOCK.ship.root.parent === scene && DOCK.ship.root, ...Object.values(WALL.mesh), scene.getObjectByName('ground'), scene.getObjectByName('face')].filter(Boolean);
   const hits = ray.intersectObjects(objs, true).filter(h => h.object.visible);
   const h = hits[0];
   if (bestV && (!h || bd < h.distance + 1.5)) { selectVillager(bestV); return; }
   if (!h) { UI.close(); FOLLOW.v = null; return; }
   let o = h.object;
   if (Object.values(WALL.mesh).includes(o)) return selectBuilding(WALLB);
-  while (o) { if (o.userData.building) return selectBuilding(o.userData.building); if (o.userData.ship || o === TOWN.ship.ship) return selectBuilding(TOWN.b.mast); o = o.parent; }
+  while (o) { if (o.userData.building) return selectBuilding(o.userData.building); if (o.userData.ship || o === TOWN.ship.ship) return selectBuilding(TOWN.b.mast); if (o.userData.dock) return selectBuilding(DOCK.b); o = o.parent; }
   if (h.object.name === 'face' || (h.point.z > 30 && h.point.y < -1)) return selectBuilding(TOWN.b.head);
   UI.close(); FOLLOW.v = null;
 }
 function selectVillager(v) { SEL.villager = v; SEL.building = null; UI.open('villager', v); }
-function selectBuilding(b) { SEL.building = b; SEL.villager = null; FOLLOW.v = null; UI.open('building', b); }
+function selectBuilding(b) { SEL.building = b; SEL.villager = null; FOLLOW.v = null; if (b === DOCK.b) { UI.open('dock'); return; } UI.open('building', b); }
 
 // ----------------------------------------------------------------- build mode: the grid, the tray, drag to move
 // Time stops while you plan. Drag any building (except the headframe) and it snaps to the 2 m tiles;
@@ -280,6 +280,19 @@ $('#panel-x').onclick = () => { UI.close(); FOLLOW.v = null; };
 $('#v-town').onclick = () => { FOLLOW.v = null; setView('town'); };
 $('#v-mine').onclick = () => { FOLLOW.v = null; setView('mine'); };
 $('#v-keep').onclick = () => setView('keep');
+$('#v-sky').onclick = () => { FOLLOW.v = null; if (VIEW.mode !== 'town') setView('town'); dockView(); };
+// the Sky Dock: the camera swings round to the ship at the bridge, and the Dock's panel opens
+function dockView() {
+  const D = LAYOUT.dock, portrait = innerHeight > innerWidth, wide = innerWidth >= 900, s = DOCK.ship, L = s ? s.recipe.length : 10;
+  const tt = s ? dockBerth(s).pos.add(new THREE.Vector3(0, 2, 0)) : new THREE.Vector3(D.x, 5, D.z - 10);
+  const dist = 24 + L * 0.9, dir = new THREE.Vector3(0.45, 0.42, 0.79).normalize();
+  if (wide) tt.add(new THREE.Vector3(0.87, 0, -0.49).multiplyScalar(dist * 0.2));   // the panel's on the right: she sits left of middle
+  if (portrait) tt.y -= dist * 0.18;                                                // the panel's below: she sits high
+  const tp = tt.clone().addScaledVector(dir, portrait ? dist * 1.45 : dist);
+  viewLimits('free'); controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; controls.minPolarAngle = 0; controls.maxPolarAngle = Math.PI;
+  VIEW.tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt, tp, mode: 'town' };
+  UI.open('dock');
+}
 for (const b of document.querySelectorAll('#spd-seg button')) b.onclick = () => { GAME.speed = +b.dataset.s; $('#b-speed').textContent = GAME.speed + '×'; syncMenu(); };
 $('#b-people').onclick = () => UI.cur && UI.cur.kind === 'roster' ? UI.close() : UI.open('roster');
 $('#b-build').onclick = () => enterBuild();
@@ -295,7 +308,7 @@ $('#b-reset').onclick = () => { $('#reset-confirm').hidden = false; };
 $('#reset-no').onclick = () => { $('#reset-confirm').hidden = true; };
 $('#reset-yes').onclick = () => { try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(OLD_SAVE_KEY); } catch (e) { } location.reload(); };
 let INTRO_HELP = false;
-addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('#menu').hidden) $('#menu').hidden = true; else if (BUILD.on && BUILD.pending) cancelPending(); else if (BUILD.on) exitBuild(); else UI.close(); } if (e.key === ' ' && e.target === document.body) { e.preventDefault(); $('#b-pause').click(); } });
+addEventListener('keydown', e => { if (SKY && SKY.on) return; if (e.key === 'Escape') { if (!$('#menu').hidden) $('#menu').hidden = true; else if (BUILD.on && BUILD.pending) cancelPending(); else if (BUILD.on) exitBuild(); else UI.close(); } if (e.key === ' ' && e.target === document.body) { e.preventDefault(); $('#b-pause').click(); } });
 
 // ----------------------------------------------------------------- saving
 const SAVE_KEY = 'brightvein-keep-v1', OLD_SAVE_KEY = 'brightvein-keep-none';
@@ -307,6 +320,7 @@ function saveGame() {
       buildings: Object.values(TOWN.b).filter(b => !b.pending).map(b => ({ id: b.id, type: b.type, level: b.level, tx: b.tile ? b.tile.tx : null, tz: b.tile ? b.tile.tz : null })),
       stash: GAME.stash, mats: GAME.mats, cells: GAME.cells, blueprints: GAME.blueprints, rooms: GAME.rooms, savedAt: Date.now(),
       people: GAME.villagers.map(v => ({ ...v.d })),
+      sky: FLEET ? FLEET.data : undefined,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
   } catch (e) { }
@@ -340,8 +354,11 @@ const clock = { last: performance.now(), getDelta() { const n = performance.now(
 let elapsed = 0, prevPhase = null, saveT = 15, smokeT = 0, started = false, lampNight = -1;
 const _tint = new THREE.Color();
 function frame() {
-  const rdt = Math.min(clock.getDelta(), 0.1); elapsed += rdt;
-  const gdt = started && !GAME.paused && !BUILD.on ? rdt * GAME.speed : 0;
+  const rdt = Math.min(clock.getDelta(), 0.1);
+  // out in the skies: they draw instead, and the claim's time stands still until the ship is home
+  if (SKY && SKY.on) { AUDIO.ambience(0.7, true); if (SKY.frame(rdt)) return; }
+  elapsed += rdt;
+  const gdt = started && !GAME.paused && !BUILD.on && !(SKY && SKY.on) ? rdt * GAME.speed : 0;
   if (started) {
     GAME.t += gdt / DAY_LEN;
     if (GAME.t >= 1) { GAME.t -= 1; GAME.day++; }
@@ -366,6 +383,7 @@ function frame() {
   FX.update(rdt * (GAME.paused ? 0.2 : Math.min(GAME.speed, 2)));
   wallUpdate(rdt); mineBreakUpdate(now);
   dressScene(rdt, gdt);
+  dockUpdate(rdt);
   updateCamera(rdt);
   updateHUD(rdt); updateLabels();
   AUDIO.ambience(TOD.night, !GAME.paused);
@@ -441,6 +459,7 @@ async function boot() {
   applyQuality();
   buildPlateau(); buildSky(); buildClouds(); buildPeaks();
   setupTown(save);
+  setupDock(save);
   fixEnv(scene);
   if (save) { TOWN.wallLevel = save.wall || 1; wallSetLevel(TOWN.wallLevel, false); }
   buildNav();
@@ -499,5 +518,5 @@ function simulate(seconds, step = 0.1) {
   }
 }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
-window.__bv = { MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin };
+window.__bv = { get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin };
 boot().catch(e => { console.error(e); $('#loading').textContent = 'The town could not be raised: ' + e.message; });

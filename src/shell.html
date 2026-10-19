@@ -33,6 +33,7 @@
       <button type="button" id="v-town" aria-pressed="true">Town</button>
       <button type="button" id="v-keep" aria-pressed="false">Keep</button>
       <button type="button" id="v-mine" aria-pressed="false">Mine</button>
+      <button type="button" id="v-sky" aria-pressed="false" title="The Sky Dock: your ship, the shipyard and voyages">Sky</button>
     </div>
     <button type="button" class="btn" id="b-people" aria-label="People"><span class="lbl">People</span><svg class="pico" viewBox="0 0 20 20" aria-hidden="true"><circle cx="7" cy="6.5" r="3"/><circle cx="14" cy="7.5" r="2.4"/><path d="M1.5 17c0-3.6 2.4-5.6 5.5-5.6s5.5 2 5.5 5.6zM12.5 17c0-2.2-.6-3.8-1.6-4.9 3.5-.8 7.6.5 7.6 4.9z"/></svg><span class="badge" id="exp-badge" hidden></span></button>
     <button type="button" class="btn" id="b-build">Build</button>
@@ -67,7 +68,7 @@
       <div class="row"><span>How to play</span><button type="button" class="btn" id="b-help">Show</button></div>
       <div class="row"><span>New claim</span><button type="button" class="btn danger" id="b-reset">Start over</button></div>
       <div class="confirm" id="reset-confirm" hidden><p>Start a new claim? Your town and people here will be lost.</p><div class="row"><button type="button" class="btn" id="reset-no">Keep my town</button><button type="button" class="btn danger" id="reset-yes">Start over</button></div></div>
-      <p class="small">Progress is saved in this browser, separately from Brightvein. Training and expeditions keep going while you're away (up to 8 hours).</p>
+      <p class="small">Progress is saved in this browser: the claim, your people and your fleet. Training and expeditions keep going while you're away (up to 8 hours).</p>
       <button type="button" class="btn primary wide" id="menu-close">Back to the claim</button>
     </div>
   </div>
@@ -83,6 +84,7 @@
         <li><b>By night</b> shards light the town and power the turrets. Wildlight comes for the glow.</li>
         <li><b>Inside the Keep</b> your people study: a room for each of Grit, Engineering, Agility, Rapport and Sowing. Time keeps counting while you're away.</li>
         <li><b>Tap anyone</b> to give them a job, send them to study, kit them out, or send them down the cliff into the wilds.</li>
+        <li><b>At the Sky Dock</b> your fighting ship sets sail over Aethermoor to bring down raiders. Their shards come home to the claim.</li>
       </ul>
       <div class="intro-actions">
         <button type="button" class="btn primary" id="b-start">Stake the claim</button>
@@ -92,5 +94,6 @@
     </div>
   </div>
 </div>
+<!--__SKY__-->
 
 <script>/*__JS__*/</script>

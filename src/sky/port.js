@@ -1,7 +1,8 @@
-// port.js: the title screen and the port. Both show your ship turning slowly in a quiet void over a round stone
+// port.js: choosing the skies and the shipyard. Both show your ship turning slowly in a quiet void over a round stone
 // berth with a brass rim, lit warm from the front and cool from behind. Drag to turn it.
-//   Title: the game's name and the three skies (difficulty) to choose from.
-//   Port: pick which ship to sail, buy ships and upgrades with Crystal Shards, and set where the crystals' power goes.
+//   Title: the three skies (difficulty) to choose from.
+//   Shipyard: pick which ship to sail, buy ships and upgrades with Crystal Shards, and set where the crystals' power goes.
+// mode is 'off' while the claim is showing.
 import * as THREE from 'three';
 import { SHIPS, STATS } from '../ships/index.js';
 import { handling } from './flight.js';
@@ -48,7 +49,7 @@ function makeBerth() {
   return g;
 }
 
-export function makePort({ renderer, env, progress, shipFor, onSail, onMode }) {
+export function makePort({ renderer, env, progress, shipFor, onSail, onMode, onHome }) {
   const scene = new THREE.Scene();
   scene.environment = env; scene.environmentIntensity = 0.75;
   scene.add(makeVoid());
@@ -92,7 +93,7 @@ export function makePort({ renderer, env, progress, shipFor, onSail, onMode }) {
 
   // ---------- drag to turn the ship ----------
   const canvas = renderer.domElement;
-  canvas.addEventListener('pointerdown', (e) => { if (mode === 'voyage') return; drag = { x: e.clientX, id: e.pointerId }; spinV = 0; });
+  canvas.addEventListener('pointerdown', (e) => { if (mode !== 'port' && mode !== 'title') return; drag = { x: e.clientX, id: e.pointerId }; spinV = 0; });
   addEventListener('pointermove', (e) => { if (!drag || e.pointerId !== drag.id) return; const dx = e.clientX - drag.x; drag.x = e.clientX; spin += dx * 0.008; spinV = dx * 0.008; });
   addEventListener('pointerup', (e) => { if (drag && e.pointerId === drag.id) drag = null; });
   addEventListener('pointercancel', () => { drag = null; });
@@ -108,6 +109,7 @@ export function makePort({ renderer, env, progress, shipFor, onSail, onMode }) {
   }
   $('btn-to-port').addEventListener('click', () => setMode('port'));
   $('btn-skies').addEventListener('click', () => setMode('title'));
+  $('btn-home').addEventListener('click', () => onHome?.());
 
   // ---------- the port ----------
   const shipsEl = $('port-ships');
@@ -186,7 +188,7 @@ export function makePort({ renderer, env, progress, shipFor, onSail, onMode }) {
     if (!owned) {
       const price = PRICES[viewing], b = $('btn-buy');
       b.textContent = `Buy the ${R.name} for ◆ ${fmt(price)}`; b.disabled = d.shards < price;
-      $('pp-need').textContent = d.shards < price ? `You need ◆ ${fmt(price - d.shards)} more. Bring down raiders to earn Crystal Shards.` : '';
+      $('pp-need').textContent = d.shards < price ? `You need ◆ ${fmt(price - d.shards)} more. The claim's yards charge shards, and raiders spill them.` : '';
     }
     const base = figures(viewing, { power: 0, mods: { armour: 0, canvas: 0, drill: 0, crystals: 0 } }), now = figures(viewing, cfg);
     for (const [k, , show] of STAT_ROWS) {
@@ -216,7 +218,7 @@ export function makePort({ renderer, env, progress, shipFor, onSail, onMode }) {
     $('title').hidden = m !== 'title'; $('port').hidden = m !== 'port';
     if (m === 'title' || m === 'port') { show(m === 'title' ? progress.data.flying : viewing); onMode?.(m); }
   }
-  progress.onLoad(() => { viewing = progress.data.flying; if (mode !== 'voyage') show(viewing); });
+  progress.onLoad(() => { viewing = progress.data.flying; if (mode === 'port' || mode === 'title') show(viewing); });
 
   function update(dt) {
     if (!ship) return;

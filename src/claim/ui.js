@@ -30,7 +30,7 @@ const UI = {
     body.innerHTML = '';
     requestAnimationFrame(() => { panel.scrollTop = keep; });
     if (!c) return;
-    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away }[c.kind];
+    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock }[c.kind];
     if (fn) fn.call(this, body, c.ref);
   },
   h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content; },

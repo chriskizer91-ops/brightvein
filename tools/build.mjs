@@ -34,8 +34,44 @@ const out = await build({
 });
 const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const font = (f) => 'data:font/woff;base64,' + fs.readFileSync(path.join(ROOT, 'assets/fonts', f)).toString('base64');
-const css = rd('src/style.css').replace('/*FONT_DISPLAY*/', font('jacquard-12.woff')).replace('/*FONT_BODY*/', font('pixelify-sans.woff'));
-const page = rd('src/shell.html').replace('/*__CSS__*/', () => css).replace('/*__JS__*/', () => js);
+
+// Two stylesheets share the page: the claim's (src/style.css) inside #app, and the skies' (src/sky/sky.css) inside
+// #sky. Each rule is scoped to its own box so the two never touch: `.panel` becomes `#app .panel` and `#sky .panel`.
+// Rules for the page itself (:root, html, body, and anything already starting with body or the box) stay as written.
+function scopeCss(css, box) {
+  const top = (sel) => {
+    const out = [];
+    let depth = 0, cur = '';
+    for (const ch of sel) { if (ch === '(') depth++; if (ch === ')') depth--; if (ch === ',' && !depth) { out.push(cur); cur = ''; } else cur += ch; }
+    out.push(cur);
+    return out.map((x) => x.trim()).filter(Boolean);
+  };
+  const one = (sel) => {
+    if (sel === ':root') return box === '#app' ? sel : box;
+    if (/^(html|body)\b/.test(sel) || sel === box || sel.startsWith(box + ' ') || sel.startsWith(box + '[') || sel.startsWith(box + '.') || sel.startsWith(box + ':')) return sel;
+    return `${box} ${sel}`;
+  };
+  function rules(src) {
+    let out = '', i = 0;
+    while (i < src.length) {
+      const open = src.indexOf('{', i);
+      if (open < 0) { out += src.slice(i); break; }
+      const head = src.slice(i, open).trim();
+      let d = 1, j = open + 1;
+      while (d && j < src.length) { if (src[j] === '{') d++; else if (src[j] === '}') d--; j++; }
+      const body = src.slice(open + 1, j - 1);
+      if (/^@(media|supports)/.test(head)) out += `${head} {${rules(body)}}\n`;
+      else if (head.startsWith('@')) out += `${head} {${body}}\n`;
+      else out += `${top(head).map(one).join(', ')} {${body}}\n`;
+      i = j;
+    }
+    return out;
+  }
+  return rules(css.replace(/\/\*(?!FONT_)[\s\S]*?\*\//g, ''));
+}
+const css = (scopeCss(rd('src/style.css'), '#app') + scopeCss(rd('src/sky/sky.css'), '#sky'))
+  .replaceAll('/*FONT_DISPLAY*/', font('jacquard-12.woff')).replaceAll('/*FONT_BODY*/', font('pixelify-sans.woff'));
+const page = rd('src/shell.html').replace('/*__CSS__*/', () => css).replace('<!--__SKY__-->', () => rd('src/sky/sky.html')).replace('/*__JS__*/', () => js);
 fs.mkdirSync(path.join(ROOT, 'dist'), { recursive: true });
 const head = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">';
 fs.writeFileSync(path.join(ROOT, 'dist/brightvein.artifact.html'), page);

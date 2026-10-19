@@ -16,7 +16,7 @@ export const STATS = {
   cutter: { hull: 600, sails: 300, crystals: 250, speed: 10, turning: 8, climbing: 7, bow: 1, stern: 1, side: 3, crew: 12,
     blurb: 'The fastest ship in the sky. A raider: long, low and thin-skinned.' },
   brig: { hull: 1200, sails: 600, crystals: 500, speed: 7, turning: 6, climbing: 6, bow: 2, stern: 1, side: 6, crew: 30,
-    blurb: 'The all-rounder, built from Chris\'s own pictures of it.' },
+    blurb: 'The all-rounder: steady, well gunned and forgiving. Six guns a side.' },
   frigate: { hull: 2200, sails: 1000, crystals: 900, speed: 8, turning: 5, climbing: 5, bow: 2, stern: 2, side: 10, crew: 60,
     blurb: 'The hunter. A lot of sail for its size, which is why it\'s fast.' },
   galleon: { hull: 4000, sails: 1500, crystals: 1600, speed: 4, turning: 3, climbing: 3, bow: 1, stern: 2, side: 16, crew: 120,

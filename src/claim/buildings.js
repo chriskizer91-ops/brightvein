@@ -537,6 +537,7 @@ function blocked(x, z, pad = 0) {
   if (tileOkAt(x, z) || tileOkAt(x + pad, z) || tileOkAt(x - pad, z) || tileOkAt(x, z + pad) || tileOkAt(x, z - pad)) return true;
   const H = LAYOUT.head; if (Math.abs(x - H.x) < H.w / 2 + 2.5 + pad && Math.abs(z - H.z) < H.d / 2 + 3 + pad) return true;
   if (Math.hypot(x - LAYOUT.trail.x, z - LAYOUT.trail.z) < 3.5 + pad) return true;
+  if (dockClear(x, z, pad)) return true;
   return false;
 }
 function buildDecor() {
@@ -572,7 +573,7 @@ function buildDecor() {
   // --- rocks along the rim
   const rockG = projUV(new THREE.DodecahedronGeometry(1, 0), 1.5);
   const rocks = [];
-  for (let i = 0; i < 400 && rocks.length < 60; i++) { const x = (R() - 0.5) * 94, z = -40 + R() * 74; if (!onPlateau(x, z) || z > WORLD.faceZ - 1.5) continue; const dr = distToOutline(x, z); if (dr > 2.2 || dr < 0.3) continue; rocks.push({ x, z, s: 0.4 + R() * 0.9, r: R() * TAU }); }
+  for (let i = 0; i < 400 && rocks.length < 60; i++) { const x = (R() - 0.5) * 94, z = -40 + R() * 74; if (!onPlateau(x, z) || z > WORLD.faceZ - 1.5) continue; const dr = distToOutline(x, z); if (dr > 2.2 || dr < 0.3 || dockClear(x, z, 1)) continue; rocks.push({ x, z, s: 0.4 + R() * 0.9, r: R() * TAU }); }
   const rm = new THREE.InstancedMesh(rockG, MAT.rock, rocks.length);
   rocks.forEach((p, i) => { _wm.compose(_wp.set(p.x, p.s * 0.2, p.z), _wq.setFromEuler(_we.set(p.r, p.r * 2, p.r * 0.5)), _ws.set(p.s * 1.3, p.s * 0.7, p.s)); rm.setMatrixAt(i, _wm); });
   rm.castShadow = true; rm.receiveShadow = true; scene.add(rm);

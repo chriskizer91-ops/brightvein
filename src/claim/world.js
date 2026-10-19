@@ -6,7 +6,9 @@ const LAYOUT = {
   mast: { x: -31, z: -26.5 },          // where the mast starts on a new claim
   keep: { x: 0, z: -3 },               // and the Keep
   trail: { x: -20, z: 34.4 },          // the rope stair down the cut face, for expeditions
+  dock: { x: 6, z: 0 },                // the Sky Dock's bridge, out over the north rim (z: the rim's edge there)
 };
+{ let bd = 1e9; for (const [x, z] of OUTLINE) if (z < 0 && Math.abs(x - LAYOUT.dock.x) < bd) { bd = Math.abs(x - LAYOUT.dock.x); LAYOUT.dock.z = z; } }
 // where things stood before the grid: used to bring an old save across
 const OLD_LAYOUT = { hall: [0, -3], yardA: [-15, 19], yardB: [9.5, 22.5], shop: [19.5, 5], garden: [-21, -15], lens1: [-36, 5], lens2: [31, -18], mast: [-31, -26.5], plotN: [-3, -25], plotE: [33, 15.5] };
 const PATHS = [];
@@ -21,6 +23,7 @@ function buildGrid() {
     const x0 = X0 + i * T, z0 = Z0 + j * T; let ok = 1;
     for (const [x, z] of [[x0, z0], [x0 + T, z0], [x0, z0 + T], [x0 + T, z0 + T], [x0 + 1, z0 + 1]]) if (!onPlateau(x, z) || distToOutline(x, z) < 6.2) { ok = 0; break; }
     if (ok && x0 + T > H.x - H.w / 2 - 3 && x0 < H.x + H.w / 2 + 3 && z0 + T > H.z - H.d / 2 - 3.5) ok = 0;
+    if (ok && (dockClear(x0, z0) || dockClear(x0 + T, z0) || dockClear(x0, z0 + T) || dockClear(x0 + T, z0 + T))) ok = 0;
     GRID.ok[j * NX + i] = ok;
   }
 }

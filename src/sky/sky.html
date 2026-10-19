@@ -1,0 +1,108 @@
+<!-- sky.html: the skies' screens (shipyard, choosing the skies, a voyage's HUD), over the claim's view. From the airship game. -->
+<div id="sky" hidden data-mode="off">
+<!-- choosing the skies: how hard the raiders fight, and how well they pay -->
+<section id="title" class="screen" hidden>
+  <div class="title-card">
+    <h1>The Skies</h1>
+    <p class="lede">Raiders and claim-jumpers are loose over Aethermoor, Captain. Bring them down, gather their Crystal Shards, and bring them home to Brightvein.</p>
+    <h2>Choose your skies</h2>
+    <div id="skies" role="radiogroup" aria-label="Skies"></div>
+    <button id="btn-to-port" class="big" type="button">To the shipyard</button>
+  </div>
+</section>
+
+<!-- the shipyard: your ships, their upgrades and crystal power, and setting sail -->
+<section id="port" class="screen" hidden>
+  <header class="port-top"><button id="btn-home" class="panel" type="button" aria-label="Back to the claim">← Claim</button><h1>Shipyard</h1><span id="port-shards" class="panel shards">◆ 0</span><button id="btn-skies" class="panel" type="button">Skies</button></header>
+  <p id="port-note" class="panel" aria-live="polite"></p>
+  <div id="port-ships" class="panel" role="group" aria-label="Ships"></div>
+  <section id="port-panel" class="panel">
+    <h2 id="pp-name">Zephyr</h2>
+    <p class="cls" id="pp-cls">Skiff · 8 m</p>
+    <p id="pp-blurb"></p>
+    <div id="pp-buy"><button id="btn-buy" class="buy" type="button">Buy</button><p id="pp-need"></p></div>
+    <h3>How she sails</h3>
+    <div id="pp-stats"></div>
+    <div id="pp-own">
+      <h3>Crystal power</h3>
+      <div class="power"><span>Sails</span><input id="pp-power" type="range" min="-2" max="2" step="1" value="0" aria-label="Crystal power, from sails to guns"><span>Guns</span></div>
+      <p id="pp-power-note"></p>
+      <h3>Upgrades</h3>
+      <div id="pp-mods"></div>
+    </div>
+    <div class="sail-out"><button id="btn-sail" class="big" type="button">Set sail</button></div>
+  </section>
+</section>
+
+<div id="hud">
+<section id="ship" class="panel">
+  <h1 id="ship-name">Tradewind</h1>
+  <div class="cls" id="ship-cls">Brig</div>
+  <dl id="readout">
+    <dt>Speed</dt><dd id="r-speed">0 km/h</dd>
+    <dt>Height</dt><dd id="r-height">0 m</dd>
+    <dt>Sail<span class="wide"> set</span></dt><dd id="r-sail">50%</dd>
+  </dl>
+  <span class="meter" aria-hidden="true"><i id="sail-bar"></i></span>
+  <dl id="health">
+    <div class="row" id="row-hull"><dt>Hull</dt><span class="meter hull"><i id="h-hull"></i></span><dd id="n-hull">0</dd></div>
+    <div class="row" id="row-sails"><dt>Sails</dt><span class="meter sails"><i id="h-sails"></i></span><dd id="n-sails">0</dd></div>
+    <div class="row" id="row-crystals"><dt>Crystals</dt><span class="meter crystals"><i id="h-crystals"></i></span><dd id="n-crystals">0</dd></div>
+    <div class="row" id="row-surge"><dt>Surge</dt><span class="meter surge"><i id="h-surge"></i></span><dd class="mouse-only">R</dd></div>
+  </dl>
+</section>
+<div id="compass" class="panel" aria-live="off"><span id="heading">N</span><span id="wind" title="The wind: up the arrow is the way it blows, against your heading"><i id="wind-arrow">↑</i><b id="wind-n">0%</b></span></div>
+<button id="btn-pause" class="panel" type="button" aria-label="Pause">❚❚</button>
+<canvas id="minimap" aria-label="The map of Aethermoor: tap to make it bigger"></canvas>
+<div id="score" class="panel"><span class="wide">Raiders downed</span><span class="narrow">Downed</span>: <b id="score-n">0</b> · Wave <b id="wave-n">1</b> · <span class="shards">◆ <b id="voyage-n">0</b></span></div>
+<div id="tags" aria-hidden="true"></div>
+<div id="hurt" aria-hidden="true"></div>
+<div id="banner" aria-live="polite"><p id="banner-title"></p><p id="banner-line"></p></div>
+<p id="toast" class="panel" aria-live="polite"></p>
+<p id="region" aria-live="polite"></p>
+<div id="aim" aria-hidden="true"><svg viewBox="-23 -23 46 46">
+  <circle r="14" fill="none" stroke="#ecdcb8" stroke-width="2" opacity="0.85"/><circle r="2.2" fill="#e2bd67"/>
+  <path d="M-22 0h6M16 0h6M0 -22v6M0 16v6" stroke="#ecdcb8" stroke-width="2" opacity="0.85"/></svg></div>
+<div id="battery" class="shadow"><b id="battery-name">Bow guns</b> · <span id="battery-count">2</span><span class="meter"><i id="reload-bar"></i></span></div>
+<p id="warn" class="panel" hidden></p>
+<div id="stick" hidden><i></i></div>
+<div id="touch-buttons" class="touch-only">
+  <div class="fire-row"><button id="btn-surge" type="button">Surge</button><button id="btn-fire" type="button" aria-label="Fire">Fire</button></div>
+  <div class="sail"><button id="btn-sail-down" type="button">Sail −</button><button id="btn-sail-up" type="button">Sail +</button></div>
+</div>
+<p id="touch-hint" class="touch-only shadow">Left thumb: steer and climb · drag on the right: aim</p>
+<div id="keys">
+  <section id="help" class="panel mouse-only">
+    <h2>Flying</h2>
+    <dl>
+      <dt>W / S</dt><dd>more sail / less sail</dd>
+      <dt>A / D or ← →</dt><dd>turn</dd>
+      <dt>Space / E or ↑</dt><dd>climb</dd>
+      <dt>Shift / Q or ↓</dt><dd>dive</dd>
+      <dt>Mouse</dt><dd>aim: the guns facing that way fire</dd>
+      <dt>On a raider</dt><dd>the guns lock on and aim ahead of it</dd>
+      <dt>Left click or F</dt><dd>fire</dd>
+      <dt>R</dt><dd>surge: a burst of speed</dd>
+      <dt>C · M · P · H</dt><dd>look ahead · map · pause · hide this</dd>
+    </dl>
+    <p id="lock-hint">Click the sky to aim with the mouse. Esc lets go.</p>
+  </section>
+  <button id="btn-help" class="panel mouse-only" type="button" hidden>Keys (H)</button>
+</div>
+<!-- between waves: sail on, or go back to port and keep the shards -->
+<section id="calm" class="panel card" hidden>
+  <h2 id="calm-title">Wave 1 beaten</h2>
+  <p id="calm-line"></p>
+  <div class="choices"><button id="btn-sail-on" class="big" type="button">Sail on</button><button id="btn-go-port" class="plain" type="button">Home to Brightvein</button></div>
+</section>
+</div>
+<!-- paused, or the ship lost -->
+<section id="paused" class="screen dim" hidden>
+  <div class="panel card">
+    <h2 id="paused-title">Paused</h2>
+    <p id="paused-line"></p>
+    <div class="choices"><button id="btn-resume" class="big" type="button">Resume</button><button id="btn-abandon" class="plain" type="button">Home to Brightvein</button></div>
+  </div>
+</section>
+<p id="sky-loading" hidden>Raising the sails…</p>
+</div>

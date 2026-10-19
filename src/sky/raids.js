@@ -576,7 +576,7 @@ export function makeRaids(ctx) {
 function makeStorm(scene, ctx) {
   const group = new THREE.Group(); scene.add(group);
   // a dark veil round the camera, dimming the sky and the far map
-  const veil = new THREE.Mesh(new THREE.SphereGeometry(2600, 24, 12), new THREE.MeshBasicMaterial({ color: 0x1a2030, transparent: true, opacity: 0.62, side: THREE.BackSide, depthWrite: false, fog: false }));
+  const veil = new THREE.Mesh(new THREE.SphereGeometry(2600, 24, 12), new THREE.MeshBasicMaterial({ color: 0x1a2030, transparent: true, opacity: 0.55, side: THREE.BackSide, depthWrite: false, fog: false }));
   veil.renderOrder = -5; group.add(veil);
   // rain: streaks in a box round the ship
   const N = 700, pos = new Float32Array(N * 6), rain = new THREE.BufferGeometry();
@@ -591,7 +591,8 @@ function makeStorm(scene, ctx) {
   if (fog) { fog.color.set(0x4a5466); fog.near = 200; fog.far = 5200; }
   let cloudT = 0;
   return {
-    warn(p, t, then) { const m = new THREE.Mesh(new THREE.SphereGeometry(10, 10, 8), glowMat); m.position.copy(p); group.add(m); warns.push({ m, t, max: t, then, p: p.clone() }); },
+    // a pillar of pale light where the bolt will fall, brightening till it strikes
+    warn(p, t, then) { const m = new THREE.Mesh(new THREE.CylinderGeometry(5, 9, 420, 10, 1, true), glowMat.clone()); m.position.copy(p).add(V(0, 160, 0)); group.add(m); warns.push({ m, t, max: t, then, p: p.clone() }); },
     bolt(at) {
       const pts = [], top = at.clone().add(V((Math.random() - 0.5) * 80, 700, (Math.random() - 0.5) * 80));
       for (let i = 0; i <= 14; i++) { const k = i / 14, p = top.clone().lerp(at, k); if (i && i < 14) p.add(V((Math.random() - 0.5) * 40, 0, (Math.random() - 0.5) * 40)); pts.push(p); }
@@ -608,7 +609,7 @@ function makeStorm(scene, ctx) {
         pos.set([x, y, z, x - Math.sin(WIND.dir) * 1.2, y + 5, z - Math.cos(WIND.dir) * 1.2], i * 6);
       }
       rain.attributes.position.needsUpdate = true;
-      for (let i = warns.length - 1; i >= 0; i--) { const w = warns[i]; w.t -= dt; w.m.scale.setScalar(1 + (1 - w.t / w.max) * 2.2); w.m.material.opacity = 0.25 + 0.35 * Math.abs(Math.sin(w.t * 20)); if (w.t <= 0) { group.remove(w.m); w.m.geometry.dispose(); warns.splice(i, 1); w.then(w.p); } }
+      for (let i = warns.length - 1; i >= 0; i--) { const w = warns[i]; w.t -= dt; const k = 1 - w.t / w.max; w.m.scale.set(1 - k * 0.6, 1, 1 - k * 0.6); w.m.material.opacity = 0.08 + 0.3 * k * (0.7 + 0.3 * Math.sin(w.t * 30)); if (w.t <= 0) { group.remove(w.m); w.m.geometry.dispose(); w.m.material.dispose(); warns.splice(i, 1); w.then(w.p); } }
       for (let i = bolts.length - 1; i >= 0; i--) { const b = bolts[i]; b.t -= dt; b.l.material.opacity = Math.max(0, b.t / 0.35); if (b.t <= 0) { group.remove(b.l); b.l.geometry.dispose(); b.l.material.dispose(); bolts.splice(i, 1); } }
       // dark cloud drifting past
       if ((cloudT -= dt) <= 0 && ctx.smoke) {

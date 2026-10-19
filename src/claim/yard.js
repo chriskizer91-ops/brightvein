@@ -179,7 +179,8 @@ function yardRaidHome(r) {
 #app .li.raid.sel { border-color: var(--amber-2); box-shadow: 0 0 0 1px var(--amber-2) inset; }
 #app .wanted { margin: 8px 0; padding: 10px 12px; border-radius: 10px; background: linear-gradient(#e9d6aa, #cdb27c); color: #3a1f12; border: 2px solid #6e4a32; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 #app .wanted h4 { margin: 0; font-family: var(--f-display); font-size: 22px; letter-spacing: .12em; text-align: center; color: #5a1a10; }
-#app .wanted p { margin: 4px 0; font-size: 13px; text-align: center; }
+#app .wanted p { margin: 4px 0; font-size: 13px; text-align: center; color: #3a1f12; }
+#app .wanted b { color: #5a1a10; }
 #app .wanted .btn { width: 100%; margin-top: 6px; }
 #app .wanted img { display: block; width: 112px; height: 112px; margin: 6px auto; border-radius: 6px; border: 2px solid #6e4a32; filter: sepia(.35); }
 #app .yplace { display: grid; grid-template-columns: auto 1fr; gap: 10px; margin: 8px 0; padding: 8px; border-radius: 10px; border: 1px solid var(--amber-2); background: rgba(0,0,0,.2); }

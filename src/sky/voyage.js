@@ -352,7 +352,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
     for (const r of gone) {
       V.downed++; sfx('raiderdown', r.f.pos);
       const big = r.R.length > 30 || r.boss;
-      bolts.burst(r.f.pos, 0xff8a3a, big ? 120 : 60, big ? 3.4 : 2.2); bolts.burst(r.f.pos.clone().add({ x: 0, y: 3, z: 0 }), 0xffe08a, 30, 1.6);
+      bolts.burst(r.f.pos, 0xff8a3a, big ? 80 : 50, big ? 2.6 : 2); bolts.burst(r.f.pos.clone().add({ x: 0, y: 3, z: 0 }), 0xffe08a, 24, 1.4);
       if (r.f.down.why !== 'struck') { S.debris.spawn(r.f.pos, r.f.velocity, big ? 40 : 18, 0.3 + r.R.length * 0.03, 'wood', 24); S.flash.at(r.f.pos, big ? 1.6 : 0.7); if (r.f.pos.distanceTo(player.pos) < 500) cam.shake = Math.max(cam.shake, big ? 0.8 : 0.35); }
       pickups.spill(r.f.pos.clone().add({ x: 0, y: 2, z: 0 }), r.f.velocity, r.bounty * skies().shards * (1 + 0.1 * W.n));
       toast(`${r.name} ${r.f.down.why === 'hull' ? 'going down' : r.f.down.why === 'struck' ? 'strikes her colours' : 'sinking, crystals dead'}: fly through the shards`);
@@ -552,7 +552,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
       const B = I.boss;
       $('sb-name').textContent = B.name; $('sb-sub').textContent = B.sub; $('sb-phase').textContent = B.phase || '';
       $('sb-fill').style.width = `${B.frac * 100}%`; $('sb-fill2').style.width = `${(B.frac2 ?? 0) * 100}%`;
-      $('sb-label2').textContent = B.label2 ?? 'Crystals';
+      $('sb-label2').textContent = B.label2 ?? 'Crystals'; document.querySelector('#sky .sb-two').hidden = B.frac2 == null;
       bb.classList.toggle('sails', !!B.sails); bb.classList.toggle('shield', !!B.shield);
       const marks = $('sb-marks'), key = (B.marks || []).join(',');
       if (marks.dataset.k !== key) { marks.dataset.k = key; marks.innerHTML = (B.marks || []).map((x) => `<i style="left:${x * 100}%"></i>`).join(''); }
@@ -678,7 +678,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
   function frame(dt) {
     dt = Math.min(0.05, dt);
     if (!S || mode === 'loading') return false;
-    renderer.toneMappingExposure = 1.0;
+    renderer.toneMappingExposure = mode === 'voyage' && S.sites.cur?.kind === 'storm' ? 0.72 : 1.0;   // a storm front is dark
     ART.M.canvas.emissiveIntensity = LOOK.canvas;
     for (const b of built.values()) b.art.M.canvas.emissiveIntensity = b.art.glowSails ? LOOK.canvas * 2.2 : LOOK.canvas;
     if (mode === 'voyage') { if (!paused && !W.sunk) tick(dt); if (mode === 'voyage') renderer.render(S.scene, camera); }

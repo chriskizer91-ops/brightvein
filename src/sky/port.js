@@ -325,8 +325,8 @@ export function makePort({ renderer, env, progress, claim = {}, shipFor, crewOf,
   function pair(a, b) {
     const A = shipFor(FLEET.find((s) => s.id === a)), B = shipFor(FLEET.find((s) => s.id === b));
     scene.add(A.root, B.root); const L = Math.max(A.recipe.length, B.recipe.length);
-    A.root.position.set(-L * 0.36, 0, 0); B.root.position.set(L * 0.36, 0, 0); A.root.rotation.set(0, 0.5, 0); B.root.rotation.set(0, 0.5, 0);
-    ship = null; frame = { radius: L * 0.95, cy: L * 0.12 }; berth.scale.setScalar(L * 0.9); berth.position.y = -L * 0.2;
+    A.root.position.set(-L * 0.34, 0, L * 0.05); B.root.position.set(L * 0.3, 0, -L * 0.05); A.root.rotation.set(0, 0.85, 0); B.root.rotation.set(0, 0.85, 0);
+    ship = null; frame = { radius: L * 0.62, cy: L * 0.06 }; berth.scale.setScalar(L * 0.75); berth.position.y = -L * 0.16;
     return [A, B];
   }
   return { scene, camera, show, setMode, update, render, resize, refresh, note, pair, get viewing() { return viewing; }, get tab() { return tab; }, set tab(t) { tab = t; refresh(); }, get mode() { return mode; }, set mode(m) { mode = m; } };

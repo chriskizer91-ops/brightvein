@@ -60,9 +60,10 @@ export function refitCost(id, level) {
 }
 
 // ---------- looks: cheap, as material tints ----------
+// a paint is a colour cast over the painted planks (b: how light or dark it leaves them)
 export const PAINTS = {
-  oak: { name: 'Oiled oak', c: 0xffffff }, plum: { name: 'Brightvein plum', c: 0xc69ab9 }, night: { name: 'Night blue', c: 0x95a3cc },
-  moss: { name: 'Moss green', c: 0xadc39a }, amber: { name: 'Sunstone amber', c: 0xf0b57a }, tar: { name: 'Tar black', c: 0x6c6460 },
+  oak: { name: 'Oiled oak', c: 0xffffff }, plum: { name: 'Brightvein plum', c: 0xb07aa4 }, night: { name: 'Night blue', c: 0x6f86c8 },
+  moss: { name: 'Moss green', c: 0x8fb878 }, amber: { name: 'Sunstone amber', c: 0xf0a860, b: 1.15 }, tar: { name: 'Tar black', c: 0x6c6460, b: 0.45 },
 };
 export const SAILS = {
   cream: { name: 'Sailcloth', c: 0xffffff }, gold: { name: 'Gold', c: 0xffdc8c }, plum: { name: 'Plum', c: 0xdcaad0 },
@@ -230,8 +231,13 @@ export function paintArt(art, cache) {
   if (cache) cache.art = out;
   return out;
 }
+// a colour as a cast of that hue at the same lightness (so it shows on dark planks), k: how strong
+function cast(hex, k = 0.85, b = 1) {
+  const c = new THREE.Color(hex), L = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  return new THREE.Color(1, 1, 1).lerp(c.clone().multiplyScalar(1 / Math.max(0.05, L)), k).multiplyScalar(b);
+}
 export function applyPaint(A, cfg) {
-  const p = cfg.paint || {}, hc = new THREE.Color(PAINTS[p.hull]?.c ?? 0xffffff), sc = new THREE.Color(SAILS[p.sails]?.c ?? 0xffffff);
+  const p = cfg.paint || {}, P = PAINTS[p.hull] ?? PAINTS.oak, hc = P.c === 0x6c6460 ? new THREE.Color(1, 1, 1).multiplyScalar(P.b) : cast(P.c, 0.9, P.b ?? 1), sc = new THREE.Color(SAILS[p.sails]?.c ?? 0xffffff);
   A.M.hull.color.copy(A.base.hull).multiply(hc);
   A.M.plates.color.copy(A.base.plates).multiply(hc);
   A.M.canvas.color.copy(sc);
@@ -247,7 +253,7 @@ export function figurehead(ship, id, art) {
   const old = ship.body.getObjectByName('figurehead');
   if (old) { old.removeFromParent(); old.traverse((o) => o.geometry?.dispose()); }
   if (!id || id === 'none' || !FIGURES[id]) return null;
-  const R = ship.recipe, H = ship.hull, s = Math.max(0.45, R.length / 25) * 0.9;
+  const R = ship.recipe, H = ship.hull, s = Math.max(0.5, R.length / 25) * 1.8;
   const g = new THREE.Group(); g.name = 'figurehead';
   // just above the ram (or the stem's foot), forward of the bow
   const yTop = H.rim(H.zb), yLow = R.ram ? R.ram.y + R.ram.collar : H.keel(H.zb);

@@ -265,7 +265,7 @@ export function buildCliff(M) {
     if (y > H / 2 - 1) y += (rnd(Math.round(x / 30) * 2.3) - 0.5) * 70 - 20; // a broken skyline
     x += (rnd(y * 0.13 + z * 0.7) - 0.5) * 6;
     p.setXYZ(i, x, y, z);
-    const band = BANDS[((Math.floor((y + H / 2 + Math.sin(x / 50) * 12) / 34) % BANDS.length) + BANDS.length) % BANDS.length], k = 0.75 + rnd(Math.round(x / 9) + Math.round(y / 9) * 7.7) * 0.35;
+    const band = BANDS[((Math.floor((y + H / 2 + Math.sin(x / 50) * 12) / 34) % BANDS.length) + BANDS.length) % BANDS.length], k = 0.5 + rnd(Math.round(x / 9) + Math.round(y / 9) * 7.7) * 0.3;
     col.push(band.r * k, band.g * k, band.b * k);
   }
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
@@ -312,7 +312,7 @@ export function buildEngine(M) {
 export function buildBeacon(M, r = 30) {
   const g = new THREE.Group();
   const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 1.3, 8, 40), M.brass); g.add(ring);
-  const glow = new THREE.Mesh(new THREE.TorusGeometry(r, 2.6, 6, 40), M.beacon); g.add(glow);
+  const glow = new THREE.Mesh(new THREE.TorusGeometry(r, 1.9, 6, 40), M.beacon); g.add(glow);
   for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2, c = new THREE.Mesh(new THREE.OctahedronGeometry(2.6, 0), M.crystal); c.position.set(Math.cos(a) * r, Math.sin(a) * r, 0); g.add(c); }
   g.userData.glow = glow;
   return g;

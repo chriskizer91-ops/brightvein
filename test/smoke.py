@@ -135,7 +135,7 @@ with sync_playwright() as p:
       const keep = d.crew.gunners; d.crew.gunners = []; g.fly('cutter'); const without = g.gunnery.reload('port'); g.endVoyage(1); d.crew.gunners = keep;
       out.air = [without, withCrew];
       // repairs: harm she brought home costs shards and time at the dock, and the claim finishes them
-      c.wear = { hull: 0.4, sails: 0.7, crystals: 0.9 }; B.UI.open('dock'); const rb = [...document.querySelectorAll('#panel-body .btn')].find(b => /Repair her/.test(b.textContent));
+      c.wear = { hull: 0.4, sails: 0.7, crystals: 0.9 }; B.UI.open('dock', { tab: 'ship' }); const rb = [...document.querySelectorAll('#panel-body .btn')].find(b => /Repair her/.test(b.textContent));
       const s1 = B.GAME.shards; if (rb) rb.click(); out.repair = { paid: Math.round(s1 - B.GAME.shards), until: c.repair && Math.round((c.repair.until - c.repair.from) * 24 * 10) / 10 };
       B.UI.close();
       return out; })()''')

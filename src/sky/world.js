@@ -12,7 +12,7 @@ import tile7 from '../../assets/map/tile-7.avif';
 import tile8 from '../../assets/map/tile-8.avif';
 import tile9 from '../../assets/map/tile-9.avif';
 
-export const MAP = { w: 23040, h: 15360, px: 5 }; // metres; x runs east, z runs south, the map's centre at the origin
+export const MAP = { w: 23040, h: 15360, px: 5 }; // metres; x runs east, z runs south, the map’s centre at the origin
 export const SUN = new THREE.Vector3(-0.55, 0.52, 0.25).normalize();
 export const CLOUD_Y = 430, THINNING = 2400;
 // Brightvein on the map: a high plateau in the Ironspire Peaks, north-east of the Hearthsea

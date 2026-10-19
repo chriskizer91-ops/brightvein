@@ -19,7 +19,7 @@ const cardsOn = () => questDone('fox') && castHere('fox');
 const CAST_RELICS = {
   'quiet-lamp': { id: 'quiet-lamp', name: 'The Quiet Lamp', base: 'shade-lantern', kind: 'lantern', rarity: 'masterwork', slot: 'offhand', ilvl: 14, stats: { vsWild: 30, nerve: 2, guard: 6, light: 1 },
     power: { name: 'Hush', text: 'Once a night: every Wildlight near the carrier goes still for a few seconds, and stops drinking.' },
-    lore: 'Tamsin’s lamp, its lens ground by Odile to the note the seam hums at night. Its light doesn’t burn the Wildlight. It calms them.', source: 'Gift: Tamsin Vey' },
+    lore: 'Tamsin’s lamp, its lens ground by Odile to the hum she hears under the plateau at night. Its light doesn’t burn the Wildlight. It calms them.', source: 'Gift: Tamsin Vey' },
   'pikes-answer': { id: 'pikes-answer', name: 'Pike’s Answer', base: 'piston-hammer', kind: 'hammer', rarity: 'masterwork', slot: 'hand', aspect: 'steam', ilvl: 16, stats: { dmg: 45, G: 3, repair: 30 },
     power: { name: 'The Last Word', text: 'Once a night: one blow that throws a Wildlight back over the rim.' },
     lore: 'The first thing off Torvald’s relit forge. He says it’s an answer. He won’t say to what.', source: 'Gift: Torvald Pike' },
@@ -56,7 +56,7 @@ const QUESTS = {
     ],
     steps: [
       { text: 'Send Brisa into the wilds as far as the gorse moors, and home again (tap her › Get ready to set out)', short: 'Brisa to the gorse moors and back', done: Q => qSince(Q, 'trip-sol-1') >= 1 },
-      { text: 'Under the cairn: a map to the strongbox, in the old-age ruins. Send anyone that far and home again', short: 'Anyone to the old-age ruins and back', done: Q => qSince(Q, 'trip2') >= 1 },
+      { text: 'Under the cairn: a map to the strongbox, in the old ruins. Send anyone that far and home again', short: 'Anyone to the old ruins and back', done: Q => qSince(Q, 'trip2') >= 1 },
     ],
     close: [
       ['sol', 'The strongbox. Still locked. Still heavy.'],
@@ -107,11 +107,11 @@ const QUESTS = {
     ask: [
       ['tock', 'Mirrors! On poles! Round every yard! The sun comes in sideways first thing and nobody catches it. It’s a waste. It makes me itch.'],
       ['odile', 'What Nib means is: Nib wants Cut Glass.'],
-      ['tock', 'I want Cut Glass. And somebody in the Workshop to silver it. And a sunny day to show off on.'],
+      ['tock', 'I want Cut Glass. And somebody in the Lens Workshop to silver it. And a sunny day to show off on.'],
     ],
     steps: [
       { text: 'Give Nib 2 Cut Glass for the mirrors', short: 'Give Nib 2 Cut Glass', give: { glass: 2 } },
-      { text: 'Put two cutters to work in a Lens Workshop to silver them', short: 'Two cutters in a Lens Workshop', done: () => byType('shop').some(b => workersOf(b.id).length >= 2), prog: () => [Math.min(2, Math.max(0, ...byType('shop').map(b => workersOf(b.id).length))), 2] },
+      { text: 'Put two lens cutters to work in a Lens Workshop to silver them', short: 'Two lens cutters at work', done: () => byType('shop').some(b => workersOf(b.id).length >= 2), prog: () => [Math.min(2, Math.max(0, ...byType('shop').map(b => workersOf(b.id).length))), 2] },
       { text: 'Show the mirrors off: make 150 shards in a single day', short: 'Make 150 shards in one day', done: () => ACT.dayCharge >= 150, prog: () => [Math.min(150, Math.floor(ACT.dayCharge)), 150] },
     ],
     close: [
@@ -182,7 +182,7 @@ function questsDay() {
   const id = Object.keys(QUESTS).find(questReady); if (!id) return;
   QST[id] = { state: 'offer', step: 0, day: GAME.day }; ACT.offerDay = GAME.day;
   const first = esc(castFirst(id));
-  toast(`<b>${first}</b> wants a word, and is waiting at the Keep. Tap the Keep to hear ${first} out.`);
+  toast(`<b>${first}</b> wants a word, and is waiting at the Keep with something to ask. Tap the Keep.`);
   AUDIO.play('chime');
 }
 function questAccept(id, quiet = false) {
@@ -251,7 +251,7 @@ function questsHUD(withChapter) {
 // ---- the journal's cast page: each visitor on the claim, their gift, and their story so far
 function questsJournal(ui, body) {
   const ids = Object.keys(CAST_CREW).filter(id => castHere(id) || QST[id]);
-  if (!ids.length) { body.append(ui.h(`<p class="small">Nobody from the cast is on the claim yet. Visitors come in the story's chapters, and some of them stay.</p>`)); return; }
+  if (!ids.length) { body.append(ui.h(`<p class="small">Nobody from the cast is on the claim yet. Visitors come in the story’s chapters, and some of them stay.</p>`)); return; }
   for (const id of ids) {
     const v = heroV(id), N = CAST_NAMES[id], C = CAST_CREW[id], Q = QST[id], q = QUESTS[id];
     const card = document.createElement('div'); card.className = 'qcard';

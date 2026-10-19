@@ -160,12 +160,12 @@ function finishJob(J) {
     msg = `Odile breaks down ${J.items.length === 1 ? 'the ' + esc(J.items[0].name) : J.items.length + ' pieces'}: <b>${esc(matLine(J.yield)) || 'nothing worth keeping'}</b>${J.cells.length ? `, and ${J.cells.length} cell${J.cells.length > 1 ? 's' : ''} back in the box` : ''}.`;
   } else if (!it && J.kind !== 'craft') { ok = false; msg = 'The piece went missing from the bench.'; }
   else if (J.kind === 'overhaul') {
-    if (Math.random() < J.fail) { ok = false; const back = Math.floor(J.cost.shards / 2); GAME.shards += back; msg = `The +${J.to} didn't take on the <b>${esc(it.name)}</b>. ${matLine(J.cost.materials) ? 'The ' + esc(matLine(J.cost.materials)) + ' is spent; ' : ''}${back} shards come back. It's still +${J.to - 1}.`; }
+    if (Math.random() < J.fail) { ok = false; const back = Math.floor(J.cost.shards / 2); GAME.shards += back; msg = `The +${J.to} didn’t take on the <b>${esc(it.name)}</b>. ${matLine(J.cost.materials) ? 'The ' + esc(matLine(J.cost.materials)) + ' is spent; ' : ''}${back} shards come back. It’s still +${J.to - 1}.`; }
     else { it.overhaul = J.to; msg = `The <b style="color:${rarityOf(it).color}">${esc(it.name)}</b> is now <b>+${J.to}</b>.`; if (x.where === 'fitted') fitChanged(buildingById(x.id)); }
   } else if (J.kind === 'retune') {
     const fresh = LOOT.retune(it, J.index);
     it.retunes = (it.retunes || 0) + 1;
-    if (!fresh) { ok = false; msg = `Nothing else would take on the <b>${esc(it.name)}</b>. It's as it was.`; }
+    if (!fresh) { ok = false; msg = `Nothing else would take on the <b>${esc(it.name)}</b>. It’s as it was.`; }
     else { GAME.bench.choice = { uid: it.uid, index: J.index, before: it.traits[J.index], after: { traits: fresh.traits, name: fresh.name, aspect: fresh.aspect } }; msg = `Odile has retuned the <b>${esc(it.name)}</b>. Keep the new trait, or put the old one back?`; }
   } else if (J.kind === 'cell') {
     it.cells = it.cells || []; const old = it.cells[J.slot]; if (old) GAME.cells[old] = (GAME.cells[old] || 0) + 1;
@@ -209,7 +209,7 @@ function benchFrame(rdt, gdt) {
 }
 
 // ---- the bench's panel
-const BENCH_TABS = [['salvage', 'Salvage'], ['retune', 'Retune'], ['overhaul', 'Overhaul'], ['cells', 'Cells'], ['attune', 'Attune'], ['assay', 'Assay'], ['craft', 'Blueprints']];
+const BENCH_TABS = [['salvage', 'Break down'], ['retune', 'Retune'], ['overhaul', 'Overhaul'], ['cells', 'Cells'], ['attune', 'Attune'], ['assay', 'Assay'], ['craft', 'Blueprints']];
 UI.benchSel = { tab: 'overhaul', uid: null, trait: null, sock: null, pick: new Set() };
 const starStr = n => '★'.repeat(n) + '<i>' + '★'.repeat(5 - n) + '</i>';
 function cellIcon(id, size = 36) {
@@ -221,7 +221,7 @@ UI.bench = function (body, ref) {
   // a ref picks the tab (and the piece) once; after that the panel remembers where you are
   const S = UI.benchSel; if (ref && ref.tab) { S.tab = ref.tab; if (ref.uid !== undefined) { S.uid = ref.uid; S.trait = null; S.sock = null; } ref.tab = null; ref.uid = undefined; }
   const shop = benchShop(), hand = benchHand(), sk = benchSkill(), J = GAME.bench.job;
-  body.append(this.h(`<h2>Odile's bench</h2><p class="sub">${shop ? `At the ${esc(shop.name || shop.def.name)}.` : 'In the Lens Workshop, once it’s built.'} Break down what you don't need, retune, overhaul, fit cells, attune, and make things from blueprints.</p>`));
+  body.append(this.h(`<h2>Odile’s bench</h2><p class="sub">${shop ? `At the ${esc(shop.name || shop.def.name)}.` : 'In the Lens Workshop, once it’s built.'} Break down what you don’t need, retune, overhaul, fit cells, attune, and make things from blueprints.</p>`));
   // who works it
   const who = document.createElement('div'); who.className = 'bench-who';
   if (hand) { who.append(faceOf(hand)); who.append(this.h(`<span><b>${esc(hand.d.name)}</b> works the bench · Engineering ${sk}<br><span class="small">${esc(handWords(sk))}</span></span>`)); }
@@ -277,7 +277,7 @@ function benchSalvagePane(pane) {
   const S = UI.benchSel, ui = this;
   const list = GAME.stash.filter(it => canSalvage(it) && !onBench(it)).sort((a, b) => LOOT.rankOf(a.rarity) - LOOT.rankOf(b.rarity) || (a.ilvl || 0) - (b.ilvl || 0));
   for (const it of [...S.pick]) if (!list.includes(it)) S.pick.delete(it);
-  pane.append(this.h(`<p class="small">Break down pieces from the stash into materials for the bench: Brass Scrap from the plain grades, Cut Glass from the better ones, Heartstone from Signed pieces. Cells come back out. Masterworks and other named pieces can't be broken down. Worn and fitted pieces aren't listed.</p>`));
+  pane.append(this.h(`<p class="small">Break down pieces from the stash into materials for the bench: Brass Scrap from the plain grades, Cut Glass from the better ones, Heartstone from Signed pieces. Cells come back out. Masterworks and other named pieces can’t be broken down. Worn and fitted pieces aren’t listed.</p>`));
   const quick = document.createElement('div'); quick.className = 'stats-row';
   for (const r of ['salvage', 'tooled', 'tuned']) {
     const n = list.filter(it => it.rarity === r && !(it.overhaul > 0) && !(it.cells || []).some(Boolean)).length; if (!n) continue;
@@ -286,7 +286,7 @@ function benchSalvagePane(pane) {
   if (S.pick.size) { const b = this.h(`<button type="button" class="btn">Clear</button>`); b.querySelector('button').onclick = () => { S.pick.clear(); UI.refresh(); }; quick.append(b); }
   if (quick.children.length) pane.append(quick);
   const y = {}; for (const it of S.pick) for (const [k, n] of Object.entries(salvageYield(it))) y[k] = (y[k] || 0) + n;
-  const go = this.h(`<div class="bench-go"><button type="button" class="btn primary" ${S.pick.size && !GAME.bench.job ? '' : 'disabled'}>Salvage ${S.pick.size || ''} piece${S.pick.size === 1 ? '' : 's'}</button><span class="small">${S.pick.size ? `Gives ${esc(matLine(y))}` : 'Tap pieces to choose them.'}</span></div>`);
+  const go = this.h(`<div class="bench-go"><button type="button" class="btn primary" ${S.pick.size && !GAME.bench.job ? '' : 'disabled'}>Break down ${S.pick.size || ''} piece${S.pick.size === 1 ? '' : 's'}</button><span class="small">${S.pick.size ? `Gives ${esc(matLine(y))}` : 'Tap pieces to choose them.'}</span></div>`);
   go.querySelector('button').onclick = () => { if (benchSalvage([...S.pick])) S.pick.clear(); UI.refresh(); };
   pane.append(go);
   const l = document.createElement('div'); l.className = 'list';
@@ -304,7 +304,7 @@ function benchOverhaulPane(pane) {
   const S = UI.benchSel;
   const list = sortBest(allItems().filter(x => x.where !== 'bench' && canOverhaul(x.it)));
   const it = benchPicker(this, pane, list, it => `+${it.overhaul || 0} → +${(it.overhaul || 0) + 1}`, 'Nothing to overhaul.');
-  if (!it) { pane.prepend(this.h(`<p class="small">Each overhaul step adds 4% to a piece's own numbers: a weapon's damage, a coat's guard, a tool's output, a module's effect. +1 to +3 cost only shards; +4 to +6 need Cut Glass; +7 to +10 need Heartstone. From +6 a step can fail: the materials are lost and half the shards come back.</p>`)); return; }
+  if (!it) { pane.prepend(this.h(`<p class="small">Each overhaul step adds 4% to a piece’s own numbers: a weapon’s damage, a coat’s guard, a tool’s output, a module’s effect. +1 to +3 cost only shards; +4 to +6 need Cut Glass; +7 to +10 need Heartstone. From +6 a step can fail: the materials are lost and half the shards come back.</p>`)); return; }
   const c = overhaulCost(it), to = (it.overhaul || 0) + 1, fail = overhaulFail(it);
   const after = { ...it, overhaul: to };
   pane.append(this.h(`<div class="oh-pips" aria-label="Overhaul ${it.overhaul || 0} of 10">${Array.from({ length: 10 }, (_, i) => `<i class="${i < (it.overhaul || 0) ? 'on' : i === to - 1 ? 'next' : ''}"></i>`).join('')}<span>+${it.overhaul || 0}</span></div>`));
@@ -384,7 +384,7 @@ function benchAttunePane(pane) {
 function benchAssayPane(pane) {
   const list = allItems().filter(x => x.it.unassayed);
   const scale = Math.round(modV(TOWN.b.keep, 'assay'));
-  pane.append(this.h(`<p class="small">Signed pieces come with a maker's mark nobody has read. Absalom Pockett reads them at the Keep for ${WS.assay} shards, and then the piece's power works.${scale ? ` The Keep's Assay Scale reads ${scale} each morning for nothing.` : ' An Assay Scale fitted to the Keep would read one each morning for nothing.'}</p>`));
+  pane.append(this.h(`<p class="small">Signed pieces come with a maker’s mark nobody has read. Absalom Pockett reads them at the Keep for ${WS.assay} shards, and then the piece’s power works.${scale ? ` The Keep’s Assay Scale reads ${scale} each morning for nothing.` : ' An Assay Scale fitted to the Keep would read one each morning for nothing.'}</p>`));
   const l = document.createElement('div'); l.className = 'list';
   for (const x of list) { const row = this.itemRow(x.it, `Assay · ${WS.assay}`, () => { benchAssay(x.it); UI.refresh(); }); row.querySelector('.jb').textContent = `Signed · ${whereText(x)}`; l.append(row); }
   if (!list.length) l.append(this.h(`<p class="small">Nothing waiting to be read.</p>`));
@@ -392,7 +392,7 @@ function benchAssayPane(pane) {
 }
 function benchCraftPane(pane) {
   const odds = craftOdds();
-  pane.append(this.h(`<p class="small">Blueprints come with drops and out of the mine. Odile can make the base item of any she has, at a grade that depends on the bench hand's Engineering. Her odds now: ${odds.filter(([, p]) => p > 0).map(([r, p]) => `<b style="color:${D.RARITY[r].color}">${D.RARITY[r].name} ${p}%</b>`).join(' · ')}.</p>`));
+  pane.append(this.h(`<p class="small">Blueprints come with drops and out of the mine. Odile can make the base item of any she has, at a grade that depends on the bench hand’s Engineering. Her odds now: ${odds.filter(([, p]) => p > 0).map(([r, p]) => `<b style="color:${D.RARITY[r].color}">${D.RARITY[r].name} ${p}%</b>`).join(' · ')}.</p>`));
   const l = document.createElement('div'); l.className = 'list';
   for (const base of GAME.blueprints) {
     const B = D.ITEMS[base]; if (!B) continue;
@@ -408,7 +408,7 @@ function benchCraftPane(pane) {
 // a line for the workshop's own panel: the bench, and what it's doing
 UI.benchLink = function (body, b) {
   const J = GAME.bench.job, hand = benchHand();
-  const r = this.h(`<div class="upgrade bench-link"><p><b>Odile's bench.</b> ${J ? esc(J.label) + '…' : hand ? `${esc(hand.d.name.split(' ')[0])} is at the bench (Engineering ${statOf(hand, 'E')}).` : 'Nobody at the bench.'}${GAME.bench.choice ? ' A retune is waiting on you.' : ''}</p><button type="button" class="btn primary">Open the bench</button></div>`);
+  const r = this.h(`<div class="upgrade bench-link"><p><b>Odile’s bench.</b> ${J ? esc(J.label) + '…' : hand ? `${esc(hand.d.name.split(' ')[0])} is at the bench (Engineering ${statOf(hand, 'E')}).` : 'Nobody at the bench.'}${GAME.bench.choice ? ' A retune is waiting on you.' : ''}</p><button type="button" class="btn primary">Open the bench</button></div>`);
   r.querySelector('button').onclick = () => UI.open('bench', {});
   body.append(r);
 };

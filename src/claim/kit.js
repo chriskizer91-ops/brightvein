@@ -101,7 +101,7 @@ class Building {
   }
   bake() {
     this.unbake();
-    this.bakeN = (this.bakeN || 0) + 1;   // the town's merge (townMerge) sees the change
+    this.bakeN = (this.bakeN || 0) + 1;   // the town’s merge (townMerge) sees the change
     const list = this.pieces.filter(m => m.visible && !isDynamic(m, this.group));
     this.merged = mergeMeshes(this.group, list);
     for (const m of list) m.visible = false;
@@ -231,7 +231,7 @@ function townMerge() {
     if (!b.group.parent || !b.merged || b.building || b.pending || !b.group.visible) continue;
     b.group.updateMatrixWorld(true);
     for (const m of b.merged) {
-      if (m.parent !== b.group || !m.visible) continue;   // a turret's turning head stays with its building
+      if (m.parent !== b.group || !m.visible) continue;   // a turret’s turning head stays with its building
       const key = m.material.uuid + (m.castShadow ? 'c' : 'n') + (m.receiveShadow ? 'r' : 'n');
       if (!groups.has(key)) groups.set(key, { mat: m.material, cast: m.castShadow, recv: m.receiveShadow, geos: [], from: [] });
       const G0 = groups.get(key), g = m.geometry.clone(); g.applyMatrix4(m.matrixWorld);
@@ -242,7 +242,7 @@ function townMerge() {
   for (const G0 of groups.values()) {
     const g = G0.geos.length > 1 ? mergeGeometries(G0.geos) : G0.geos[0];
     if (G0.geos.length > 1) for (const x of G0.geos) x.dispose();
-    if (!g) continue;   // they wouldn't merge: leave these to draw on their own
+    if (!g) continue;   // they wouldn’t merge: leave these to draw on their own
     const mesh = new THREE.Mesh(g, G0.mat); mesh.castShadow = G0.cast; mesh.receiveShadow = G0.recv; mesh.userData.townMerged = true;
     grp.add(mesh); TMERGE.meshes.push(mesh);
     for (const m of G0.from) { m.layers.set(PICK_LAYER); TMERGE.hidden.push(m); }

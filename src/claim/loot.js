@@ -1,4 +1,6 @@
 // ===================================================================== LOOT: the Armory's data, engine and pixel icons
+// a number into an item's text: {v} is the number, and a word in [brackets] after it is made plural unless it's 1
+const fillV = (text, v) => text.replace('{v}', v).replace(/\[([a-z]+)\]/gi, (m, w) => (Number(v) === 1 ? w : w + 's'));
 const D = (() => {
 // Brightvein loot data. Mechanics carried over from Aethermoor (rarity ladder, luck curve,
 // prefix/suffix traits, enemy-tier drops, salvage → retune → overhaul → cells → attune),
@@ -15,7 +17,7 @@ const ASPECTS = {
 };
 
 const SLOTS = {
-  hand:    { name: "Hand",    text: "Tool or weapon. Most double as the job's tool." },
+  hand:    { name: "Hand",    text: "Tool or weapon. Most double as the job’s tool." },
   offhand: { name: "Off-hand", text: "Buckler, lantern, gauge or ledger." },
   head:    { name: "Head",    text: "Goggles, helms, caps." },
   rig:     { name: "Rig",     text: "Coats, aprons, plating, harnesses." },
@@ -23,7 +25,7 @@ const SLOTS = {
   boots:   { name: "Boots",   text: "Boots." },
   charm:   { name: "Charm",   text: "Watches, lockets, cells, lucky coins." },
   module:  { name: "Module",  text: "Fitted into a building. Each building level opens a socket." },
-  lark:    { name: "Lark part", text: "Fitted to the airship." },
+  lark:    { name: "Lark part", text: "Fitted to the Lark, the courier at the mast." },
 };
 const SLOT_WEIGHT = { hand: 3, rig: 2, head: 2, offhand: 1.4, hands: 1, boots: 1, charm: 0.8 };
 
@@ -36,7 +38,7 @@ const RARITY = {
   tooled:     { rank: 1, name: "Tooled",     color: "#f1e4c6", affixes: 1, statMult: 1.00, cells: 0, dropWeight: 55,  text: "Workshop-made. One trait." },
   tuned:      { rank: 2, name: "Tuned",      color: "#7cc95a", affixes: 2, statMult: 1.10, cells: 0, dropWeight: 22,  text: "Set up by someone who cared. Two traits." },
   calibrated: { rank: 3, name: "Calibrated", color: "#4f9be8", affixes: 3, statMult: 1.20, cells: 1, dropWeight: 7,   text: "Three traits and a cell socket." },
-  signed:     { rank: 4, name: "Signed",     color: "#a866e8", affixes: 3, statMult: 1.35, cells: 1, dropWeight: 1.5, unassayed: true, text: "A maker's mark, a serial number and a logbook line. A minor power. Arrives unassayed until Absalom reads the mark." },
+  signed:     { rank: 4, name: "Signed",     color: "#a866e8", affixes: 3, statMult: 1.35, cells: 1, dropWeight: 1.5, unassayed: true, text: "A maker’s mark, a serial number and a logbook line. A minor power. Arrives unassayed until Absalom reads the mark." },
   masterwork: { rank: 5, name: "Masterwork", color: "#e6b955", affixes: 0, statMult: 1.50, cells: 2, dropWeight: 0,   handmade: true, text: "Named, one of a kind. A signature power, and often a town power." },
   guild:      { rank: 6, name: "Guild",      color: "#2fb8a6", affixes: 0, statMult: 1.50, cells: 1, dropWeight: 0,   handmade: true, set: true, text: "Guild-issue sets. Wear more of the set for set bonuses." },
   sunforged:  { rank: 7, name: "Sunforged",  color: "#fff6dc", affixes: 0, statMult: 1.80, cells: 3, dropWeight: 0,   handmade: true, text: "Old-age Aethermoor relics dug out of the deep seam and refitted with sunstone. White flame." },
@@ -49,25 +51,25 @@ const W = (id, name, kind, minLvl, jobs, weapon, o = {}) => ({ id, name, slot: "
 const A = (id, name, slot, kind, minLvl, o = {}) => ({ id, name, slot, kind, minLvl, ...o });
 const ITEMS = Object.fromEntries([
   // melee
-  W("pick", "Prospector's Pick", "pick", 1, ["head"], { dmg: 5, cd: 0.6, range: 1.5, aspect: "steam", stat: "G" }, { tool: { job: "head", out: 10 }, text: "The first thing anyone on the claim owns." }),
+  W("pick", "Prospector’s Pick", "pick", 1, ["head"], { dmg: 5, cd: 0.6, range: 1.5, aspect: "steam", stat: "G" }, { tool: { job: "head", out: 10 }, text: "The first thing anyone on the claim owns." }),
   W("steam-drill", "Steam Drill", "drill", 6, ["head"], { dmg: 9, cd: 0.8, range: 1.5, aspect: "steam", stat: "G" }, { tool: { job: "head", out: 25 }, text: "A boiler on your back and a screw on your arm." }),
   W("spanner", "Knuckle Spanner", "spanner", 1, ["shop"], { dmg: 4, cd: 0.5, range: 1.2, aspect: "steam", stat: "E" }, { tool: { job: "shop", out: 10 }, text: "Fits every nut on the claim and most jaws." }),
   W("piston-hammer", "Piston Hammer", "hammer", 4, ["shop", "wall"], { dmg: 12, cd: 1.2, range: 1.6, aspect: "steam", stat: "G" }, { tool: { job: "shop", out: 15 }, text: "Drives rivets. Drives Wildlight back down the cliff." }),
   W("machete", "Sunsteel Machete", "machete", 1, ["garden"], { dmg: 6, cd: 0.5, range: 1.4, aspect: "steam", stat: "A" }, { tool: { job: "garden", out: 8 }, text: "For brush, vines and anything that glows wrong." }),
-  W("earthing-lance", "Earthing Lance", "lance", 1, ["wall"], { dmg: 7, cd: 0.6, range: 2.4, aspect: "arc", stat: "G" }, { text: "Copper-shod. Bleeds a Wildlight's light into the ground." }),
+  W("earthing-lance", "Earthing Lance", "lance", 1, ["wall"], { dmg: 7, cd: 0.6, range: 2.4, aspect: "arc", stat: "G" }, { text: "Copper-shod. Bleeds a Wildlight’s light into the ground." }),
   W("clock-halberd", "Clockwork Halberd", "halberd", 5, ["wall"], { dmg: 11, cd: 0.9, range: 2.6, aspect: "steam", stat: "G" }, { text: "Wind the key and the blade swings itself on the backstroke." }),
   W("shade-hook", "Shade Hook", "hook", 3, ["wall"], { dmg: 6, cd: 0.5, range: 2.0, aspect: "shade", stat: "A" }, { text: "Smoked-glass barb on a pole. Catches Wildlight and drags them dim." }),
   W("tuning-fork", "Tuning Fork", "fork", 7, ["shop", "wall"], { dmg: 10, cd: 1.0, range: 1.8, aspect: "chime", stat: "E" }, { tool: { job: "shop", out: 10 }, text: "Struck once, it rings at the pitch of raw sunstone." }),
   // ranged
   W("flare-pistol", "Pepperbox Flare Pistol", "pistol", 1, ["mast", "wall"], { dmg: 8, cd: 1.4, range: 14, aspect: "glare", stat: "A" }, { text: "Four barrels of signal flare. Marks a target for the towers." }),
   W("rivet-gun", "Rivet Gun", "rivet", 3, ["shop"], { dmg: 6, cd: 0.7, range: 9, aspect: "steam", stat: "E" }, { tool: { job: "shop", out: 8 }, text: "Pneumatic. Meant for hull plates." }),
-  W("wind-rifle", "Wind Rifle", "rifle", 3, ["wall", "mast"], { dmg: 11, cd: 1.6, range: 22, aspect: "steam", stat: "A" }, { text: "Compressed air, silent, and longer than you'd think." }),
+  W("wind-rifle", "Wind Rifle", "rifle", 3, ["wall", "mast"], { dmg: 11, cd: 1.6, range: 22, aspect: "steam", stat: "A" }, { text: "Compressed air, silent, and longer than you’d think." }),
   W("lens-carbine", "Lens Carbine", "carbine", 4, ["lens"], { dmg: 9, cd: 1.0, range: 18, aspect: "glare", stat: "A", shardCost: 0.1 }, { tool: { job: "lens", out: 10 }, text: "A lens tower you can carry. Spends a tenth of a shard a shot." }),
   W("heliograph-musket", "Heliograph Musket", "musket", 8, ["lens", "wall"], { dmg: 22, cd: 2.6, range: 30, aspect: "glare", stat: "A", day: 1.5 }, { text: "Fires stored sunlight. Half again as strong while the sun is up." }),
   W("galvanic-coil", "Galvanic Coil", "caster", 6, ["lens"], { dmg: 8, cd: 0.9, range: 10, aspect: "arc", stat: "E", chain: 2 }, { text: "Two copper horns. The spark jumps to a second target." }),
   W("net-mortar", "Umbral Net Mortar", "mortar", 5, ["wall", "mast"], { dmg: 4, cd: 3.0, range: 16, aspect: "shade", stat: "A", snare: 2.5 }, { text: "Throws a net of shade-weave. Holds a Wildlight still for a few seconds." }),
   W("rime-sprayer", "Rime Sprayer", "sprayer", 6, ["wall"], { dmg: 3, cd: 0.25, range: 6, aspect: "rime", stat: "G", slow: 0.4 }, { text: "A coolant tank and a brass nozzle. Everything it touches slows." }),
-  W("harpoon", "Harpoon Launcher", "harpoon", 4, ["mast"], { dmg: 14, cd: 2.2, range: 20, aspect: "steam", stat: "A" }, { text: "Ship's gear. Pins what it hits." }),
+  W("harpoon", "Harpoon Launcher", "harpoon", 4, ["mast"], { dmg: 14, cd: 2.2, range: 20, aspect: "steam", stat: "A" }, { text: "Ship’s gear. Pins what it hits." }),
   W("storm-jug", "Storm-Jug Thrower", "jug", 9, ["wall", "mast"], { dmg: 18, cd: 3.0, range: 14, aspect: "arc", stat: "A", splash: 3 }, { text: "Lobs stoppered jars of bottled Aether storm." }),
   // job tools that are not weapons
   A("ledger-engine", "Ledger Engine", "hand", "ledger", 1, { jobs: ["hall"], tool: { job: "hall", out: 15 }, text: "A brass adding machine that clicks like a cricket." }),
@@ -75,17 +77,17 @@ const ITEMS = Object.fromEntries([
   A("pump-can", "Pump Can", "hand", "can", 1, { jobs: ["garden"], tool: { job: "garden", out: 12 }, text: "A watering can with a hand pump and a fine rose." }),
   A("spyglass", "Brass Spyglass", "hand", "scope", 1, { jobs: ["mast", "wall"], tool: { job: "mast", out: 10 }, sight: 6, text: "Spots Wildlight on the cliff before they crest it." }),
   // off-hand
-  A("mirror-buckler", "Mirror Buckler", "offhand", "buckler", 1, { armor: { guard: 6 }, text: "Polished tin. Throws a Wildlight's own light back at it." }),
+  A("mirror-buckler", "Mirror Buckler", "offhand", "buckler", 1, { armor: { guard: 6 }, text: "Polished tin. Throws a Wildlight’s own light back at it." }),
   A("shade-lantern", "Shade Lantern", "offhand", "lantern", 3, { armor: { guard: 2 }, stealth: 0.3, text: "Burns dark. Wildlight look straight past you." }),
   A("pressure-gauge", "Pressure Gauge", "offhand", "gauge", 2, { jobs: ["head", "shop"], tool: { job: "head", out: 6 }, text: "Tells you when the boiler or the seam is about to go." }),
-  A("lamp-shield", "Lamp Shield", "offhand", "lampshield", 6, { armor: { guard: 10 }, light: 1, text: "A riveted shield with a lamp in the boss. A light Wildlight can't snuff." }),
+  A("lamp-shield", "Lamp Shield", "offhand", "lampshield", 6, { armor: { guard: 10 }, light: 1, text: "A riveted shield with a lamp in the boss. A light Wildlight can’t snuff." }),
   // head
-  A("goggles", "Brass Goggles", "head", "goggles", 1, { armor: { guard: 2 }, text: "Every prospector's face." }),
-  A("smoked-visor", "Smoked-Glass Visor", "head", "visor", 3, { armor: { guard: 3 }, nerve: 1, text: "Wildlight can't dazzle what can't see the glare." }),
-  A("lamp-helm", "Miner's Lamp Helm", "head", "helm", 1, { armor: { guard: 4 }, jobs: ["head"], tool: { job: "head", out: 5 }, text: "Hard leather and a carbide lamp." }),
-  A("flyers-cap", "Flyer's Cap", "head", "cap", 1, { armor: { guard: 2 }, jobs: ["mast"], tool: { job: "mast", out: 5 }, text: "Sheepskin flaps and a strap of goggles." }),
+  A("goggles", "Brass Goggles", "head", "goggles", 1, { armor: { guard: 2 }, text: "Every prospector’s face." }),
+  A("smoked-visor", "Smoked-Glass Visor", "head", "visor", 3, { armor: { guard: 3 }, nerve: 1, text: "Wildlight can’t dazzle what can’t see the glare." }),
+  A("lamp-helm", "Miner’s Lamp Helm", "head", "helm", 1, { armor: { guard: 4 }, jobs: ["head"], tool: { job: "head", out: 5 }, text: "Hard leather and a carbide lamp." }),
+  A("flyers-cap", "Flyer’s Cap", "head", "cap", 1, { armor: { guard: 2 }, jobs: ["mast"], tool: { job: "mast", out: 5 }, text: "Sheepskin flaps and a strap of goggles." }),
   A("sun-hat", "Mirrored Sun Hat", "head", "sunhat", 1, { jobs: ["yard", "garden"], tool: { job: "yard", out: 6 }, text: "A wide straw brim lined with foil." }),
-  A("diving-helm", "Brass Lung Helm", "head", "diving", 9, { armor: { guard: 8 }, deep: 1, text: "A full helm with a rebreather. For the deep seam's bad air." }),
+  A("diving-helm", "Brass Lung Helm", "head", "diving", 9, { armor: { guard: 8 }, deep: 1, text: "A full helm with a rebreather. For the deep seam’s bad air." }),
   // rig
   A("duster", "Canvas Duster", "rig", "coat", 1, { armor: { guard: 4 }, text: "Long, oiled, and full of pockets." }),
   A("apron", "Leather Apron", "rig", "apron", 1, { armor: { guard: 3 }, jobs: ["shop", "yard"], tool: { job: "shop", out: 5 }, text: "Scorched and patched a dozen times." }),
@@ -132,7 +134,7 @@ const AFFIXES = Object.fromEntries([
   P("smoked", "Smoked", "resist", [10, 25], ARMOR, { aspect: "glare", group: "resist", text: "Resist Glare {v}%" }),
   P("quilted", "Quilted", "hp", [4, 9], ["rig", "head", "offhand"], { perLevel: 0.5, text: "+{v} health" }),
   P("featherweight", "Featherweight", "speed", [5, 12], ["boots", "rig", "hand"], { group: "speed", text: "+{v}% move speed" }),
-  P("gnomewright", "Gnomewright", "out", [6, 14], ANY, { group: "out", text: "+{v}% output at this item's job" }),
+  P("gnomewright", "Gnomewright", "out", [6, 14], ANY, { group: "out", text: "+{v}% output at this item’s job" }),
   P("thinning-rated", "Thinning-Rated", "nerve", [1, 2], ["head", "rig", "charm"], { minTier: 2, text: "+{v} nerve" }),
   P("lamplit", "Lamplit", "light", [1, 1], ["offhand", "head", "charm"], { text: "Carries a light that keeps nearby lamps from being snuffed" }),
   P("copperbottom", "Copperbottom", "repair", [10, 25], ["hand", "hands", "rig"], { text: "+{v}% wall and tower repair speed" }),
@@ -147,7 +149,7 @@ const AFFIXES = Object.fromEntries([
   S("plenty", "of Plenty", "upkeep", [10, 25], WEAR, { text: "Eats {v}% less" }),
   S("prospector", "of the Prospector", "findLuck", [0.2, 0.5], ["hand", "charm", "head"], { text: "+{v} luck on mine finds", float: true }),
   S("lamplighter", "of the Lamplighter", "relight", [1, 1], ["hand", "offhand", "charm"], { text: "Relights snuffed lamps in passing" }),
-  S("first-claim", "of the First Claim", "allStats", [1, 1], ANY, { minTier: 3, text: "+{v} to every GEARS stat" }),
+  S("first-claim", "of the First Claim", "allStats", [1, 1], ANY, { minTier: 3, text: "+{v} to every stat" }),
   S("long-night", "of the Long Night", "vsWild", [10, 20], ["hand"], { text: "+{v}% damage to Wildlight" }),
   S("jumper", "of the Claim-Jumper", "vsJumper", [10, 20], ["hand"], { text: "+{v}% damage to claim-jumpers" }),
 ].map(a => [a.id, a]));
@@ -157,7 +159,7 @@ const AFFIXES = Object.fromEntries([
 const M = (id, name, building, kind, stat, base, text, o = {}) => ({ id, name, slot: "module", building, kind, stat, base, text, minLvl: 1, ...o });
 const MODULES = Object.fromEntries([
   M("telegraph", "Telegraph Key", "hall", "telegraph", "recruit", 15, "+{v}% settler arrivals"),
-  M("assay-scale", "Assay Scale", "hall", "scale", "assay", 1, "Assays up to {v} Signed piece each morning, free"),
+  M("assay-scale", "Assay Scale", "hall", "scale", "assay", 1, "Assays up to {v} Signed [piece] each morning, free"),
   M("trade-ticker", "Trade Ticker", "hall", "ticker", "tradeCut", 10, "Couriers sell {v}% cheaper"),
   M("drill-head", "Steam Drill Head", "head", "drillhead", "ore", 12, "+{v}% ore"),
   M("canary-cage", "Canary Cage", "head", "canary", "warn", 20, "The canary sings when the deep seam stirs: Wildlight take {v}s longer up the shaft"),
@@ -166,7 +168,7 @@ const MODULES = Object.fromEntries([
   M("parabolic", "Parabolic Mirror", "yard", "mirror", "charge", 12, "+{v}% charge rate"),
   M("gimbal", "Sun-Tracking Gimbal", "yard", "gimbal", "dawnDusk", 30, "+{v}% charge in morning and evening light"),
   M("cloud-lens", "Cloud Lens", "yard", "cloudlens", "thinLight", 25, "Charges at {v}% in cloud and storm", { minLvl: 5 }),
-  M("capacitor", "Capacitor Jars", "yard", "jars", "store", 40, "Holds {v} shards in reserve that Wildlight can't drain: they keep the lamps lit when the stores run dry"),
+  M("capacitor", "Capacitor Jars", "yard", "jars", "store", 40, "Holds {v} shards in reserve that Wildlight can’t drain: they keep the lamps lit when the stores run dry"),
   M("grinding-wheel", "Diamond Grinding Wheel", "shop", "wheel", "cut", 10, "+{v}% shards from every tray"),
   M("retuning-lathe", "Retuning Lathe", "shop", "lathe", "retuneCost", 20, "Retuning costs {v}% less"),
   M("bellows", "Forge Bellows", "shop", "bellows", "overhaulCost", 15, "Overhauls cost {v}% less"),
@@ -178,7 +180,7 @@ const MODULES = Object.fromEntries([
   M("alarm-bell", "Alarm Bell", "bunk", "bell", "muster", 25, "When the wall is breached, the watch fights {v}% harder"),
   M("fresnel", "Fresnel Ring", "lens", "fresnel", "range", 15, "+{v}% beam range"),
   M("shutter", "Rapid Shutter", "lens", "shutter", "rate", 12, "+{v}% beam rate"),
-  M("prism", "Prism Splitter", "lens", "prism", "split", 1, "Each beam also hits {v} more target", { minLvl: 6 }),
+  M("prism", "Prism Splitter", "lens", "prism", "split", 1, "Each beam also hits {v} more [target]", { minLvl: 6 }),
   M("shade-hood", "Shade Hood", "lens", "hood", "shardCost", 20, "Beams cost {v}% fewer shards"),
   M("arc-wire", "Arc Wire", "wall", "wire", "climbDmg", 3, "Climbing Wildlight take {v} damage a second"),
   M("mirror-tiles", "Mirror Tiles", "wall", "tiles", "dazzle", 15, "{v}% chance a climber is dazzled and falls"),
@@ -188,8 +190,8 @@ const MODULES = Object.fromEntries([
 
 // Lark parts (slot "lark"): flown on night patrols now, raids later.
 const LARK_PARTS = Object.fromEntries([
-  M("flare-battery", "Flare Battery", "mast", "battery", "flares", 1, "+{v} flare per volley"),
-  M("crystal-sail", "Crystal Sail", "mast", "sail", "shipSpeed", 15, "+{v}% airspeed; charges a little shard by day"),
+  M("flare-battery", "Flare Battery", "mast", "battery", "flares", 1, "+{v} [flare] a volley"),
+  M("crystal-sail", "Crystal Sail", "mast", "sail", "shipSpeed", 15, "+{v}% airspeed; charges a few shards by day"),
   M("hull-plates", "Armoured Hull Plates", "mast", "plates", "shipGuard", 15, "+{v}% hull guard: on patrol she takes jumper volleys meant for the yards"),
   M("gyro", "Gyro Stabiliser", "mast", "gyro", "aim", 15, "Steadies her aim in the wind: she fires flares {v}% faster"),
   M("harpoon-winch", "Harpoon Winch", "mast", "winch", "board", 1, "The crew board downed jumpers: each one leaves a second crate"),
@@ -205,16 +207,16 @@ const MODULE_AFFIXES = Object.fromEntries([
 
 // ---------------------------------------------------------------- Signed items (rank 4): generated maker, model and epithet
 const NAMES = {
-  makers: ["Wexley & Daughter", "Brassmoor Works", "Quillon Pneumatics", "Hob & Tansy", "The Thornfield Foundry", "Pellinore Optics", "Gearwhistle Bros.", "Saltpan Lensery", "Aldous Crane", "Mother Ivy's Shop", "Copperbottom & Sons", "The Fennick Collective"],
+  makers: ["Wexley & Daughter", "Brassmoor Works", "Quillon Pneumatics", "Hob & Tansy", "The Thornfield Foundry", "Pellinore Optics", "Gearwhistle Bros.", "Saltpan Lensery", "Aldous Crane", "Mother Ivy’s Shop", "Copperbottom & Sons", "The Fennick Collective"],
   models: ["Model {n}", "No. {n}", "Mark {r}", "Series {n}", "Pattern {n}"],
-  epithets: ["the Widowmaker", "Old Reliable", "the Long Shift", "Second Chance", "the Night Owl", "Sweet Thunder", "the Quiet One", "Last Light", "the Stubborn", "Dawn's Debt", "the Cliff-Keeper", "Lucky Seven", "Grandmother", "the Argument"],
+  epithets: ["the Widowmaker", "Old Reliable", "the Long Shift", "Second Chance", "the Night Owl", "Sweet Thunder", "the Quiet One", "Last Light", "the Stubborn", "Dawn’s Debt", "the Cliff-Keeper", "Lucky Seven", "Grandmother", "the Argument"],
   logbook: [
     "Found in a collapsed gallery with a lamp still lit beside it.",
     "Stamped with a claim number nobody on the plateau recognises.",
     "Someone kept a tally of nights scratched into it. The tally stops at forty.",
     "Came up the shaft inside a Wildlight that had swallowed it.",
-    "The maker's mark has been filed off and stamped again, crooked.",
-    "Taken off a claim-jumper who swore it was his grandmother's.",
+    "The maker’s mark has been filed off and stamped again, crooked.",
+    "Taken off a claim-jumper who swore it was his grandmother’s.",
     "Still warm when it came out of the rock.",
     "Wrapped in an oilcloth with a letter that was never posted.",
   ],
@@ -235,7 +237,7 @@ const MW = (id, name, base, kind, o) => ({ id, name, base, kind, rarity: "master
 const RELICS = Object.fromEntries([
   MW("dawnbreaker", "Dawnbreaker", "heliograph-musket", "musket", { slot: "hand", aspect: "glare", ilvl: 14, stats: { dmg: 30, A: 2 },
     power: { name: "First Light", text: "Sweeps a beam the length of the rim. Every Wildlight it touches takes 40 Glare." },
-    lore: "A survey heliograph from the first expedition under the Thinning, rebuilt to throw the morning back at the dark.", source: "Raid: Claim-baron's citadel" }),
+    lore: "A survey heliograph from the first expedition under the Thinning, rebuilt to throw the morning back at the dark.", source: "Raid: the Chandlery" }),
   MW("hush", "Hush", "net-mortar", "mortar", { slot: "hand", aspect: "shade", ilvl: 10, stats: { snare: 2, vsWild: 20 },
     power: { name: "Bottle the Light", text: "Catches a Wildlight alive in a smoked-glass jar. It hangs as a lamp that never needs shards." },
     town: { text: "One street lamp near the carrier burns for free." },
@@ -244,78 +246,78 @@ const RELICS = Object.fromEntries([
     power: { name: "Strike the Seam", text: "One long bore: 20 ore at once, and a mine find with +3 luck." },
     town: { text: "+10% ore for the whole mine shift." },
     lore: "Its boiler has been replaced four times. The drill bit never.", source: "Mine: lower gallery" }),
-  MW("lamplighters-pole", "The Lamplighter's Pole", "earthing-lance", "pole", { slot: "hand", aspect: "arc", ilvl: 6, stats: { relight: 1, range: 1 },
+  MW("lamplighters-pole", "The Lamplighter’s Pole", "earthing-lance", "pole", { slot: "hand", aspect: "arc", ilvl: 6, stats: { relight: 1, range: 1 },
     power: { name: "Every Lamp", text: "Relights every snuffed lamp on the plateau at once." },
-    town: { text: "Lamps within 10m of the carrier can't be snuffed." },
+    town: { text: "Lamps within 10m of the carrier can’t be snuffed." },
     lore: "Copper hook, brass ferrule, and a wick that has never once gone out.", source: "Night: any, after 5 nights with no lamps lost" }),
-  MW("widows-kettle", "The Widow's Kettle", "rivet-gun", "kettle", { slot: "hand", aspect: "steam", ilvl: 12, stats: { dmg: 25, splash: 2 },
+  MW("widows-kettle", "The Widow’s Kettle", "rivet-gun", "kettle", { slot: "hand", aspect: "steam", ilvl: 12, stats: { dmg: 25, splash: 2 },
     power: { name: "Boil Over", text: "Vents the whole boiler: 35 Steam to everything within 4m." },
-    lore: "A tea urn somebody bored out and pressurised in a hurry, one bad night.", source: "Raid: outpost" }),
-  MW("corwins-plumb", "Corwin's Plumb", "piston-hammer", "plumb", { slot: "hand", aspect: "steam", ilvl: 9, stats: { repair: 50, guard: 6 },
-    power: { name: "True", text: "The wall segment he stands on is mended whole, and can't break again tonight." },
+    lore: "A tea urn somebody bored out and pressurised in a hurry, one bad night.", source: "Raid: Redspire" }),
+  MW("corwins-plumb", "Corwin’s Plumb", "piston-hammer", "plumb", { slot: "hand", aspect: "steam", ilvl: 9, stats: { repair: 50, guard: 6 },
+    power: { name: "True", text: "The wall segment he stands on is mended whole, and can’t break again tonight." },
     town: { text: "+25% wall repair while Corwin or the carrier is on watch." },
-    lore: "A lead plumb on a brass chain. Corwin says it was his mother's. That's three words more than usual.", source: "Gift: Corwin Ashlar, wall level 2" }),
+    lore: "A lead plumb on a brass chain. Corwin says it was his mother’s. That’s three words more than usual.", source: "Gift: Corwin Ashlar, wall level 2" }),
   MW("tinderwing", "Tinderwing", "flare-pistol", "pistol", { slot: "hand", aspect: "glare", ilvl: 7, stats: { A: 2, mark: 1 },
-    power: { name: "Courier's Mark", text: "A flare that lights every Wildlight on the cliff. They take +25% damage from everyone." },
-    lore: "Hesper Lark's signal pistol from her courier days. The grip is worn to the shape of her thumb.", source: "Gift: Hesper Lark" }),
+    power: { name: "Courier’s Mark", text: "A flare that lights every Wildlight on the cliff. They take +25% damage from everyone." },
+    lore: "Hesper Lark’s signal pistol from her courier days. The grip is worn to the shape of her thumb.", source: "Gift: Hesper Lark" }),
   MW("arc-organ", "The Gnomewright Arc-Organ", "galvanic-coil", "organ", { slot: "hand", aspect: "arc", ilvl: 15, stats: { chain: 3, E: 2 },
     power: { name: "Full Stops", text: "Plays a chord: lightning chains through 8 targets." },
-    lore: "Eleven organ pipes, a bellows pack and a gnome's opinion of music.", source: "Raid: claim-baron's citadel" }),
+    lore: "Eleven organ pipes, a bellows pack and a gnome’s opinion of music.", source: "Raid: the Chandlery" }),
   MW("rimekeeper", "Rimekeeper", "rime-sprayer", "sprayer", { slot: "hand", aspect: "rime", ilvl: 11, stats: { slow: 0.2, coolSeam: 1 },
     power: { name: "Quench", text: "Floods a gallery with coolant: Wildlight in it freeze, and an overheating node cools at once." },
     town: { text: "Mine nodes never overheat while the carrier is below." },
     lore: "The deep seam runs hot. Somebody built this after the first time it ran too hot.", source: "Mine: deep seam" }),
   MW("long-quiet", "The Long Quiet", "wind-rifle", "rifle2", { slot: "hand", aspect: "steam", ilvl: 16, stats: { range: 60, vsJumper: 40 },
     power: { name: "Not a Sound", text: "One shot at any range: 80 Steam, and the target never knew." },
-    lore: "A claim-jumper's rifle. Its last owner didn't hear it either.", source: "Raid: claim-jumper airship" }),
+    lore: "A claim-jumper’s rifle. Its last owner didn’t hear it either.", source: "Raid: the Wickmoor" }),
   MW("seventh-spanner", "The Seventh Spanner", "spanner", "spanner", { slot: "hand", aspect: "steam", ilvl: 8, stats: { E: 3, out: 20 },
     power: { name: "Done by Supper", text: "Finishes the current stage of a building upgrade on the spot." },
     town: { text: "Building upgrades rise 20% faster." },
     lore: "Odile has six spanners. Nobody asks about the seventh.", source: "Mine: upper gallery" }),
-  MW("swarm-box", "Marigold's Swarm-Box", "pump-can", "smoker", { slot: "hand", aspect: "chime", ilvl: 6, stats: { S: 3, out: 20 },
+  MW("swarm-box", "Marigold’s Swarm-Box", "pump-can", "smoker", { slot: "hand", aspect: "chime", ilvl: 6, stats: { S: 3, out: 20 },
     power: { name: "Everybody Out", text: "Releases the hive: claim-jumpers nearby flee; Wildlight are swarmed for 15 Chime." },
     town: { text: "+15% food and +5% charge in the yards next to the greenhouse." },
-    lore: "A bee smoker with a brass music box inside. The bees like the tune. Marigold won't say what it is.", source: "Gift: Marigold Thresh, greenhouse level 2" }),
-  MW("odiles-fork", "Odile's Tuning Fork", "tuning-fork", "fork", { slot: "hand", aspect: "chime", ilvl: 12, stats: { E: 2, vsWild: 30 },
-    power: { name: "The Pitch of Sunstone", text: "Rings the vein's own note: every Wildlight within 8m cracks for 30 Chime." },
+    lore: "A bee smoker with a brass music box inside. The bees like the tune. Marigold won’t say what it is.", source: "Gift: Marigold Thresh, greenhouse level 2" }),
+  MW("odiles-fork", "Odile’s Tuning Fork", "tuning-fork", "fork", { slot: "hand", aspect: "chime", ilvl: 12, stats: { E: 2, vsWild: 30 },
+    power: { name: "The Pitch of Sunstone", text: "Rings the vein’s own note: every Wildlight within 8m cracks for 30 Chime." },
     town: { text: "+10% shards from every tray." },
-    lore: "She judges crystal by ear. This is the ear.", source: "Gift: Odile Fenn, workshop level 2" }),
-  MW("assayers-loupe", "The Assayer's Loupe", "gnome-coin", "loupe", { slot: "charm", ilvl: 5, stats: { R: 3, assay: 1 },
+    lore: "She judges crystal by ear. This is the ear.", source: "Gift: Odile Fenn, Lens Workshop level 2" }),
+  MW("assayers-loupe", "The Assayer’s Loupe", "gnome-coin", "loupe", { slot: "charm", ilvl: 5, stats: { R: 3, assay: 1 },
     power: { name: "Read the Mark", text: "Assays every Signed item in the stash." },
     town: { text: "Couriers pay 15% more for anything you sell." },
-    lore: "Absalom Pockett's eyeglass. He talks to it.", source: "Gift: Absalom Pockett" }),
-  MW("pips-night-glass", "Pip's Night Glass", "spyglass", "scope", { slot: "hand", ilvl: 6, stats: { sight: 20, night: 20 },
+    lore: "Absalom Pockett’s eyeglass. He talks to it.", source: "Gift: Absalom Pockett" }),
+  MW("pips-night-glass", "Pip’s Night Glass", "spyglass", "scope", { slot: "hand", ilvl: 6, stats: { sight: 20, night: 20 },
     power: { name: "There, and There", text: "Marks where every Wildlight will crest the rim tonight." },
     town: { text: "The night warning comes a quarter-hour sooner." },
-    lore: "A spyglass with a smoked lens and Pip's initials scratched in four places.", source: "Gift: Pip Kettleby" }),
+    lore: "A spyglass with a smoked lens and Pip’s initials scratched in four places.", source: "Gift: Pip Kettleby" }),
   MW("sunshade", "The Saltpan Sunshade", "mirror-buckler", "parasol", { slot: "offhand", ilvl: 10, stats: { guard: 20, reflect: 1 },
     power: { name: "Return to Sender", text: "For 6s, every beam or flare aimed at the carrier goes back where it came from." },
-    lore: "A parasol of mirrored panels from the salt flats, where the sun is a weapon.", source: "Raid: outpost" }),
-  MW("prospectors-promise", "The Prospector's Promise", "pick", "pick2", { slot: "hand", aspect: "steam", ilvl: 18, stats: { G: 3, out: 35, findLuck: 1 },
+    lore: "A parasol of mirrored panels from the salt flats, where the sun is a weapon.", source: "Raid: Redspire" }),
+  MW("prospectors-promise", "The Prospector’s Promise", "pick", "pick2", { slot: "hand", aspect: "steam", ilvl: 18, stats: { G: 3, out: 35, findLuck: 1 },
     power: { name: "Stake It", text: "The next mine find is guaranteed Calibrated or better." },
     town: { text: "+1 luck on every mine find." },
-    lore: "Dug out of the seam with the founder's name on it. The founder of which claim, nobody can say.", source: "Mine: deep seam" }),
+    lore: "Dug out of the seam with the founder’s name on it. The founder of which claim, nobody can say.", source: "Mine: deep seam" }),
   MW("clockheart", "Clockheart", "pocket-watch", "heart", { slot: "charm", ilvl: 9, stats: { upkeep: 50, nerve: 2 },
     power: { name: "Keep Ticking", text: "The wearer works through hunger and fear until dawn." },
     lore: "A clockwork heart in a glass case. You can hear it through a coat.", source: "Night: Brightmaw" }),
   MW("brass-lung", "The Brass Lung", "diving-helm", "diving", { slot: "head", ilvl: 14, stats: { guard: 12, deep: 2, G: 1 },
-    power: { name: "Hold Your Breath", text: "The carrier's mine crew ignores bad air and cave-ins for the rest of the shift." },
+    power: { name: "Hold Your Breath", text: "The carrier’s mine crew ignores bad air and cave-ins for the rest of the shift." },
     lore: "Somebody walked out of a flooded gallery in this. Nobody knows how far they walked first.", source: "Mine: deep seam" }),
   MW("sky-anchor", "Sky-Anchor", "piston-hammer", "anchor", { slot: "hand", aspect: "steam", ilvl: 17, stats: { dmg: 40, G: 2 },
     power: { name: "Drop Anchor", text: "Slams the ground: 45 Steam within 5m, and nothing nearby can climb for 5s." },
-    lore: "The anchor of an airship that crossed the Thinning and fell. The chain was cut clean.", source: "Raid: claim-jumper airship" }),
-  MW("thunderjug", "Mother Ivy's Thunderjug", "storm-jug", "jug", { slot: "hand", aspect: "arc", ilvl: 13, stats: { splash: 3, chain: 1 },
+    lore: "The anchor of an airship that crossed the Thinning and fell. The chain was cut clean.", source: "Raid: the Wickmoor" }),
+  MW("thunderjug", "Mother Ivy’s Thunderjug", "storm-jug", "jug", { slot: "hand", aspect: "arc", ilvl: 13, stats: { splash: 3, chain: 1 },
     power: { name: "Uncork", text: "Opens a captive storm over the wall for 8s: lightning on every climber." },
     lore: "Bottled the night of the great storm. The cork is wired down. It still rattles.", source: "Night: during an Aether storm" }),
   MW("gloamhook", "Gloamhook", "harpoon", "harpoon", { slot: "hand", aspect: "shade", ilvl: 11, stats: { range: 10, board: 1 },
     power: { name: "Reel In", text: "Hooks a Wildlight or a raider and drags them to the watch." },
-    lore: "A grapple-gun with a smoked-glass head. Courier crews used them to stop thieves cutting the cargo.", source: "Raid: claim-jumper airship" }),
-  MW("lark-figurehead", "The Lark's First Figurehead", null, "figurehead", { slot: "lark", ilvl: 12, stats: { shipGuard: 25, flares: 1 },
+    lore: "A grapple-gun with a smoked-glass head. Courier crews used them to stop thieves cutting the cargo.", source: "Raid: the Wickmoor" }),
+  MW("lark-figurehead", "The Lark’s First Figurehead", null, "figurehead", { slot: "lark", ilvl: 12, stats: { shipGuard: 25, flares: 1 },
     power: { name: "Sing Out", text: "The Lark fires a full volley at every Wildlight on the rim." },
-    lore: "Carved brass lark, wings half open. Hesper says she lost it over the Saltpan and stopped looking.", source: "Raid: claim-jumper airship" }),
+    lore: "Carved brass lark, wings half open. Hesper says she lost it over the Saltpan and stopped looking.", source: "Raid: the Wickmoor" }),
   MW("beacon-heart", "The Beacon Heart", null, "beacon", { slot: "module", building: "hall", ilvl: 15, stats: { lightRadius: 30, recruit: 25 },
     power: { name: "Noon at Midnight", text: "The Sun Beacon blazes for 20s. No Wildlight can climb while it burns." },
-    lore: "A single flawless crystal from the deep seam, cut to Odile's own pattern.", source: "Mine: deep seam, Hall level 3" }),
+    lore: "A single flawless crystal from the deep seam, cut to Odile’s own pattern.", source: "Mine: the deep seam, Keep level 3" }),
 ].map(r => [r.id, r]));
 
 // ---------------------------------------------------------------- Guild sets (rank 6)
@@ -323,7 +325,7 @@ const SETS = {
   lensguild: { name: "Lensguild Regalia", pieces: ["lensguild-visor", "lensguild-longcoat", "lensguild-gauntlets"],
     bonuses: [{ n: 2, text: "Beams reach 25% farther.", stats: { range: 25 } }, { n: 3, text: "Beams pierce: they keep going through the first target.", stats: { pierce: 1 } }] },
   wallwrights: { name: "Wallwrights' Order", pieces: ["wallwright-helm", "wallwright-apron", "wallwright-boots"],
-    bonuses: [{ n: 2, text: "+30% wall repair.", stats: { repair: 30 } }, { n: 3, text: "The wall segment you stand on can't break.", stats: { holdWall: 1 } }] },
+    bonuses: [{ n: 2, text: "+30% wall repair.", stats: { repair: 30 } }, { n: 3, text: "The wall segment you stand on can’t break.", stats: { holdWall: 1 } }] },
   skyward: { name: "Skyward Post", pieces: ["skyward-cap", "skyward-jacket", "skyward-boots", "skyward-satchel"],
     bonuses: [{ n: 2, text: "+15% move speed.", stats: { speed: 15 } }, { n: 4, text: "On the Lark: +1 flare a volley and the ship never takes the first hit of a night.", stats: { flares: 1, shipShield: 1 } }] },
 };
@@ -332,10 +334,10 @@ Object.assign(RELICS, Object.fromEntries([
   G("lensguild-visor", "Lensguild Visor", "lensguild", "head", "visor", 10, { A: 2, guard: 4 }, "Graduated lenses that flip down on a hinge."),
   G("lensguild-longcoat", "Lensguild Longcoat", "lensguild", "rig", "coat", 11, { A: 1, guard: 8, out: 15 }, "Plum wool, brass buttons stamped with a lens."),
   G("lensguild-gauntlets", "Lensguild Gauntlets", "lensguild", "hands", "gauntlet2", 12, { E: 1, rate: 10 }, "For turning the great lens in a gale."),
-  G("wallwright-helm", "Wallwright's Helm", "wallwrights", "head", "helm", 9, { G: 2, guard: 6 }, "A riveted pot with a mason's mark."),
-  G("wallwright-apron", "Wallwright's Apron", "wallwrights", "rig", "apron", 10, { G: 1, E: 1, guard: 8 }, "Leather and mortar dust, mostly mortar dust."),
-  G("wallwright-boots", "Wallwright's Boots", "wallwrights", "boots", "boots", 9, { guard: 4, nerve: 1 }, "Steel toes. They have been dropped on."),
-  G("skyward-cap", "Skyward Post Cap", "skyward", "head", "cap", 7, { A: 1, guard: 2 }, "A courier's cap with the Post's wing badge."),
+  G("wallwright-helm", "Wallwright’s Helm", "wallwrights", "head", "helm", 9, { G: 2, guard: 6 }, "A riveted pot with a mason’s mark."),
+  G("wallwright-apron", "Wallwright’s Apron", "wallwrights", "rig", "apron", 10, { G: 1, E: 1, guard: 8 }, "Leather and mortar dust, mostly mortar dust."),
+  G("wallwright-boots", "Wallwright’s Boots", "wallwrights", "boots", "boots", 9, { guard: 4, nerve: 1 }, "Steel toes. They have been dropped on."),
+  G("skyward-cap", "Skyward Post Cap", "skyward", "head", "cap", 7, { A: 1, guard: 2 }, "A courier’s cap with the Post’s wing badge."),
   G("skyward-jacket", "Skyward Post Jacket", "skyward", "rig", "coat2", 8, { A: 2, guard: 5 }, "Short, warm, with a dozen sealed pockets."),
   G("skyward-boots", "Skyward Post Boots", "skyward", "boots", "boots3", 8, { speed: 10, guard: 2 }, "Lodestone soles for a pitching deck."),
   G("skyward-satchel", "Skyward Post Satchel", "skyward", "charm", "satchel", 9, { R: 2 }, "Still holds one undelivered letter. Nobody has opened it."),
@@ -351,10 +353,10 @@ Object.assign(RELICS, Object.fromEntries([
   SF("worldforge-engine", "The Worldforge Engine", "charm", "engine", 25, { stats: { allStats: 2, out: 25 },
     power: { name: "Strike the Forge", text: "Every worker on the claim works at double pace for 30s." },
     town: { text: "Retuning and overhauls cost half." },
-    lore: "The heart of an old-age forge, rebuilt into a pocket engine that ticks like a second heart.", source: "Night: Brightmaw, after night 20" }),
+    lore: "The heart of an ancient forge, rebuilt into a pocket engine that ticks like a second heart.", source: "Night: Brightmaw, after night 20" }),
   SF("thinning-compass", "The Thinning Compass", "charm", "compass", 25, { stats: { findLuck: 2, R: 2 },
     power: { name: "Where Ships Fall", text: "Reveals a wreck under the Thinning. The Lark can fly to salvage it for a guaranteed Masterwork." },
-    lore: "It does not point north. It points to wherever something fell out of the sky.", source: "Raid: claim-baron's citadel" }),
+    lore: "It does not point north. It points to wherever something fell out of the sky.", source: "Raid: the Chandlery" }),
   SF("sunwyrm-lens", "The Sunwyrm Lens", "module", "bigLens", 28, { building: "lens", stats: { range: 50, split: 2 },
     power: { name: "Eye of the Seam", text: "The tower fires one continuous beam for 10s, cutting through everything it crosses." },
     lore: "Cut from the crystal heart of the first Brightmaw ever brought down.", source: "Night: Brightmaw" }),
@@ -366,7 +368,7 @@ const FOES = {
   glimmer:   { tier: "rabble",   name: "Glimmer",   hp: 18, text: "A spark of a fox. Comes in packs.", resist: { glare: -10, shade: -50, chime: -25 } },
   flarehound:{ tier: "veteran",  name: "Flarehound", hp: 40, text: "A full-grown Wildlight. Chews through walls.", resist: { glare: 25, shade: -50, chime: -25 } },
   lodestar:  { tier: "bearer",   name: "Lodestar",  hp: 80, text: "A Wildlight with something swallowed glowing in its chest. Kill it to get the thing back.", resist: { glare: 50, shade: -40, chime: -25 } },
-  brightmaw: { tier: "champion", name: "Brightmaw", hp: 300, text: "A great Wildlight from the deep seam. One a week, if you're lucky.", resist: { glare: 75, shade: -25, chime: -40, arc: 25 } },
+  brightmaw: { tier: "champion", name: "Brightmaw", hp: 300, text: "A great Wildlight from the deep seam. One a week, if you’re lucky.", resist: { glare: 75, shade: -25, chime: -40, arc: 25 } },
   jumper:    { tier: "rabble",   name: "Claim-Jumper", hp: 30, text: "A rival prospector with a rifle and no claim of their own.", resist: { shade: 50, chime: 50, glare: -25 } },
   enforcer:  { tier: "veteran",  name: "Jumper Enforcer", hp: 60, text: "Plate vest, steam hammer, bad attitude.", resist: { shade: 50, chime: 50, steam: 25 } },
   baron:     { tier: "champion", name: "Claim-Baron", hp: 220, text: "Runs the jumper crews from a citadel on a stolen claim.", resist: { shade: 50, chime: 50, glare: 25 } },
@@ -382,7 +384,7 @@ const DROPS = {
   nightLuck: 0.1,        // +luck per night survived
   deepLuck: 1,           // +luck once the deep seam is open
   masterworkChance: { bearer: 0.06, champion: 0.35 },   // chance a named item is the swallowed thing / the prize
-  blueprintChance: 0.15, // chance a drop also teaches its base item's blueprint (if unknown)
+  blueprintChance: 0.15, // chance a drop also teaches its base item’s blueprint (if unknown)
 };
 // Mine finds: each unit of ore dug has a small chance of turning something up.
 const MINE_FINDS = {
@@ -397,15 +399,15 @@ const MINE_FINDS = {
 // Raids (src/sky/sites.js): each place is a crate table. A place raided again pays REPEAT (half) of it; a boss brought
 // down the first time adds a Lark part or a module for certain.
 const RAIDS = {
-  camp:     { name: "Prospect camp", tier: "veteran",  crates: 2, ilvl: 4,  shards: [20, 40], materials: { brass: 2, glass: 1 } },
-  outpost:  { name: "Jumper outpost", tier: "bearer",  crates: 3, ilvl: 9,  shards: [50, 90], masterwork: 0.15, materials: { brass: 3, glass: 2 } },
-  airship:  { name: "Claim-jumper airship", tier: "bearer", crates: 3, ilvl: 12, shards: [60, 120], masterwork: 0.25, larkPart: 0.5, materials: { glass: 3, heartstone: 1 } },
-  citadel:  { name: "Claim-baron's citadel", tier: "champion", crates: 5, ilvl: 18, shards: [150, 300], masterwork: 0.6, sunforged: 0.05, larkPart: 0.5, materials: { glass: 4, heartstone: 3 } },
-  survey:   { name: "Survey rig", tier: "bearer", crates: 3, ilvl: 16, shards: [90, 160], masterwork: 0.25, larkPart: 0.6, moduleExtra: 1, materials: { brass: 2, glass: 4 } },
-  dredge:   { name: "The Exchange's dredge", tier: "champion", crates: 5, ilvl: 22, shards: [260, 460], masterwork: 0.7, sunforged: 0.08, larkPart: 1, materials: { glass: 5, heartstone: 4 } },
-  convoy:   { name: "Brass Road convoy", tier: "veteran", crates: 2, ilvl: 8, shards: [70, 130], larkPart: 0.3, materials: { brass: 5, glass: 1 } },
-  storm:    { name: "Thinwatch strongbox", tier: "bearer", crates: 3, ilvl: 12, shards: [60, 120], masterwork: 0.25, materials: { glass: 3, heartstone: 2 } },
-  bounty:   { name: "A wanted captain's strongbox", tier: "champion", crates: 2, ilvl: 14, shards: [40, 80], masterwork: 0.35, larkPart: 0.6, materials: { brass: 2, heartstone: 1 } },
+  camp:     { name: "Tallow’s prospect camp", tier: "veteran",  crates: 2, ilvl: 4,  shards: [20, 40], materials: { brass: 2, glass: 1 } },
+  outpost:  { name: "Redspire", tier: "bearer",  crates: 3, ilvl: 9,  shards: [50, 90], masterwork: 0.15, materials: { brass: 3, glass: 2 } },
+  airship:  { name: "the Wickmoor", tier: "bearer", crates: 3, ilvl: 12, shards: [60, 120], masterwork: 0.25, larkPart: 0.5, materials: { glass: 3, heartstone: 1 } },
+  citadel:  { name: "the Chandlery", tier: "champion", crates: 5, ilvl: 18, shards: [150, 300], masterwork: 0.6, sunforged: 0.05, larkPart: 0.5, materials: { glass: 4, heartstone: 3 } },
+  survey:   { name: "the Plumbline", tier: "bearer", crates: 3, ilvl: 16, shards: [90, 160], masterwork: 0.25, larkPart: 0.6, moduleExtra: 1, materials: { brass: 2, glass: 4 } },
+  dredge:   { name: "the Grindstone", tier: "champion", crates: 5, ilvl: 22, shards: [260, 460], masterwork: 0.7, sunforged: 0.08, larkPart: 1, materials: { glass: 5, heartstone: 4 } },
+  convoy:   { name: "the Brass Road convoy", tier: "veteran", crates: 2, ilvl: 8, shards: [70, 130], larkPart: 0.3, materials: { brass: 5, glass: 1 } },
+  storm:    { name: "the storm front", tier: "bearer", crates: 3, ilvl: 12, shards: [60, 120], masterwork: 0.25, materials: { glass: 3, heartstone: 2 } },
+  bounty:   { name: "a wanted captain’s strongbox", tier: "champion", crates: 2, ilvl: 14, shards: [40, 80], masterwork: 0.35, larkPart: 0.6, materials: { brass: 2, heartstone: 1 } },
 };
 // Courier trade: buy Salvage–Tuned gear and modules with shards.
 const TRADE = { stock: 4, maxRarity: "tuned", pricePerIlvl: 6, rarityMult: { salvage: 1, tooled: 2, tuned: 4 } };
@@ -504,7 +506,7 @@ function createLoot(D, seed = Date.now()) {
     }
     return out;
   }
-  const traitText = t => { const a = ALL_AFFIX[t.id]; return a ? a.text.replace("{v}", t.value) : ""; };
+  const traitText = t => { const a = ALL_AFFIX[t.id]; return a ? fillV(a.text, t.value) : ""; };
   function traitStars(t, rarity, ilvl) {
     const a = ALL_AFFIX[t.id]; if (!a) return 1;
     const raw = (t.value - ilvl * (a.perLevel || 0)) / RARITY[rarity].statMult, span = a.range[1] - a.range[0];
@@ -554,7 +556,7 @@ function createLoot(D, seed = Date.now()) {
     const traits = rollTraits(m.slot, r, ilvl, MODULE_AFFIXES, Math.min(2, RARITY[r].affixes));
     const pre = traits.map(t => MODULE_AFFIXES[t.id]).find(a => a.type === "prefix"), suf = traits.map(t => MODULE_AFFIXES[t.id]).find(a => a.type === "suffix");
     return { uid: uid(), type: m.slot, base: m.id, slot: m.slot, building: m.building, kind: m.kind, rarity: r, ilvl, value,
-      name: [pre?.name, m.name, suf?.name].filter(Boolean).join(" "), effect: m.text.replace("{v}", value), traits, from };
+      name: [pre?.name, m.name, suf?.name].filter(Boolean).join(" "), effect: fillV(m.text, value), traits, from };
   }
   function makeRelic(id, from = null) {
     const r = RELICS[id];
@@ -593,8 +595,8 @@ function createLoot(D, seed = Date.now()) {
     const ilvl = Math.max(1, Math.round(night * 0.8) + g.ilvlBonus), luck = g.luck + (ctx.findLuck || 0) + night * DROPS.nightLuck;
     if (gallery === "deep" && rng.chance(MINE_FINDS.sunforgedChance)) { const s = rng.pick(relicsOf("sunforged").filter(r => /Mine/.test(r.source))); if (s) return { kind: "sunforged", item: makeRelic(s.id, "the deep seam") }; }
     const kind = pickTable(g.table);
-    if (kind === "item") return { kind, item: makeGear({ luck, ilvl, from: `the ${gallery} gallery` }) };
-    if (kind === "module") return { kind, item: makeModule({ luck, ilvl, from: `the ${gallery} gallery` }) };
+    if (kind === "item") return { kind, item: makeGear({ luck, ilvl, from: gallery === "deep" ? "the deep rows of the mine" : `the ${gallery} gallery` }) };
+    if (kind === "module") return { kind, item: makeModule({ luck, ilvl, from: gallery === "deep" ? "the deep rows of the mine" : `the ${gallery} gallery` }) };
     if (kind === "cell") return { kind, cell: rng.pick(Object.keys(CELLS)) };
     if (kind === "blueprint") return { kind, blueprint: pickBase({ ilvl: ilvl + 2 }) };
     if (kind === "material") { const m = pickTable(g.materials || { brass: 1 }); return { kind, material: m, n: m === "heartstone" ? 1 : rng.int(1, 2) }; }

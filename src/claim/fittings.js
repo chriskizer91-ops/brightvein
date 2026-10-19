@@ -54,11 +54,11 @@ function modType(type, stat) { let s = 0; for (const b of byType(type)) s += mod
 function modTrait(b, stat) { const L = b && GAME.sockets[sockId(b)]; if (!L) return 0; let s = 0; for (const it of L) if (it) for (const t of it.traits || []) if ((D.MODULE_AFFIXES[t.id] || {}).stat === stat) s += t.value; return s; }
 const larkV = stat => modV('lark', stat);
 const fmtNum = (v, float) => float ? String(Math.round(v * 100) / 100) : String(Math.round(v));
-const RELIC_MOD_TEXT = { lightRadius: v => `The Keep's lamps light ${v}% farther`, recruit: v => `+${v}% settler arrivals`, range: v => `+${v}% beam range`, split: v => `Each beam also hits ${v} more target${v > 1 ? 's' : ''}`, shipGuard: v => `+${v}% hull guard`, flares: v => `+${v} flare per volley` };
+const RELIC_MOD_TEXT = { lightRadius: v => `The Keep’s lamps light ${v}% farther`, recruit: v => `+${v}% settler arrivals`, range: v => `+${v}% beam range`, split: v => `Each beam also hits ${v} more target${v > 1 ? 's' : ''}`, shipGuard: v => `+${v}% hull guard`, flares: v => `+${v} flare per volley` };
 function moduleEffect(it) {
   if (it.type === 'relic') { const r = D.RELICS[it.base]; return Object.entries(r.stats || {}).map(([k, v]) => RELIC_MOD_TEXT[k] ? RELIC_MOD_TEXT[k](Math.round(v * ohK(it) * attuneK(it))) : '').filter(Boolean).join(' · '); }
   const d = moduleDef(it); if (!d) return '';
-  return d.text.replace('{v}', fmtNum(modValue(it), d.float));
+  return fillV(d.text, fmtNum(modValue(it), d.float));
 }
 // every fitted module, with where it is
 function fittedAll() {
@@ -423,7 +423,7 @@ UI.fit = function (body, { b, i }) {
 // the Lark: her three part places and what they make of her patrol
 UI.lark = function (body) {
   const crew = workersOf('mast'), agi = crew.reduce((s, v) => s + statOf(v, 'A'), 0);
-  body.append(this.h(`<h2>The Lark's fittings</h2><p class="sub">Three places for parts on a sunstone courier. With a crew aboard she patrols the rim at night, and goes up when jumpers come.</p>`));
+  body.append(this.h(`<h2>The Lark’s fittings</h2><p class="sub">Three places for parts on a sunstone courier. With a crew aboard she patrols the rim at night, and goes up when jumpers come.</p>`));
   this.socketBlock(body, 'lark');
   const every = 2.6 / (0.5 + agi * 0.07) / (1 + larkV('aim') / 100), flares = 1 + Math.round(larkV('flares'));
   const chips = [`<span class="chip amber">${flares} flare${flares > 1 ? 's' : ''} a volley</span>`, `<span class="chip">${crew.length ? `A volley every ${every.toFixed(1)} s with this crew` : 'No crew aboard: she stays moored'}</span>`];
@@ -446,7 +446,7 @@ const courierCut = () => Math.min(0.5, modV(TOWN.b.keep, 'tradeCut') / 100);
 const priceOf = p => Math.max(1, Math.round(p * (1 - courierCut())));
 UI.courier = function (body) {
   const C = courierToday(), cut = courierCut();
-  body.append(this.h(`<h2>The courier's wares</h2><p class="sub">A courier sets down at the mast each morning with a few things to sell: gear, modules for the buildings, and a sunstone cell. New stock tomorrow.${cut ? ` The Keep's Trade Ticker knocks ${Math.round(cut * 100)}% off.` : ''}</p>`));
+  body.append(this.h(`<h2>The courier’s wares</h2><p class="sub">A courier sets down at the mast each morning with a few things to sell: gear, modules for the buildings, and a sunstone cell. New stock tomorrow.${cut ? ` The Keep’s Trade Ticker knocks ${Math.round(cut * 100)}% off.` : ''}</p>`));
   const list = document.createElement('div'); list.className = 'list';
   for (const s of C.stock) {
     if (s.sold) continue;

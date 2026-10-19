@@ -12,7 +12,7 @@ const DOCK_DEF = { name: 'Sky Dock', max: 1, cost: [0, 0], levels: ['Boarding br
 // ----------------------------------------------------------------- the bridge and gantry
 // Local frame: x along the rim, +z out over the drop (north), y up; the rim's edge at z = 0.
 function modelDock(b) {
-  const Y = 4.6, W = 3;                           // the bridge's walkway: high enough to clear the wall
+  const Y = 4.6, W = 3;                           // the bridge’s walkway: high enough to clear the wall
   const pz = -6.2;                                // the landing, inside the wall (which runs along z = -3.4)
   // the stair: along the wall, up from the lawn to the landing
   const steps = 16, x0 = 2.1, run = 5.8;
@@ -183,7 +183,7 @@ function dockHome(r) {
   dockMoor();
   yardHome(r);
   // Barnabus's gift (the old skyman): a tenth more shards from every voyage
-  if (r && r.got && castPerk('quill')) { const extra = Math.round(r.got * (castGift('quill', 1.1, 1.2) - 1)); GAME.shards += extra; r.got += extra; }   // a fifth, once his story's done (quests.js)
+  if (r && r.got && castPerk('quill')) { const extra = Math.round(r.got * (castGift('quill', 1.1, 1.2) - 1)); GAME.shards += extra; r.got += extra; }   // a fifth, once his story’s done (quests.js)
   // a raid: the place is ours for now (or the convoy is in, or the strongbox is ours), and its crates are opened at home
   if (r && r.raid && r.raid.taken) yardRaidHome(r);
   else if (r && r.ship) {

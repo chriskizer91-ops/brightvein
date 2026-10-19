@@ -34,7 +34,7 @@ export function makeFlyer(ship, stats, start, tune = {}) {
     ship, stats, H, full, health: { ...full },
     pos: start.pos.clone(), heading: start.heading, speed: H.vmax * 0.45 * pace, sail: 0.5, vy: 0, turn: 0, climb: 0,
     velocity: new THREE.Vector3(),
-    down: null, // how it's going down, once it is: 'hull' or 'crystals', and for how long
+    down: null, // how it’s going down, once it is: 'hull' or 'crystals', and for how long
     aimY: 0, // how far below its deck to aim at it (the middle of its hull)
     surge: { on: 0, charge: 1 }, // seconds of Surge left, and how built up the next one is (1 = ready)
     SG, T,

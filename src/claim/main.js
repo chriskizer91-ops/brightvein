@@ -47,7 +47,7 @@ function updateCamera(dt) {
 }
 
 // ----------------------------------------------------------------- picking
-const ray = new THREE.Raycaster(); ray.camera = camera; ray.layers.enable(PICK_LAYER);   // the buildings' own meshes, drawn merged with the town's (townMerge in kit.js)
+const ray = new THREE.Raycaster(); ray.camera = camera; ray.layers.enable(PICK_LAYER);   // the buildings' own meshes, drawn merged with the town’s (townMerge in kit.js)
 const ndc = new THREE.Vector2();
 let downAt = null;
 canvas.addEventListener('pointerdown', e => { downAt = { x: e.clientX, y: e.clientY, t: performance.now() }; AUDIO.start(); });
@@ -284,8 +284,8 @@ function dockView() {
   const D = LAYOUT.dock, portrait = innerHeight > innerWidth, wide = innerWidth >= 900, s = DOCK.ship, L = s ? s.recipe.length : 10;
   const tt = s ? dockBerth(s).pos.add(new THREE.Vector3(0, 2, 0)) : new THREE.Vector3(D.x, 5, D.z - 10);
   const dist = 24 + L * 0.9, dir = new THREE.Vector3(0.45, 0.42, 0.79).normalize();
-  if (wide) tt.add(new THREE.Vector3(0.87, 0, -0.49).multiplyScalar(dist * 0.2));   // the panel's on the right: she sits left of middle
-  if (portrait) tt.y -= dist * 0.18;                                                // the panel's below: she sits high
+  if (wide) tt.add(new THREE.Vector3(0.87, 0, -0.49).multiplyScalar(dist * 0.2));   // the panel’s on the right: she sits left of middle
+  if (portrait) tt.y -= dist * 0.18;                                                // the panel’s below: she sits high
   const tp = tt.clone().addScaledVector(dir, portrait ? dist * 1.45 : dist);
   viewLimits('free'); controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; controls.minPolarAngle = 0; controls.maxPolarAngle = Math.PI;
   VIEW.tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt, tp, mode: 'town' };
@@ -318,7 +318,7 @@ function saveGame(force) {
       people: GAME.villagers.map(v => ({ ...v.d })),
       sky: FLEET ? FLEET.data : undefined, story: storySave(), jumpNext: JUMP.next,
       night: nightsSave(), weather: weatherSave(), dig: digSave(),
-      workshop: workshopSave(),   // Odile's bench, the fitted modules, the Lark's parts, the courier (bench.js, fittings.js)
+      workshop: workshopSave(),   // Odile’s bench, the fitted modules, the Lark’s parts, the courier (bench.js, fittings.js)
     };
     slotWrite(SLOTS.active, s);
     saveFails = 0;
@@ -370,7 +370,7 @@ function frame() {
     for (let i = 0; i < n; i++) { digTick(sdt); for (const v of GAME.villagers) v.update(sdt); }
     updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); jumpersTick(gdt); updateExpeditions(gdt);
     announceStudy(updateStudies(gdt));
-    lifeTick(gdt);   // the claim's mood, the day's events, the cast's stories (acttwo.js)
+    lifeTick(gdt);   // the claim’s mood, the day’s events, the cast’s stories (acttwo.js)
   } else for (const v of GAME.villagers) { v.sprite.position.copy(v.pos); v.frame(TITLE.on ? rdt : 0); }   // they breathe and blink under the title
   benchFrame(rdt, gdt);   // the bench, the modules, the rare-find beams (bench.js)
   if (BUILD.on) updatePlaceCtl();
@@ -390,7 +390,7 @@ function frame() {
   AUDIO.ambience(TOD.night, !GAME.paused);
   autosaveTick(rdt);   // every few minutes, as Settings says (settings.js)
   slowCheck(rdt);
-  shadowsDraw(); crowdDraw(); townMerge();   // everyone's shadow in one draw (people.js), everyone in one more (crowd.js), the town's still pieces one per material (kit.js)
+  shadowsDraw(); crowdDraw(); townMerge();   // everyone’s shadow in one draw (people.js), everyone in one more (crowd.js), the town’s still pieces one per material (kit.js)
   // On Light the sun's shadows are drawn again every third frame rather than every frame: the sun moves slowly, and
   // it halves what a phone draws. A building being dragged redraws them every frame.
   if (QUALITY.level === 'light') { renderer.shadowMap.autoUpdate = false; if (++shadowTick % 3 === 0 || BUILD.drag || !sun.shadow.map) renderer.shadowMap.needsUpdate = true; }   // no map yet (just switched): draw it now
@@ -559,7 +559,7 @@ function begin(fresh) {
   if (fresh) undoShowcase();
   titleHide();
   started = true;
-  applyTimeOfDay(GAME.t, elapsed); prevPhase = TOD.phase;   // back from the title's golden hour to the claim's own time
+  applyTimeOfDay(GAME.t, elapsed); prevPhase = TOD.phase;   // back from the title’s golden hour to the claim’s own time
   for (const v of GAME.villagers) v.replan = true;
   if (!BUILD.setupDone) { enterBuild(null, true); if (!introSeen()) introShow(false); return; }
   setView('town');

@@ -55,8 +55,8 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
   const root = $('sky');
   const camera = new THREE.PerspectiveCamera(55, 1, 1, 70000);
   let ART = null;
-  const LOOK = {}; // the ships' glow as the skies light it (the claim dims it at the dock, so it's put back here)
-  const art = loadShipArt(renderer).then((a) => { ART = a; LOOK.canvas = a.M.canvas.emissiveIntensity; return a; }); // the claim's dock needs the ships too
+  const LOOK = {}; // the ships' glow as the skies light it (the claim dims it at the dock, so it’s put back here)
+  const art = loadShipArt(renderer).then((a) => { ART = a; LOOK.canvas = a.M.canvas.emissiveIntensity; return a; }); // the claim’s dock needs the ships too
   const built = new Map();
   const pixelScale = () => renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
   // every ship is built at full detail when first needed, as her refits make her, wearing her own paint, and shared:
@@ -203,7 +203,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
     paused = false; $('paused').hidden = true; $('calm').hidden = true;
     S.port.mode = 'voyage'; $('title').hidden = true; $('port').hidden = true;
     enter('voyage');
-    region = regionAt(at.pos.x, at.pos.z); // the region's name shows when you cross into the next one
+    region = regionAt(at.pos.x, at.pos.z); // the region’s name shows when you cross into the next one
     const names = claim.crewNames?.(id) ?? [];
     $('crew-line').textContent = names.length ? names.join(' · ') : 'Dock hands';
     if (site) {
@@ -364,7 +364,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
       if ((W.lost -= dt) <= 0) {
         W.sunk = true;
         $('paused-title').textContent = `The ${shipName(player.ship.recipe.id)} went down`;
-        $('paused-line').textContent = `${V.shards ? `Your crew got her home to ${HOME.name} with half this voyage's shards: ◆ ${fmt(V.shards / 2)}.` : `Your crew got her home to ${HOME.name}.`} She'll need a long stay at the dock.`;
+        $('paused-line').textContent = `${V.shards ? `Your crew got her home to ${HOME.name} with half this voyage’s shards: ◆ ${fmt(V.shards / 2)}.` : `Your crew got her home to ${HOME.name}.`} She’ll need a long stay at the dock.`;
         $('btn-resume').hidden = true; $('btn-abandon').textContent = 'Home'; $('paused').hidden = false;
         input.active = false;
       }
@@ -416,10 +416,10 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
     $('calm-title').textContent = what ?? (taken ? `${site.short} strikes ${site.moving ? 'her' : 'its'} colours` : cur.why === 'escaped' ? `${site.short} got away` : cur.why === 'drilled' ? 'The drill is through' : `${site.short} went down with her crates`);
     $('calm-line').textContent = taken
       ? `In ${time}. Your crew load ${crates === 1 ? 'one crate' : `${NUMBER[crates] ?? crates} crates`} aboard · ◆ ${fmt(V.shards)} gathered. Take them home to ${HOME.name} to open them.`
-      : `◆ ${fmt(V.shards)} gathered. There'll be another run.`;
+      : `◆ ${fmt(V.shards)} gathered. There’ll be another run.`;
     $('btn-sail-on').hidden = true; $('btn-go-port').textContent = taken ? `Home with the crates` : `Home to ${HOME.name}`;
     $('calm').hidden = false;
-    banner(taken ? (site.kind === 'storm' ? 'The strongbox is yours' : site.kind === 'convoy' ? 'The convoy is home' : `${site.short} is taken`) : 'The prize is lost', taken ? `${site.kind === 'rock' || site.kind === 'citadel' ? 'Brightvein\'s colours fly over it · ' : ''}${time}` : '');
+    banner(taken ? (site.kind === 'storm' ? 'The strongbox is yours' : site.kind === 'convoy' ? 'The convoy is home' : `${site.short} is taken`) : 'The prize is lost', taken ? `${site.kind === 'rock' || site.kind === 'citadel' ? 'Brightvein’s colours fly over it · ' : ''}${time}` : '');
   }
   $('btn-sail-on').addEventListener('click', sailOn);
   $('btn-go-port').addEventListener('click', () => { if (W.state === 'choose' || W.state === 'taken' || W.state === 'lost') endVoyage(1); });
@@ -430,7 +430,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
       if (document.pointerLockElement) document.exitPointerLock();
       const fighting = W.state === 'fight' || player.down;
       $('paused-title').textContent = 'Paused';
-      $('paused-line').textContent = !V.shards ? 'Going home now ends the voyage.' : fighting ? `Home now, mid-fight, and you keep half this voyage's shards: ◆ ${fmt(V.shards / 2)}.` : `Home now keeps all this voyage's shards: ◆ ${fmt(V.shards)}.`;
+      $('paused-line').textContent = !V.shards ? 'Going home now ends the voyage.' : fighting ? `Home now, mid-fight, and you keep half this voyage’s shards: ◆ ${fmt(V.shards / 2)}.` : `Home now keeps all this voyage’s shards: ◆ ${fmt(V.shards)}.`;
       $('btn-resume').hidden = false; $('btn-abandon').textContent = `Home to ${HOME.name}`;
     }
     $('paused').hidden = !on;
@@ -528,7 +528,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
   // the locked target's health, under the crosshair
   function target() {
     const el = $('target'), t = locked, cur = S.sites.cur;
-    if (!t || t === cur?.boss || t === cur?.prize) { el.hidden = true; return; }   // (a boss's health is in the boss bar)
+    if (!t || t === cur?.boss || t === cur?.prize) { el.hidden = true; return; }   // (a boss’s health is in the boss bar)
     el.hidden = false;
     $('tg-name').textContent = t.boss ? t.name : t.role === 'prize' ? `${t.name}` : `${t.captain ? 'Captain’s ' : ''}${t.R.cls}`;
     $('tg-d').textContent = `${Math.round(t.f.pos.distanceTo(player.pos))} m`;
@@ -604,8 +604,8 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
     $('btn-surge').disabled = sg.charge < 1;
     const w = $('warn');
     if (player.down) w.hidden = true;
-    else if (player.frac('crystals') < 0.5) { w.hidden = false; w.textContent = 'The crystals are cracked: she\'s sinking'; }
-    else if (player.pos.y > THINNING - 350) { w.hidden = false; w.textContent = 'Nearing the Thinning: the crystals can\'t lift you higher'; }
+    else if (player.frac('crystals') < 0.5) { w.hidden = false; w.textContent = 'The crystals are cracked: she’s sinking'; }
+    else if (player.pos.y > THINNING - 350) { w.hidden = false; w.textContent = 'Nearing the Thinning: the crystals can’t lift you higher'; }
     else if (Math.abs(player.pos.x) > MAP.w / 2 + 1500 || Math.abs(player.pos.z) > MAP.h / 2 + 1500) { w.hidden = false; w.textContent = 'Open sea: Aethermoor is behind you'; }
     else w.hidden = true;
     const r = regionAt(player.pos.x, player.pos.z);

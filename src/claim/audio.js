@@ -28,7 +28,7 @@ const AU = (() => {
     E.master.connect(comp); comp.connect(lim); lim.connect(clip); clip.connect(ctx.destination);
     // the buses
     E.music = g(0.7); E.music.connect(E.master);
-    E.duck = g(1); E.duck.connect(E.music);              // the game's music; ducked under cues
+    E.duck = g(1); E.duck.connect(E.music);              // the game’s music; ducked under cues
     E.sfx = g(0.8); E.sfx.connect(E.master);
     E.world = ctx.createBiquadFilter(); E.world.type = 'lowpass'; E.world.frequency.value = 18000; E.world.Q.value = 0.5; E.world.connect(E.sfx);   // sounds out in the world: muffled from inside the Keep
     E.amb = g(0.8); E.amb.connect(E.master);
@@ -44,7 +44,7 @@ const AU = (() => {
     E.echo.connect(elp); elp.connect(fb); fb.connect(E.echo);
     E.echoIn = g(1); E.echoIn.connect(E.echo);
     E.echoOut = g(0.6); elp.connect(E.echoOut); E.echoOut.connect(E.music); E.echoOut.connect(E.musicRev);
-    E.ambEcho = g(0); E.ambEcho.connect(E.echo);         // the mine's drips and picks echo too
+    E.ambEcho = g(0); E.ambEcho.connect(E.echo);         // the mine’s drips and picks echo too
     return E;
   }
   function softClip() {
@@ -555,7 +555,7 @@ const AUDIO = (() => {
   const CUES = { dawn: 'dawn', chapter: 'flourish', raidwon: 'victory', sunk: 'lament' };
   // other names an effect might be asked for by
   const ALIAS = { pick: 'dig', mine: 'dig', lightning: 'thunder', boom: 'cannon', explosion: 'raiderdown', wave: 'alarm', boltstrike: 'thunder', nightstart: 'bell', courier: 'horn', rocks: 'rockfall', ballista: 'thunk', lens: 'zap', death: 'poof',
-    anvil: 'hit', forge: 'flare', success: 'goal', fail: 'snuff' };   // Odile's bench (bench.js)
+    anvil: 'hit', forge: 'flare', success: 'goal', fail: 'snuff' };   // Odile’s bench (bench.js)
   function play(k, pos, o = {}) {
     if (!E || S.muted) return;
     k = ALIAS[k] || k;

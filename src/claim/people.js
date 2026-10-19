@@ -190,7 +190,7 @@ class Villager {
     this.sprite = new THREE.Sprite(this.mat); this.sprite.center.set(0.5, 0.03); this.sprite.scale.set(1.5, 2.0, 1);
     this.sprite.userData.villager = this; scene.add(this.sprite);
     this.isprite = new THREE.Sprite(this.mat); this.isprite.center.set(0.5, 0.03); this.isprite.scale.set(1.5, 2.0, 1); this.isprite.visible = false; this.isprite.userData.villager = this; KSCENE.add(this.isprite);
-    this.shadow = new THREE.Mesh(shadowGeo, shadowMat); this.shadow.renderOrder = 1;   // not in the scene: drawn with everyone else's (shadowsDraw)
+    this.shadow = new THREE.Mesh(shadowGeo, shadowMat); this.shadow.renderOrder = 1;   // not in the scene: drawn with everyone else’s (shadowsDraw)
     this.pos = new THREE.Vector3(); this.face = new THREE.Vector2(0, 1); this.vel = new THREE.Vector2();
     this.plan = []; this.where = 'surface'; this.hidden = false; this.working = false; this.anim = Math.random() * 10; this.moving = false; this.replan = true;
     this.row = -1; this.col = 0; this.mirror = false; this.light = 1;
@@ -198,7 +198,7 @@ class Villager {
   // what they work with: the job's tool, or the item in their hand when it is made for this job; the watch
   // fights with whatever weapon they carry
   tool() {
-    const st = studyTool(this); if (st) return st;   // studying: the study's tool (keep.js)
+    const st = studyTool(this); if (st) return st;   // studying: the study’s tool (keep.js)
     const j = this.d.job; if (!j) return 'hammer';
     const b = jobBuilding(j.bid), type = b ? b.gearJob || b.type : j.bid, it = this.d.gear && this.d.gear.hand;
     if (it) {
@@ -222,7 +222,7 @@ class Villager {
     if (this.d.trait === 'Night owl') e *= night ? 1.35 : 0.85;
     const g = gearOf(this); e *= 1 + outFor(g, b.gearJob || b.type) / 100; if (night) e *= 1 + g.night / 100;
     if (mastered(this, def.stat)) e *= 1.2;
-    e *= workBonus(this, b);   // modules: the Keep's radiator, Crew-Friendly modules (fittings.js)
+    e *= workBonus(this, b);   // modules: the Keep’s radiator, Crew-Friendly modules (fittings.js)
     if (GAME.food <= 0) e *= 0.5;
     return e;
   }

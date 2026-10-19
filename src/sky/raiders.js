@@ -142,7 +142,7 @@ export function makeRaiders(scene, art, bolts, skies) {
     ship.root.position.copy(pos); ship.root.rotation.y = heading;
     scene.add(ship.root);
     const gun = makeGunnery(ship, { reload: RAIDER.slow * S.reload * (HEAVY[id] ?? 1) * (captain ? CAPTAIN.reload : 1), damage: S.damage * (captain ? CAPTAIN.damage : 1) * (opts.damage ?? 1) });
-    const r = { id, R: Tm.R, name: opts.name ?? `Raider ${captain ? 'captain\'s ' + Tm.R.cls : Tm.R.cls}`, captain, ship, f, gun, zones: Tm.zones, role, frozen, friend, look,
+    const r = { id, R: Tm.R, name: opts.name ?? `Raider ${captain ? 'captain’s ' + Tm.R.cls.toLowerCase() : Tm.R.cls.toLowerCase()}`, captain, ship, f, gun, zones: Tm.zones, role, frozen, friend, look,
       bounty: opts.bounty ?? BOUNTY[id] * (captain ? CAPTAIN.bounty : 1), aim: RAIDER.aim * S.aim,
       mode: 'attack', timer: 0, side: 1, alt: (Math.random() - 0.5) * (role === 'chaser' ? 50 : 20), counted: false, gone: false,
       course: heading, fleeing: false, weave: Math.random() * 6, fireRate: 1, ai: null, holdFire: false, target: null, retarget: 0 };
@@ -242,7 +242,7 @@ export function makeRaiders(scene, art, bolts, skies) {
       const m = r.gun.muzzle(b);
       const aim = intercept(m.p, r.f.velocity, foe.aimAt(), foe.velocity, m.K.speed);
       const dist = aim.distanceTo(m.p);
-      if (dist > m.K.speed * m.K.life * 0.7 || !r.gun.reaches(b, aim)) continue; // they hold fire till it's worth it
+      if (dist > m.K.speed * m.K.life * 0.7 || !r.gun.reaches(b, aim)) continue; // they hold fire till it’s worth it
       const e = dist * r.aim + 1.5;
       aim.add(off.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(2 * e));
       r.gun.fire(b, aim, bolts, r.friend ? 'friend' : 'raider', r.f.velocity);

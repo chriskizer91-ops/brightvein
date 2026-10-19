@@ -37,7 +37,7 @@ function titleShow(save) {
   controls.enabled = false; kcontrols.enabled = false;
   if (VIEW.mode !== 'town') { VIEW.mode = 'town'; for (const id of ['#v-town', '#v-keep', '#v-mine']) $(id).setAttribute('aria-pressed', String(id === '#v-town')); }
   VIEW.tween = null; FOLLOW.v = null; UI.close();
-  for (const id of ['qmark', 'hintcard']) { const el = document.getElementById(id); if (el) el.hidden = true; }   // the cast's "wants a word" and a tip wait for the claim
+  for (const id of ['qmark', 'hintcard']) { const el = document.getElementById(id); if (el) el.hidden = true; }   // the cast’s "wants a word" and a tip wait for the claim
   $('#app').classList.add('titling');
   titleRender();
   $('#front').hidden = false;

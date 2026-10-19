@@ -1,17 +1,17 @@
-<!-- sky.html: the skies' screens (shipyard, choosing the skies, a voyage's HUD), over the claim's view. From the airship game. -->
+<!-- sky.html: the skies' screens (shipyard, choosing the skies, a voyage’s HUD), over the claim’s view. From the airship game. -->
 <div id="sky" hidden data-mode="off">
 <!-- choosing the skies: how hard the raiders fight, and how well they pay -->
 <section id="title" class="screen" hidden>
   <div class="title-card">
     <h1>The Skies</h1>
-    <p class="lede">Raiders and claim-jumpers are loose over Aethermoor, Captain. Bring them down, gather their Crystal Shards, and bring them home to Brightvein.</p>
+    <p class="lede">Raiders and claim-jumpers are loose over Aethermoor, Captain. Bring them down, gather the shards they spill, and bring them home to Brightvein.</p>
     <h2>Choose your skies</h2>
     <div id="skies" role="radiogroup" aria-label="Skies"></div>
     <button id="btn-to-port" class="big" type="button">To the shipyard</button>
   </div>
 </section>
 
-<!-- the shipyard: the claim's six ships, buying them, the flagship, refits, looks, repairs, and setting sail -->
+<!-- the shipyard: the claim’s six ships, buying them, the flagship, refits, looks, repairs, and setting sail -->
 <section id="port" class="screen" hidden>
   <header class="port-top"><button id="btn-home" class="panel" type="button" aria-label="Back to the claim">← Claim</button><h1>Shipyard</h1><span id="port-shards" class="panel shards">◆ 0</span><span id="port-mats" class="panel mats"></span><button id="btn-skies" class="panel" type="button">Skies</button></header>
   <p id="port-note" class="panel" aria-live="polite"></p>
@@ -71,7 +71,7 @@
   </dl>
   <p id="crew-line"></p>
 </section>
-<!-- a raid's objective and its progress -->
+<!-- a raid’s objective and its progress -->
 <section id="objective" class="panel" hidden><b id="obj-goal"></b><span id="obj-sub"></span><div id="obj-bars"></div><span class="meter" id="obj-meter" hidden><i></i></span></section>
 <!-- a boss: its name, its health and the phases it turns at -->
 <section id="sky-boss" hidden><div class="sb-top"><b id="sb-name"></b><span id="sb-phase"></span></div><div class="sb-bar"><i id="sb-fill"></i><span id="sb-marks"></span></div><div class="sb-low"><span id="sb-sub"></span><span class="sb-two"><span id="sb-label2">Crystals</span><span class="meter"><i id="sb-fill2"></i></span></span></div></section>

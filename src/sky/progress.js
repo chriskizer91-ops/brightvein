@@ -16,10 +16,10 @@ export const SITE_IDS = ['camp', 'outpost', 'galleon', 'citadel', 'survey', 'dre
 export const PARTS = ['hull', 'sails', 'guns', 'crystals'];
 
 const freshShip = (id) => ({
-  owned: id === 'skiff', power: 0, name: '',   // name: her own name, if she has one (Barnabus's cutter is the Gannet)
+  owned: id === 'skiff', power: 0, name: '',   // name: her own name, if she has one (Barnabus’s cutter is the Gannet)
   refit: { hull: 0, sails: 0, guns: 0, crystals: 0 },
   paint: { hull: 'oak', sails: 'cream', figure: 'none' },
-  wear: { hull: 1, sails: 1, crystals: 1 },   // what's left of each part since the last voyage (1 = sound)
+  wear: { hull: 1, sails: 1, crystals: 1 },   // what’s left of each part since the last voyage (1 = sound)
   repair: null,                                // under repair: { from, until } in claim days, and what it mends
 });
 function fresh() {

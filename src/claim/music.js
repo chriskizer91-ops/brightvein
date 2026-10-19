@@ -26,7 +26,7 @@ const MUSIC = (() => {
       I.layers[n] = { g, L: Ld, vol: Ld.vol * (th.level || 1) };
     }
     E.persist += I.nodes.length;
-    if (L.dest === E.duck && th.echo) E.echo.delayTime.setValueAtTime(th.echo, T);   // the mine's echo, timed to its tempo
+    if (L.dest === E.duck && th.echo) E.echo.delayTime.setValueAtTime(th.echo, T);   // the mine’s echo, timed to its tempo
     return I;
   }
   function stopInst(L, I, T) {
@@ -112,10 +112,10 @@ const MUSIC = (() => {
     }
     if (typeof jumpersActive === 'function' && jumpersActive()) return { theme: 'tallow', i: 0, urgent: true };
     const ph = TOD.phase;
-    if (lastPhase === 'night' && ph === 'dawn') playCue('dawn');   // the sun's up (endNight asks for it too; it plays once)
+    if (lastPhase === 'night' && ph === 'dawn') playCue('dawn');   // the sun’s up (endNight asks for it too; it plays once)
     lastPhase = ph;
     if (ph === 'night' || (ph === 'dusk' && TOD.night > 0.55)) {
-      if (storyFestival()) return { theme: 'faire', i: 0 };   // the Moon Faire's festival night, Charter Night, a festival day (acttwo.js)
+      if (storyFestival()) return { theme: 'faire', i: 0 };   // the Moon Faire’s festival night, Charter Night, a festival day (acttwo.js)
       let n = 0; for (const f of WL.list) if (!f.dead && !f.air) n++;
       const broken = n > 0 && WALL.segs && WALL.segs.some(s => s.broken);
       return { theme: 'night', i: Math.min(3, (n === 0 ? 0 : n < 4 ? 1 : n < 8 ? 2 : 3) + (broken ? 1 : 0)), smooth: true };

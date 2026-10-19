@@ -29,7 +29,7 @@ const roomTutor = i => roomPeople(i).find(v => v.d.study.role === 'tutor');
 // what a student or tutor has in hand: their study's tool (people.js asks this when it draws them)
 const studyTool = v => { const S = v.d.study, r = S && GAME.rooms[S.room]; return r && r.type ? STUDY[r.type].tool : null; };
 function tutorMult(i) { const r = GAME.rooms[i], t = roomTutor(i); if (!t || !r.type) return 1; return 1 + Math.max(0, statOf(t, r.type) - 5) * 0.15 * (mastered(t, r.type) ? 1.15 : 1); }
-const studyRate = i => ROOM_SPEED[GAME.rooms[i].level] * tutorMult(i) * studyBoost();   // studyBoost: the Keep's Book Lockers (fittings.js)
+const studyRate = i => ROOM_SPEED[GAME.rooms[i].level] * tutorMult(i) * studyBoost();   // studyBoost: the Keep’s Book Lockers (fittings.js)
 const studyLeft = v => { const S = v.d.study, k = GAME.rooms[S.room].type; return (pointTime(v.d.stats[k]) - S.prog) / Math.max(0.01, studyRate(S.room)); };
 function canStudent(v, i) { const r = GAME.rooms[i]; return r.type && !v.d.exp && v.d.stats[r.type] < STAT_MAX && roomStudents(i).length < ROOM_SEATS[r.level] && !(v.d.study && v.d.study.room === i); }
 function canTutor(v, i) { const r = GAME.rooms[i]; return r.type && !v.d.exp && !roomTutor(i) && statOf(v, r.type) >= 7; }
@@ -38,7 +38,7 @@ function startStudy(v, i, role) {
   const b = v.jobB; if (b) v.d.pref = b === WALLB ? 'wall' : b.type;
   v.d.job = null;
   v.d.study = { room: i, role, prog: v.d.study && v.d.study.room === i ? v.d.study.prog : 0 };
-  v.redraw();   // with the study's tool in hand
+  v.redraw();   // with the study’s tool in hand
   v.replan = true;
   if (FOLLOW.v === v) FOLLOW.v = null;
   return true;
@@ -87,7 +87,7 @@ function keepMaxDist() { const t = kcamT(), a = innerWidth / innerHeight, w = KW
 function frameKeep(reset = true) {
   const t = kcamT(), a = innerWidth / innerHeight, top = keepTop(), bot = -1.4;
   let x, y, d;
-  if (a < 0.8) {   // an upright phone: the Hearth Hall's side and the stair, ground floor up
+  if (a < 0.8) {   // an upright phone: the Hearth Hall’s side and the stair, ground floor up
     const w = KW / 2 + SWD / 2 + 1.3; d = w / 2 / (t * a); x = -KW / 2 + w / 2 - 0.9;
     y = Math.max((top + bot) / 2 - d * t * 0.1, bot + d * t * 0.78);
   } else { d = keepMaxDist() / 1.06 * 1.01; x = 0; y = (top + bot) / 2 - d * t * 0.05; }

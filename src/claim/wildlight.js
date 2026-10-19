@@ -130,7 +130,7 @@ class Wildlight {
   }
   hurt(n, src) {
     if (this.dead || this.leaving) return;
-    const dealt = Math.min(Math.max(0, this.hp), n * wlHarmK(this));   // Seraphine's vigil, and the Warden while the mine is held (acttwo.js)
+    const dealt = Math.min(Math.max(0, this.hp), n * wlHarmK(this));   // Seraphine’s vigil, and the Warden while the mine is held (acttwo.js)
     this.hp -= dealt; this.flash = 0.15;
     nightCredit(src, dealt);
     if (this.boss) bossHurt(this, dealt);
@@ -309,7 +309,7 @@ function startNight() {
   AUDIO.play('nightstart');
 }
 function endNight() {
-  weatherDawn();   // the day's weather arrives with the light (weather.js)
+  weatherDawn();   // the day’s weather arrives with the light (weather.js)
   const N = WL.night; if (!N) return;
   for (const f of WL.list) if (!f.dead && !f.air) { if (f.boss) bossRetreat(f); else f.die(false); }
   nightDawn(N);
@@ -375,7 +375,7 @@ function towerAI(dt) {
   }
 }
 // ---- turret reach, drawn on the ground in build mode and while a turret is selected
-const turretRange = b => (b.type === 'lens' ? (b.level >= 2 ? 27 : 21) : (b.level >= 2 ? 17 : 14)) * (1 + modV(b, 'range') / 100);   // modV: a tower's Fresnel Ring (fittings.js)
+const turretRange = b => (b.type === 'lens' ? (b.level >= 2 ? 27 : 21) : (b.level >= 2 ? 17 : 14)) * (1 + modV(b, 'range') / 100);   // modV: a tower’s Fresnel Ring (fittings.js)
 const RING_G = { line: new THREE.RingGeometry(0.985, 1, 96).rotateX(-Math.PI / 2), fill: new THREE.CircleGeometry(1, 96).rotateX(-Math.PI / 2) };
 function updateRings() {
   for (const b of [...TOWN.towers, ...TOWN.ballistas]) {

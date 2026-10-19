@@ -56,7 +56,7 @@ class Jumper {
           const at = new THREE.Vector3(best.L.x + (Math.random() - 0.5) * 4, 0.6, best.L.z + (Math.random() - 0.5) * 3);
           for (let i = 0; i < 2; i++) fireBeam(P.clone().add(new THREE.Vector3(0, 0.5, 0)), at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2)), 0xff5a40, 0.8);
           FX.sparks(at, 14, 0xffb050, 3); AUDIO.play('volley', P);
-          const take = larkShields() ? 0 : Math.min(Math.max(0, GAME.shards), best.type === 'yard' ? 7 : 3);   // the Lark's hull plates can take it (fittings.js)
+          const take = larkShields() ? 0 : Math.min(Math.max(0, GAME.shards), best.type === 'yard' ? 7 : 3);   // the Lark’s hull plates can take it (fittings.js)
           GAME.shards -= take; this.stolen += take;
         }
       }
@@ -110,7 +110,7 @@ function jumpersTick(dt) {
   JUMP.next = GAME.day + 2 + Math.floor(Math.random() * 2);
   const kinds = STORY.ch <= 3 ? ['skiff'] : STORY.ch <= 5 ? ['skiff', 'skiff'] : ['cutter', 'skiff'];
   kinds.forEach((k, i) => { const j = new Jumper(k, i, kinds.length); JUMP.list.push(j); WL.list.push(j); });
-  toast(exchangeCrews() ? `<b>Silver sails over the rim!</b> The Exchange's hired crews have come for the yards. Turrets, the Lark and your ship will fire on them.`
-    : `<b>Rust-red sails over the rim!</b> Tallow's jumpers have come for the yards. Turrets, the Lark and your ship will fire on them.`, 'night');
+  toast(exchangeCrews() ? `<b>Silver sails over the rim!</b> The Exchange’s hired crews have come for the yards. Turrets, the Lark and your ship will fire on them.`
+    : `<b>Rust-red sails over the rim!</b> Tallow’s jumpers have come for the yards. Turrets, the Lark and your ship will fire on them.`, 'night');
   AUDIO.play('warhorn');
 }

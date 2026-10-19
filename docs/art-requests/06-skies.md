@@ -119,7 +119,7 @@ File: `wanted-mags-corrie.png`
 > About 50, broad and weathered, brown skin, grey braids, a wide grin with a gold tooth. One hand in a red-dyed leather
 > glove. A battered rust-red tricorn and a patched brown greatcoat.
 
-### Ezra Blackwick, “the Snuffer of Lamps”
+### Ezra Blackwick, “Lampblack”
 File: `wanted-ezra-blackwick.png`
 
 > About 40, neat and cold, pale skin, slicked dark hair, a waxed moustache, small round smoked spectacles. A black

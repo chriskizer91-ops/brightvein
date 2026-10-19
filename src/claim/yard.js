@@ -12,9 +12,11 @@
 //   pays, the best time, and when it's manned again.
 import { GUNNERS as YARD_GUNNERS, crewEffects as yardCrewFx, CLASS as YARD_CLASS, startRepair as yardStartRepair, finishRepairs as yardFinish, repairLeft as yardLeft,
   repairCost as yardRepairCost, repairHours as yardRepairHours, damageOf as yardDamage, CREW_GIFTS as YARD_GIFTS } from './sky/refit.js';
-import { REPEAT as YARD_REPEAT, makeBounty as yardMakeBounty, bountySite as yardBountySite } from './sky/sites.js';
+import { REPEAT as YARD_REPEAT, makeBounty as yardMakeBounty, bountySite as yardBountySite, bountyHer as yardHer } from './sky/sites.js';
 import { FLEET as YARD_FLEET } from './ships/index.js';
 import { MAP as YARD_MAP, minimapUrl as YARD_MAPURL, HOME as YARD_HOME } from './sky/voyage.js';
+// a place's name inside a sentence: 'the crates from the Chandlery'
+const yardThe = s => String(s).replace(/^The /, 'the ');
 
 const YARD = { tab: 'ship', sel: null, day: -1, repairT: 0, sparkT: 0, knownT: 3, sailed: [], img: null };
 const yardNow = () => GAME.day + GAME.t;
@@ -126,10 +128,11 @@ function yardTick(dt) {
 }
 function yardNewDay() {
   const d = FLEET.data, B = d.bounty;
+  if (B && B.nick === 'the Snuffer of Lamps') B.nick = 'Lampblack';   // renamed (too like an old game’s lamplighter)
   if (B && GAME.day > B.until) { d.bounty = null; d.bountyNext = GAME.day + 2 + Math.floor(Math.random() * 3); toast(`The wanted captain <b>${esc(B.name)}</b> has moved on.`); FLEET.save(); }
   if (!d.bounty && STORY.ch >= 3 && GAME.day >= d.bountyNext) {
     d.bounty = yardMakeBounty(GAME.day, STORY.ch, d.bounties || 0);
-    toast(`<b>Wanted:</b> ${esc(d.bounty.name)}, “${esc(d.bounty.nick)}”, has been seen near the claim. ${SHARD} ${d.bounty.reward} on her head (Sky Dock › Raids).`, 'night');
+    toast(`<b>Wanted:</b> ${esc(d.bounty.name)}, “${esc(d.bounty.nick)}”, has been seen near the claim. ${SHARD} ${d.bounty.reward} on ${yardHer(d.bounty).her} head (Sky Dock › Raids).`, 'night');
     AUDIO.play('horn'); FLEET.save();
   }
 }
@@ -148,11 +151,11 @@ function yardRaidHome(r) {
     haul.shards += bounty;
   }
   addHaul({ ...haul, items: [] });
-  const items = haul.items.map(it => addToStash(it, true, { pos: DOCK.b.group.position.clone(), line: `From the crates of ${R.name}` }));
+  const items = haul.items.map(it => addToStash(it, true, { pos: DOCK.b.group.position.clone(), line: `From the crates of ${yardThe(R.name)}` }));
   if (R.boss) moodAdd('raid-' + R.id, 6, 2, `${R.name}: the boss brought down`);
   else if (first) moodAdd('raid-' + R.id, 3, 1, `${R.name} taken`);
   FLEET.save();
-  toast(`<b>${esc(R.name)}</b>${R.id === 'convoy' ? ': the convoy is in' : R.id === 'storm' ? ': the Thinwatch strongbox' : ' is taken'}. ${SHARD} ${haul.shards} and ${items.length} find${items.length === 1 ? '' : 's'}.`);
+  toast(`<b>${esc(R.name)}</b>${R.id === 'convoy' ? ' is home' : R.id === 'storm' ? ': the Thinwatch strongbox' : ' is taken'}. ${SHARD} ${haul.shards} and ${items.length} find${items.length === 1 ? '' : 's'}.`);
   setTimeout(() => UI.open('haul', { name: R.name, items, shards: haul.shards, got: r.got, mats: haul.materials, time: R.time, first, repeat: !first && R.id !== 'bounty', bounty, share }), 600);
 }
 
@@ -236,7 +239,7 @@ UI.dock = function (body, ref) {
   acts.querySelector('#dk-raids').onclick = () => { YARD.tab = 'raids'; UI.refresh(); };
   acts.querySelector('#dk-skies').onclick = () => openSky('title');
   body.append(acts);
-  body.append(this.h(`<p class="small">On patrol, raiders come in waves; after each one, sail on or come home with the shards. While she's out, the claim waits: nobody works and night won't fall until she's home. Whatever harm she takes comes home with her.</p>`));
+  body.append(this.h(`<p class="small">On patrol, raiders come in waves; after each one, sail on or come home with the shards. While she’s out, the claim waits: nobody works and night won’t fall until she’s home. Whatever harm she takes comes home with her.</p>`));
 };
 
 // ---- the crew tab: the seats, with portraits
@@ -297,7 +300,7 @@ function yardPick(ui, body, ref) {
 function yardSites() {
   const d = FLEET.data, out = [];
   for (const s of SITES) {
-    if (s.ch && STORY.ch < s.ch && !(d.raids[s.id] && d.raids[s.id].won)) continue;   // act two's places turn up in their chapters
+    if (s.ch && STORY.ch < s.ch && !(d.raids[s.id] && d.raids[s.id].won)) continue;   // act two’s places turn up in their chapters
     const st = d.raids[s.id], after = s.after && SITES.find(x => x.id === s.after), locked = !!after && !d.raids[after.id].won;
     const wait = st.won ? s.regrow - (GAME.day - st.day) : 0;
     out.push({ s, st, locked, after, wait });
@@ -331,9 +334,10 @@ function yardRaidsTab(ui, body) {
   }
   // a wanted captain
   const B = d.bounty;
+  if (B && B.nick === 'the Snuffer of Lamps') B.nick = 'Lampblack';
   if (B) {
     const face = ART.portraits && ART.portraits['wanted-' + B.name.toLowerCase().replace(/[^a-z]+/g, '-')];
-    const W = ui.h(`<div class="wanted"><h4>WANTED</h4>${face ? `<img src="${face}" alt="">` : ''}<p><b>${esc(B.name)}</b>, called “${esc(B.nick)}”</p><p>A jumper ${esc(yardShip(B.ship).cls)} and ${B.escorts.length} escorts · ${SHARD} ${B.reward} on her head</p><p class="small">Seen near the claim. Gone in ${Math.max(1, B.until - GAME.day + 1)} day${B.until - GAME.day ? 's' : ''}.</p><button type="button" class="btn primary">Hunt her down</button></div>`);
+    const W = ui.h(`<div class="wanted"><h4>WANTED</h4>${face ? `<img src="${face}" alt="">` : ''}<p><b>${esc(B.name)}</b>, called “${esc(B.nick)}”</p><p>A jumper ${esc(yardShip(B.ship).cls)} and ${B.escorts.length} escorts · ${SHARD} ${B.reward} on ${yardHer(B).her} head</p><p class="small">Seen near the claim. Gone in ${Math.max(1, B.until - GAME.day + 1)} day${B.until - GAME.day ? 's' : ''}.</p><button type="button" class="btn primary">Hunt ${yardHer(B).him} down</button></div>`);
     const b = W.querySelector('button'); b.disabled = !!left; b.onclick = () => openSky('raid', { site: 'bounty' });
     body.append(W);
   }
@@ -391,7 +395,7 @@ function yardDrawMap(cv, list) {
 // ---- what a raid brought home
 UI.haul = function (body, h) {
   const mats = Object.entries(h.mats || {}).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${D.MATERIALS[k] ? D.MATERIALS[k].name : k}`);
-  body.append(this.h(`<h2>The crates from ${esc(h.name)}</h2><p class="sub">${SHARD} ${h.shards} shards in the crates${h.bounty ? ` (${h.bounty} of them the bounty)` : ''}${h.got ? `, and ${SHARD} ${h.got} gathered on the way` : ''}${mats.length ? `, and ${esc(andList(mats))}` : ''}. Everything else is in the stash.</p>`));
+  body.append(this.h(`<h2>The crates from ${esc(yardThe(h.name))}</h2><p class="sub">${SHARD} ${h.shards} shards in the crates${h.bounty ? ` (${h.bounty} of them the bounty)` : ''}${h.got ? `, and ${SHARD} ${h.got} gathered on the way` : ''}${mats.length ? `, and ${esc(andList(mats))}` : ''}. Everything else is in the stash.</p>`));
   const chips = [];
   if (h.time) chips.push(`<span class="chip">In ${yardTime(h.time)}</span>`);
   if (h.first) chips.push(`<span class="chip amber">First time: the full haul</span>`);

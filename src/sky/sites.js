@@ -17,28 +17,28 @@ export const REPEAT = 0.5;
 // kind: how the raid runs (raids.js). stars: how hard, 1 to 5. ship: the smallest ship that should try it.
 // pays: what's in it, for the Dock's raid map. ch: hidden in the Dock's list until that chapter.
 export const SITES = [
-  { id: 'camp', loot: 'camp', kind: 'rock', name: "Tallow's prospect camp", short: 'Prospect camp', x: HOME.x - 2100, z: HOME.z - 1500, y: 600, size: 34,
+  { id: 'camp', loot: 'camp', kind: 'rock', name: "Tallow’s prospect camp", short: 'Prospect camp', x: HOME.x - 2100, z: HOME.z - 1500, y: 600, size: 34,
     line: 'Tents on a lifted rock, two skiffs on guard and one gun.', goal: 'Silence the gun and the camp strikes its colours',
     towers: 1, guard: [{ ids: ['skiff'], captain: -1 }, { ids: ['skiff', 'skiff'], captain: -1 }], crates: 2, regrow: 1, after: null, stars: 1, ship: 'skiff', pays: 'Gear and modules, Brass Scrap' },
   { id: 'outpost', loot: 'outpost', kind: 'rock', spire: true, name: 'The Redspire outpost', short: 'Redspire', x: HOME.x - 3700, z: HOME.z + 1700, y: 640, size: 52,
     line: 'A red crag with a palisade, three gun towers, a great gun on its spire and a cutter crew.', goal: 'Silence every gun, the great one on the spire too, and Redspire strikes',
     towers: 3, guard: [{ ids: ['cutter', 'skiff'], captain: -1 }, { ids: ['cutter', 'cutter'], captain: 0 }], crates: 3, regrow: 2, after: 'camp', stars: 2, ship: 'cutter', pays: 'Better gear, a chance of a Masterwork' },
   { id: 'galleon', loot: 'airship', kind: 'galleon', name: 'The supply galleon Wickmoor', short: 'The Wickmoor', x: HOME.x - 1300, z: HOME.z + 4200, y: 720, size: 0, moving: true,
-    line: 'Tallow\'s treasure ship, under escort, with a brig coming to help.', goal: 'Shoot her sails until she strikes. Sink her and her crates go down with her',
+    line: 'Tallow’s treasure ship, under escort, with a brig coming to help.', goal: 'Shoot her sails until she strikes. Sink her and her crates go down with her',
     towers: 0, guard: [{ ids: ['galleon', 'cutter', 'skiff'], captain: -1 }, { ids: ['brig'], captain: -1 }], crates: 3, regrow: 2, after: 'outpost', stars: 2, ship: 'cutter', pays: 'A Lark part likely, Heartstone' },
-  { id: 'citadel', loot: 'citadel', kind: 'citadel', name: 'The Chandlery, Baron Tallow\'s citadel', short: 'The Chandlery', x: HOME.x + 2200, z: HOME.z + 4300, y: 760, size: 86,
-    line: 'A fortress of candle-works on a great lifted rock. Six gun towers, the Baron\'s frigate, and his own flagship somewhere under the rock.', goal: 'Silence the Chandlery’s guns and bring down Tallow’s flagship',
+  { id: 'citadel', loot: 'citadel', kind: 'citadel', name: 'The Chandlery, Baron Tallow’s citadel', short: 'The Chandlery', x: HOME.x + 2200, z: HOME.z + 4300, y: 760, size: 86,
+    line: 'A fortress of candle-works on a great lifted rock. Six gun towers, the Baron’s frigate, and his own flagship somewhere under the rock.', goal: 'Silence the Chandlery’s guns and bring down Tallow’s flagship',
     towers: 6, guard: [{ ids: ['frigate', 'brig'], captain: -1 }, { ids: ['cutter', 'cutter'], captain: -1 }], crates: 5, regrow: 4, after: 'galleon', stars: 4, ship: 'brig', pays: 'Five crates, a Masterwork likely, Heartstone' },
-  { id: 'survey', loot: 'survey', kind: 'rock', winches: true, name: 'The Plumbline, the Exchange\'s survey rig', short: 'The Plumbline', x: HOME.x + 3000, z: HOME.z - 1300, y: 660, size: 46, ch: 11, flag: 'silver', look: 'silver',
+  { id: 'survey', loot: 'survey', kind: 'rock', winches: true, name: 'The Plumbline, the Exchange’s survey rig', short: 'The Plumbline', x: HOME.x + 3000, z: HOME.z - 1300, y: 660, size: 46, ch: 11, flag: 'silver', look: 'silver',
     line: 'A survey rig on a lifted rock off Hollowcrest: brass derricks, very long drills, two gun towers and an escort under silver sails.', goal: 'Cut its three drill strings: shoot the winches on top of the derricks',
     towers: 2, guard: [{ ids: ['cutter', 'cutter'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 3, regrow: 3, after: 'citadel', stars: 3, ship: 'brig', pays: 'Lark parts, modules, Cut Glass' },
-  { id: 'dredge', loot: 'dredge', kind: 'dredge', name: 'The Grindstone, the Exchange\'s dredge', short: 'The Grindstone', x: HOME.x + 500, z: HOME.z + 2700, y: 640, size: 0, moving: true, ch: 14, look: 'silver',
+  { id: 'dredge', loot: 'dredge', kind: 'dredge', name: 'The Grindstone, the Exchange’s dredge', short: 'The Grindstone', x: HOME.x + 500, z: HOME.z + 2700, y: 640, size: 0, moving: true, ch: 14, look: 'silver',
     line: 'A great dredge with a drill on her bow, cutting into the cliff under the claim, with a frigate and a brig to guard her.', goal: 'Knock out her two drill engines before she’s through, then sink her',
     towers: 0, guard: [{ ids: ['frigate', 'brig'], captain: -1 }, { ids: ['cutter', 'cutter', 'brig'], captain: -1 }], crates: 5, regrow: 6, after: 'survey', stars: 5, ship: 'frigate', pays: 'Five crates, a Lark part, a Masterwork likely',
     // sunk, her wreck draws the Exchange's salvagers: a galleon to make strike, and her guards
     repeatGuard: [{ ids: ['galleon', 'brig', 'cutter'], captain: -1 }, { ids: ['frigate'], captain: -1 }] },
   { id: 'convoy', loot: 'convoy', kind: 'convoy', name: 'The Brass Road convoy', short: 'The convoy', x: HOME.x - 3300, z: HOME.z + 2900, y: 700, size: 0, moving: true, ch: 3,
-    line: 'Three of the claim\'s ore barges, coming home up the Brass Road with jumpers waiting in the cloud.', goal: 'Bring the ore barges home to Brightvein',
+    line: 'Three of the claim’s ore barges, coming home up the Brass Road with jumpers waiting in the cloud.', goal: 'Bring the ore barges home to Brightvein',
     towers: 0, guard: [{ ids: ['skiff', 'skiff'], captain: -1 }, { ids: ['cutter', 'skiff', 'skiff'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 2, regrow: 2, after: 'camp', stars: 2, ship: 'cutter', pays: 'More for every barge home, Brass Scrap' },
   { id: 'storm', loot: 'storm', kind: 'storm', name: 'The storm front', short: 'The storm front', x: HOME.x + 3600, z: HOME.z + 900, y: 900, size: 0, moving: true, ch: 7,
     line: 'A wall of Aether storm over the gorge, and a Thinwatch strongbox in a wreck at its eye. Its beacons still burn.', goal: 'Fly through the Thinwatch beacons before the front closes',
@@ -46,25 +46,31 @@ export const SITES = [
 ];
 
 // ---------- wanted: a jumper captain on the map for a big reward ----------
+// [name, nickname, 'she' or 'he' (as Chris's portraits show them; assets/portraits/wanted-<name>)]
 const WANTED = [
-  ['Ottoline Grieve', 'the Rook'], ['Hollis Vane', 'Tinder'], ['Mags Corrie', 'the Red Hand'], ['Ezra Blackwick', 'the Snuffer of Lamps'],
-  ['Dellah Rusk', 'Six Sails'], ['Fenwick Marr', 'Old Iron'], ['Jessamy Coil', 'the Gull'], ['Barrow Twine', 'the Knot'],
-  ['Silas Embry', 'Ember'], ['Wren Halloway', 'the Quiet Gun'], ['Gideon Stave', 'the Plank'], ['Ida Sallow', 'Wax-Eyes'],
+  ['Ottoline Grieve', 'the Rook', 'she'], ['Hollis Vane', 'Tinder', 'he'], ['Mags Corrie', 'the Red Hand', 'she'], ['Ezra Blackwick', 'Lampblack', 'he'],
+  ['Dellah Rusk', 'Six Sails', 'she'], ['Fenwick Marr', 'Old Iron', 'he'], ['Jessamy Coil', 'the Gull', 'she'], ['Barrow Twine', 'the Knot', 'he'],
+  ['Silas Embry', 'Ember', 'he'], ['Wren Halloway', 'the Quiet Gun', 'she'], ['Gideon Stave', 'the Plank', 'he'], ['Ida Sallow', 'Wax-Eyes', 'she'],
 ];
+// a wanted captain's pronouns (a bounty saved before they were kept is looked up by name; the old nickname is mended)
+export function bountyHer(B) {
+  const w = WANTED.find((x) => x[0] === (B && B.name)), he = (B && B.he) ?? (w ? w[2] === 'he' : false);
+  return he ? { she: 'he', her: 'his', him: 'him', She: 'He' } : { she: 'she', her: 'her', him: 'her', She: 'She' };
+}
 // a fresh bounty for this claim day and chapter: a captain in a ship that grows with the story, a place on the map, a
 // reward, and three days before she moves on
 export function makeBounty(day, ch, n = 0) {
-  const [name, nick] = WANTED[(day * 7 + n * 5) % WANTED.length];
+  const [name, nick, who] = WANTED[(day * 7 + n * 5) % WANTED.length];
   const ship = ch >= 12 ? 'manowar' : ch >= 9 ? 'frigate' : ch >= 5 ? 'brig' : 'cutter';
   const escorts = { cutter: ['skiff', 'skiff'], brig: ['cutter', 'skiff'], frigate: ['brig', 'cutter'], manowar: ['frigate', 'cutter', 'cutter'] }[ship];
   const a = ((day * 2.39 + n) % 6.283), d = 2600 + ((day * 977) % 1400);
   const reward = { cutter: 250, brig: 450, frigate: 800, manowar: 1400 }[ship];
-  return { name, nick, ship, escorts, x: HOME.x + Math.sin(a) * d, z: HOME.z + Math.cos(a) * d, until: day + 3, reward, n };
+  return { name, nick, he: who === 'he', ship, escorts, x: HOME.x + Math.sin(a) * d, z: HOME.z + Math.cos(a) * d, until: day + 3, reward, n };
 }
 // the bounty as a raid site
 export function bountySite(B) {
   return { id: 'bounty', loot: 'bounty', kind: 'bounty', name: `Wanted: ${B.name}, “${B.nick}”`, short: B.name, x: B.x, z: B.z, y: 760, size: 0, moving: true,
-    line: `${B.name}, called ${B.nick}, sails a jumper ${B.ship === 'manowar' ? 'Man-o\'-war' : B.ship} with ${B.escorts.length} escorts. The Thinwatch pays well for her.`,
+    line: `${B.name}, called ${B.nick}, sails a jumper ${B.ship === 'manowar' ? 'Man-o\'-war' : B.ship} with ${B.escorts.length} escorts. Every claim in the Ironspire pays well for ${bountyHer(B).him}.`,
     goal: `Bring down ${B.name}`, towers: 0, guard: [{ ids: [B.ship, ...B.escorts], captain: 0 }], crates: 2, regrow: 0, stars: { cutter: 2, brig: 3, frigate: 4, manowar: 5 }[B.ship], ship: B.ship === 'cutter' ? 'cutter' : B.ship === 'brig' ? 'brig' : 'frigate', bounty: B, pays: `◆ ${B.reward} on her head, and her strongbox` };
 }
 

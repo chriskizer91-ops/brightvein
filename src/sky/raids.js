@@ -19,6 +19,7 @@
 import * as THREE from 'three';
 import { intercept } from './guns.js';
 import { HOME } from './world.js';
+import { bountyHer } from './sites.js';
 import { WIND } from './flight.js';
 import { FLEET, STATS } from '../ships/index.js';
 import { materials, buildSite, colourFlag, buildCliff, buildDrill, buildEngine, buildBeacon, REPEAT } from './sites.js';
@@ -65,8 +66,8 @@ export function makeRaids(ctx) {
     const S = skies();
     cur = { def, kind: def.kind, state: 'approach', t: 0, wave: 0, waveT: 0, guards: [], towers: [], mounts: [], taken: false, lost: false, why: '',
       center: V(def.x, def.y, def.z), prize: null, boss: null, phase: 0, smokeT: 0, repeat: !!opts.repeat, flagged: {}, beacons: [], next: 0, barges: [] };
-    if (cur.kind === 'dredge' && cur.repeat) { cur.kind = 'galleon'; cur.def = def = { ...def, guard: def.repeatGuard, short: 'The salvagers' }; }   // the Grindstone's wreck draws salvagers
-    if (cur.kind === 'citadel' && cur.repeat) cur.kind = 'rock';           // the Black Candle doesn't come back
+    if (cur.kind === 'dredge' && cur.repeat) { cur.kind = 'galleon'; cur.def = def = { ...def, guard: def.repeatGuard, short: 'The salvagers' }; }   // the Grindstone’s wreck draws salvagers
+    if (cur.kind === 'citadel' && cur.repeat) cur.kind = 'rock';           // the Black Candle doesn’t come back
     const toward = Math.atan2(def.x - HOME.x, def.z - HOME.z);
     let out = { pos: V(HOME.x + Math.sin(toward) * 900, 680, HOME.z + Math.cos(toward) * 900), heading: toward };
     if (!def.moving) {
@@ -101,7 +102,7 @@ export function makeRaids(ctx) {
       if (cur.kind === 'galleon' && id === 'galleon' && !cur.prize) {
         const r = raiders.spawn('galleon', c.clone(), Math.atan2(HOME.x - c.x, HOME.z - c.z) + Math.PI / 2, false, false, { look: def.look });
         r.name = cur.repeat && def.id === 'dredge' ? 'The salvage galleon' : def.short; cur.prize = r; cur.guards.push(r); out.push(r);
-        if (cur.repeat) r.bounty *= REPEAT;   // her hold's lighter the second time
+        if (cur.repeat) r.bounty *= REPEAT;   // her hold’s lighter the second time
         return;
       }
       const a = (def.moving && !from ? toFoe + Math.PI : toFoe) + (k - (w.ids.length - 1) / 2) * 0.5, d = (def.size || 60) + 120 + k * 30;
@@ -262,7 +263,7 @@ export function makeRaids(ctx) {
     } else if (cur.kind === 'bounty' && !r.fleeing && r.f.frac('hull') < 0.3) {
       r.fleeing = true;
       r.ai = (rr, fo) => { const away = Math.atan2(rr.f.pos.x - fo.pos.x, rr.f.pos.z - fo.pos.z); return { turn: clamp(-wrap(away - rr.f.heading) * 2, -1, 1), climb: 0.3, sailTo: 1 }; };
-      say.banner(`${r.name} runs`, 'Bring her down before she gets away'); sfx('alarm');
+      { const h = bountyHer(cur.def.bounty); say.banner(`${r.name} runs`, `Bring ${h.him} down before ${h.she} gets away`); } sfx('alarm');
     }
   }
   // a ramming run: straight at the Captain at full sail; a hit stoves in her hull (and the boss's bow), then she
@@ -547,7 +548,7 @@ export function makeRaids(ctx) {
       out.sub = lead ? `${(lead.f.pos.distanceTo(V(HOME.x, 700, HOME.z)) / 1000).toFixed(1)} km to Brightvein` : 'Home';
       out.bars = cur.barges.map((b) => ({ label: b.name.replace('Ore barge ', ''), frac: b.f.down ? 0 : b.f.frac('hull'), home: !!b.home }));
     } else if (cur.kind === 'storm') { out.goal = `Beacons: ${cur.next} of ${cur.beacons.length}`; out.timer = cur.limit - cur.t; out.sub = `${mmss(out.timer)} before the front closes`; }
-    else if (cur.kind === 'bounty') { out.goal = `Bring down ${cur.boss?.name ?? def.short}`; out.sub = def.bounty ? `◆ ${def.bounty.reward} on her head` : ''; }
+    else if (cur.kind === 'bounty') { out.goal = `Bring down ${cur.boss?.name ?? def.short}`; out.sub = def.bounty ? `◆ ${def.bounty.reward} on ${bountyHer(def.bounty).her} head` : ''; }
     // the boss bar: the Black Candle, the Grindstone, a wanted captain, the Wickmoor's sails or Redspire's great gun
     const B = cur.boss;
     if (B && !B.gone) {

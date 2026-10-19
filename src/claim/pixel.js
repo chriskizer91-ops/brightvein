@@ -497,7 +497,7 @@ function drawVillagerFrame(L, row, col) {
     F.as('pauldron');
     const M = ramp(A.col), TR = A.trim ? ramp(A.trim) : null, big = A.big ? 1.4 : 0;
     for (const s0 of A.pauldron === 'both' ? [-1, 1] : [A.pauldron === 'L' ? -1 : 1]) {
-      if (row === 2) {   // facing left, the near shoulder is the one on the viewer's right in the front view
+      if (row === 2) {   // facing left, the near shoulder is the one on the viewer’s right in the front view
         if (s0 < 0) continue;
         F.ell(24.5, T + 2.6, 5.4 + big, 4.4 + big * 0.6, M, { shine: true }); F.ell(25, T + 6.6, 4.8 + big, 3, M);
         if (TR) for (let x = 21; x <= 28; x++) F.put(x, T + 6, TR[2]);
@@ -720,7 +720,7 @@ function drawVillagerFrame(L, row, col) {
     F.as('hair');
     const st = BASE[L.hairStyle] || L.hairStyle;
     const curly = st === 'curly';
-    if (st === 'bald') {   // a ring of hair round the back, higher under a gnome's hat (from behind, no face-like patch of skin)
+    if (st === 'bald') {   // a ring of hair round the back, higher under a gnome’s hat (from behind, no face-like patch of skin)
       if (row !== 0) F.ell(24, headCY - 1, 12.8, 11, H, { clip: (x, y) => y > headCY + (row === 1 ? (g ? -3 : 0) : -4) && (row === 1 || x > 23), bias: HB });
       return;
     }
@@ -882,7 +882,7 @@ function drawVillagerFrame(L, row, col) {
   const hat = () => {
     const t = L.hat; if (!t) return;
     F.as('hat');
-    if (t === 'cap') {   // flyer's leather cap with brass goggles and ear flaps
+    if (t === 'cap') {   // flyer’s leather cap with brass goggles and ear flaps
       F.ell(24, headCY - 3.6, 14.2, 10, HAT, { clip: (x, y) => y <= headCY - 2, shine: true });
       if (row !== 1) {
         for (let x = 10; x <= 38; x++) for (const y of [headCY - 7, headCY - 6]) if (F.has(x, y)) F.put(x, y, ramp('#3e2a22')[y === headCY - 7 ? 2 : 1]);
@@ -914,7 +914,7 @@ function drawVillagerFrame(L, row, col) {
       if (row !== 0) { const kx = row === 2 ? 36 : 26; F.cap(kx, headCY - 5, kx + (row === 2 ? 2 : -1), headCY - 1, 1.2, HAT); F.cap(kx, headCY - 5, kx + (row === 2 ? 4 : 2), headCY - 2, 1.1, HAT); }
     }
     if (t === 'gnome') {   // a tall pointed hat that leans back
-      const n = g ? 21 : 13;   // on a gnome's lower head it can stand tall; on anyone else it must fit in the frame
+      const n = g ? 21 : 13;   // on a gnome’s lower head it can stand tall; on anyone else it must fit in the frame
       for (let i = 0; i <= n; i++) {
         const y = headCY - 6 - i, w = Math.max(0, 13 - i * 13 / n), cx = 24 + (row === 2 ? i * 0.35 : i * 0.18) * (row === 1 ? -1 : 1);
         for (let x = Math.floor(cx - w); x <= Math.ceil(cx + w); x++) F.put(x, y, HAT[x < cx - w * 0.4 ? 3 : x > cx + w * 0.5 ? 1 : 2]);
@@ -939,7 +939,7 @@ function drawVillagerFrame(L, row, col) {
   const hatX = () => {
     const t = L.hat;
     F.as('hat');
-    if (t === 'gnome') {   // a wizard's hat: a band, stars, a star on the tip, goggles
+    if (t === 'gnome') {   // a wizard’s hat: a band, stars, a star on the tip, goggles
       if (L.hatBand) { const HBd = ramp(L.hatBand); F.box(10, headCY - 7, 37, headCY - 4, HBd); F.box(10, headCY - 7, 37, headCY - 7, HBd, { tone: 3 }); }
       if (L.hatStars) {
         const STr = ramp(L.hatStars);
@@ -957,7 +957,7 @@ function drawVillagerFrame(L, row, col) {
         if (row === 0) { F.ell(17, headCY - 5.5, 3, 2.8, BRASS, { shine: true }); F.ell(17, headCY - 5.5, 1.2, 1.2, BRASS, { bias: -0.6 }); }
       }
     }
-    if (t === 'witch') {   // a wide brim, a band, a point that flops over; ram's horns or little horns on the band
+    if (t === 'witch') {   // a wide brim, a band, a point that flops over; ram’s horns or little horns on the band
       const dir = (L.hatTip || -1) * (row === 1 ? -1 : 1), by = headCY - 2, BAND = ramp(L.hatBand || L.hatCol), HN = ramp(L.hornCol || '#efdcc0');
       const HP = { 4: HN[4], 3: HN[3], 2: HN[2], 1: HN[1], b: BAND[0] };
       const mx = x => dir < 0 ? x : 47 - x;

@@ -55,12 +55,12 @@ function rareToast(it, line) {
 // ----------------------------------------------------------------- an item's numbers, as rows that can be compared
 const JOB_OF = { hall: 'keep' };
 // who a job's people are, and where they work, in words
-const JOB_FOLK = { keep: 'clerks', head: 'miners', yard: 'tenders', shop: 'cutters', garden: 'gardeners', lens: 'lens crews', wall: 'the watch', mast: 'the Lark’s crew' };
-const JOB_AT = { keep: 'as a clerk', head: 'in the mine', yard: 'in the yards', shop: 'at the workshop', garden: 'in the greenhouse', lens: 'on the lens towers', wall: 'on the watch', mast: 'on the Lark' };
+const JOB_FOLK = { keep: 'clerks', head: 'miners', yard: 'tenders', shop: 'lens cutters', garden: 'gardeners', lens: 'lens gunners', wall: 'the watch', mast: 'the Lark’s crew' };
+const JOB_AT = { keep: 'as a clerk', head: 'in the mine', yard: 'in the yards', shop: 'at the Lens Workshop', garden: 'in the greenhouse', lens: 'on the lens towers', wall: 'on the watch', mast: 'on the Lark' };
 const jobTitle = j => { const t = JOB_OF[j] || j; return JOB_FOLK[t] || (DEFS[t] && DEFS[t].job ? DEFS[t].job.title.toLowerCase() : t); };
 const jobAt = j => JOB_AT[JOB_OF[j] || j] || 'at work';
 const listWords = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0] || '';
-const STAT_WORDS = { G: v => `+${v} Grit`, E: v => `+${v} Engineering`, A: v => `+${v} Agility`, R: v => `+${v} Rapport`, S: v => `+${v} Sowing`, allStats: v => `+${v} to every GEARS stat`,
+const STAT_WORDS = { G: v => `+${v} Grit`, E: v => `+${v} Engineering`, A: v => `+${v} Agility`, R: v => `+${v} Rapport`, S: v => `+${v} Sowing`, allStats: v => `+${v} to every stat`,
   guard: v => `+${v}% guard`, hp: v => `+${v} health`, out: v => `+${v}% output at its job`, night: v => `+${v}% work after dark`, nerve: v => `+${v} nerve`,
   vsWild: v => `+${v}% damage to Wildlight`, vsJumper: v => `+${v}% damage to claim-jumpers`, speed: v => `${v > 0 ? '+' : ''}${v}% move speed`, upkeep: v => `eats ${v}% less` };
 const statWords = e => Object.entries(e || {}).map(([k, v]) => STAT_WORDS[k] ? STAT_WORDS[k](v) : '').filter(Boolean).join(', ');
@@ -157,7 +157,7 @@ function personNums(v) {
   rows.push({ key: 'hp', label: 'Health', val: maxHpOf(v), unit: '' });
   rows.push({ key: 'guard', label: 'Guard', val: g.guard, unit: '%' });
   for (const k of 'GEARS') rows.push({ key: k, label: STAT_NAMES[k], val: statOf(v, k), unit: '' });
-  if (b && b !== WALLB) rows.push({ key: 'work', label: `Work as ${b.def.job.title.toLowerCase()}`, val: jobEff(v) * 100, unit: '%' });
+  if (b && b !== WALLB) rows.push({ key: 'work', label: `Work as ${aJob(b.def.job.title)}`, val: jobEff(v) * 100, unit: '%' });
   if (g.speed) rows.push({ key: 'speed', label: 'Move speed', val: g.speed, unit: '%' });
   if (g.findLuck) rows.push({ key: 'luck', label: 'Luck on finds', val: g.findLuck, unit: '', dec: 2 });
   return rows;
@@ -202,8 +202,8 @@ UI.item = function (body, { it, back }) {
   if (it.attuned) body.append(this.h(`<p class="small"><b>${esc(D.ATTUNE[it.attuned].name)}.</b> ${esc(D.ATTUNE[it.attuned].text)} ${esc(isModuleItem(it) ? '' : statWords(isWeaponItem(it) ? D.ATTUNE[it.attuned].hand : D.ATTUNE[it.attuned].other))}</p>`));
   // the maker's mark
   if (it.rarity === 'signed') {
-    if (it.unassayed) { const a = this.h(`<div class="power mark">The maker's mark is there, but nobody has read it. Its power won't work until Absalom assays it. <button type="button" class="btn" style="margin-top:6px">Ask Absalom to assay it · ${SHARD} ${WS.assay}</button></div>`); a.querySelector('button').onclick = () => { benchAssay(it); UI.refresh(); }; body.append(a); }
-    else body.append(this.h(`<div class="mark-line"><span class="small">Maker's mark</span> <b>${esc(it.name)}</b></div>`));
+    if (it.unassayed) { const a = this.h(`<div class="power mark">The maker’s mark is there, but nobody has read it. Its power won’t work until Absalom assays it. <button type="button" class="btn" style="margin-top:6px">Ask Absalom to assay it · ${SHARD} ${WS.assay}</button></div>`); a.querySelector('button').onclick = () => { benchAssay(it); UI.refresh(); }; body.append(a); }
+    else body.append(this.h(`<div class="mark-line"><span class="small">Maker’s mark</span> <b>${esc(it.name)}</b></div>`));
   }
   // what it's best for
   const bf = bestFor(it);
@@ -256,7 +256,7 @@ UI.compareBlock = function (body, it) {
 UI.fitPlaces = function (body, it, back) {
   const home = moduleFor(it), places = it.slot === 'lark' ? ['lark'] : home === 'wall' ? [WALLB] : ['hall', 'bunk'].includes(home) ? [TOWN.b.keep] : byType(home);
   body.append(this.h(`<h3>Where it can go</h3>`));
-  if (!places.length) { body.append(this.h(`<p class="small">There's no ${esc(homeOf(it).replace(/^(the|a) /, ''))} on the claim yet.</p>`)); return; }
+  if (!places.length) { body.append(this.h(`<p class="small">There’s no ${esc(homeOf(it).replace(/^(the|a) /, ''))} on the claim yet.</p>`)); return; }
   const l = document.createElement('div'); l.className = 'list';
   for (const b of places) {
     const L = socketsAt(b), n = socketCount(b), free = []; for (let i = 0; i < n; i++) if (!L[i]) free.push(i);
@@ -280,7 +280,7 @@ UI.stashTab = function (body, list) {
   const mats = Object.entries(D.MATERIALS).map(([k, x]) => `<span class="chip mat" style="--mc:${x.color}" title="${esc(x.text)}"><i></i>${esc(x.name)} <b>${m[k] || 0}</b></span>`), cells = Object.entries(GAME.cells).filter(([, n]) => n > 0).map(([k, n]) => `<span class="chip mat" style="--mc:${D.CELLS[k].color}"><i></i>${esc(D.CELLS[k].name)} <b>${n}</b></span>`);
   body.append(this.h(`<p class="small">Everything not being worn or fitted. Tap a piece to read it, compare it, or take it to Odile.</p><div class="mats">${mats.join('')}${cells.join('')}${GAME.blueprints.length ? `<span class="chip">${GAME.blueprints.length} blueprint${GAME.blueprints.length > 1 ? 's' : ''}</span>` : ''}</div>`));
   const junk = GAME.stash.filter(it => it.rarity === 'salvage' && canSalvage(it) && !(it.overhaul > 0) && !(it.cells || []).some(Boolean));
-  const acts = this.h(`<div class="stats-row"><button type="button" class="btn">Odile's bench</button>${junk.length ? `<button type="button" class="btn">Salvage all Salvage-grade · ${junk.length}</button>` : ''}</div>`);
+  const acts = this.h(`<div class="stats-row"><button type="button" class="btn">Odile’s bench</button>${junk.length ? `<button type="button" class="btn">Break down all Salvage-grade · ${junk.length}</button>` : ''}</div>`);
   const [ob, sb] = acts.querySelectorAll('button'); ob.onclick = () => UI.open('bench', { tab: 'salvage' });
   if (sb) sb.onclick = () => { UI.benchSel.pick = new Set(junk); UI.open('bench', { tab: 'salvage' }); };
   body.append(acts);

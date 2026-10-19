@@ -29,7 +29,7 @@ const CAST_NAMES = {
   sol: { name: 'Brisa Hale', title: 'Sword of the Brass Road' },
   halcyon: { name: 'Dame Seraphine Vael', title: 'Knight of the Thinwatch' },
   quill: { name: 'Barnabus Teague', title: 'The old skyman' },
-  tock: { name: 'Nib Tolliver', title: 'Gnome shipwright' },
+  tock: { name: 'Nib Tolliver', title: 'The gnome shipwright' },
   brann: { name: 'Torvald Pike', title: 'The smith' },
   jester: { name: 'Mirabel Quell', title: 'The New Moon, of the Moon Faire' },
   ranger: { name: 'Rowan Thorne', title: 'The Full Moon, of the Moon Faire' },
@@ -48,8 +48,8 @@ const CAST_CREW = {
   halcyon: { stats: { G: 10, E: 5, A: 8, R: 4, S: 2 }, trait: 'Steady', pref: 'wall', perk: 'Thinwatch vigil', perkText: 'Wildlight on the plateau take a fifth more harm from everything.' },
   quill: { stats: { G: 5, E: 7, A: 8, R: 7, S: 4 }, trait: 'Steady', pref: 'mast', perk: 'Old skyman', perkText: 'Voyages bring home a tenth more shards.' },
   tock: { stats: { G: 3, E: 10, A: 6, R: 5, S: 4 }, trait: 'Tinkerer', pref: 'shop', perk: 'Gnome mirrors', perkText: 'The sunning yards charge a fifth faster.' },
-  brann: { stats: { G: 9, E: 8, A: 4, R: 5, S: 3 }, trait: 'Steady', pref: 'head', perk: "Smith's edge", perkText: 'Every weapon on the claim hits a tenth harder.' },
-  fox: { stats: { G: 4, E: 5, A: 9, R: 8, S: 6 }, trait: 'Sharp-eyed', pref: 'yard', perk: "Fox's luck", perkText: 'Miners and travellers find more.' },
+  brann: { stats: { G: 9, E: 8, A: 4, R: 5, S: 3 }, trait: 'Steady', pref: 'head', perk: "Smith’s edge", perkText: 'Every weapon on the claim hits a tenth harder.' },
+  fox: { stats: { G: 4, E: 5, A: 9, R: 8, S: 6 }, trait: 'Sharp-eyed', pref: 'yard', perk: "Fox’s luck", perkText: 'Miners and travellers find more.' },
 };
 const castHere = id => GAME.villagers.some(v => v.d.hero === id && !v.d.exp);
 const castPerk = id => CAST_CREW[id] && castHere(id);
@@ -59,11 +59,11 @@ const CODEX = {
   wildlight: { title: 'The Wildlight', text: 'Loose light, the old prospectors called it: sunstone glow that has come away from its stone and wanders. Glimmers, Flarehounds, Lodestars. They climb toward anything brighter than themselves, and drink it. They hate smoked glass and the ring of a tuning fork.' },
   sunstone: { title: 'Sunstone', text: 'Raw, it is dull amber rock. Laid out in the sun it charges, and charged it lifts ships, lights towns and fires the lens towers. Shards of it are Aethermoor’s money.' },
   tallow: { title: 'Baron Ambrose Tallow', text: 'He made his fortune in candles and lamp oil, back when the dark was cheap to sell against. Every sunstone claim that opens puts more of his wicks out of work, so he jumps them. His crews fly rust-red sails; his citadel is the Chandlery, a candle-works on a lifted rock.' },
-  nightjar: { title: 'The Nightjar', text: 'Tamsin’s ship: small, black-hulled and quick, with a lantern on the bowsprit. Barnabus gave her to Tamsin. Nib keeps her in the air.' },
+  nightjar: { title: 'The Nightjar', text: 'Tamsin’s ship: small, black-hulled and quick, with a lantern on the bowsprit. Tamsin won her at cards from a courier who couldn’t pay. Nib keeps her in the air.' },
   convoys: { title: 'The Brass Road', text: 'Sunstone travels from the claims to the shipyards in armed convoys along the Brass Road. Brisa Hale guarded them for years, until Tallow bought the road and the company folded.' },
   thinwatch: { title: 'The Thinwatch', text: 'An old order of knights who kept watch wherever sunstone runs deep, because something bright always climbs out of a deep seam once it’s opened. Seraphine Vael is the last of them.' },
   wickmoor: { title: 'The Wickmoor', text: 'Tallow’s supply galleon: fat, slow and full of other people’s things. Shoot her sails and she strikes her colours. Sink her and her crates go down with her.' },
-  moonfaire: { title: 'The Moon Faire', text: 'A travelling festival on a painted airship, run by four witches who each answer to a phase of the moon. They follow the brightest lights.' },
+  moonfaire: { title: 'The Moon Faire', text: 'A travelling festival on a painted airship, run by four performers who each take the name of a phase of the moon. They follow the brightest lights.' },
   deepseam: { title: 'The deep seam', text: 'Below the lower gallery the vein runs on, brighter and older. At night it hums. Something down there wakes when the seam is opened.' },
   chandlery: { title: 'The Chandlery', text: 'Tallow’s fortress: stone works and tall chimneys on a great lifted rock, with a candle burning on its roof. Taken, it stands dark.' },
 };
@@ -100,7 +100,7 @@ const CHAPTERS = [
       ['hesper', 'Then we stay.'],
     ],
     reward: { shards: 40, codex: ['claim', 'sunstone'] } },
-  { id: 'firstlight', title: 'First Light', line: 'Every tray charged makes the claim brighter, and every night more of them come.',
+  { id: 'firstlight', title: 'First Light', line: 'Every tray charged makes the claim brighter, and every night more Wildlight come.',
     open: [
       ['odile', 'Every tray we charge, the town gets brighter. And every night, more of them come.'],
       ['pip', 'They’re not animals, you know. They’re light. Loose light. They want ours.'],
@@ -157,7 +157,7 @@ const CHAPTERS = [
     close: [
       ['quill', 'Ahoy the claim! An old skyman begs a mooring, and a gnome who won’t stop talking about your ship’s rudder.'],
       ['tock', 'It’s too small. The rudder. Lovely ship. Rudder’s too small. I’ll fix it. Small fee. Smaller than the rudder.'],
-      ['io', 'Barnabus! He gave me the Nightjar. And Nib keeps her in the air.'],
+      ['io', 'Barnabus! He taught me to fly. And Nib keeps the Nightjar in the air.'],
       ['quill', 'Tallow’s been buying up every shipwright between here and the coast. Nib’s the one he couldn’t buy.'],
     ],
     visitAfter: { cast: ['quill', 'tock'] },
@@ -205,7 +205,7 @@ const CHAPTERS = [
       ['halcyon', 'It was a Brightmaw. One climbs out wherever a deep seam is opened. I have followed their kind across the Ironspire for longer than I care to say.'],
       ['hesper', 'And who are you, coming up my bridge in armour at dawn?'],
       ['halcyon', 'Seraphine Vael, of the Thinwatch. There is one of us left. I knew someone would dig too deep here. I would stand your nights, if you will have me.'],
-      ['sol', 'She’s good. I watched her come up the cliff. Have her.'],
+      ['sol', 'She’s good. She came up the bridge in full plate and isn’t out of breath. Have her.'],
     ],
     visitAfter: { cast: ['halcyon'] },
     reward: { shards: 200, codex: ['deepseam', 'thinwatch'], crew: ['halcyon'] } },
@@ -296,7 +296,7 @@ let storyT = 0;
 function storyTick(dt) {
   if (!started || !BUILD.setupDone) return;
   updateVisits(dt);
-  actFrame(dt);   // the day's event card, the cast waiting at the Keep, the mood on the HUD (events.js, quests.js, mood.js)
+  actFrame(dt);   // the day’s event card, the cast waiting at the Keep, the mood on the HUD (events.js, quests.js, mood.js)
   if ((storyT -= dt) > 0 || STORY.shown || EVT.card || (SKY && SKY.on) || BUILD.on || frontOpen()) return;   // not while the settings are open (title.js)
   storyT = 0.5;
   if (STORY.queue.length) return playScene(STORY.queue.shift());
@@ -442,5 +442,5 @@ UI.journal = function (body, ref) {
     body.append(this.h(`<h3>${i ? `Chapter ${i}` : 'Prologue'} · ${esc(C.title)}${cur ? '' : ' ✓'}</h3><p class="small">${esc(C.line)}</p>`));
     if (cur && STORY.started) body.append(this.h(`<ul class="traits">${C.goals.map(g => { const p = g.prog && g.prog(), ok = g.done(); return `<li>${ok ? '✓ ' : ''}${esc(g.text)}${p && !ok ? ` (${p[0]} of ${p[1]})` : ''}</li>`; }).join('')}</ul>`));
   });
-  if (STORY.ch >= CHAPTERS.length) body.append(this.h(`<p class="small jr-end">The story so far ends here: Brightvein is a free town, with a heart under it, asleep. More chapters are coming. Days on the claim go on, and so do the cast's own stories.</p>`));
+  if (STORY.ch >= CHAPTERS.length) body.append(this.h(`<p class="small jr-end">The story so far ends here: Brightvein is a free town, with a heart under it, asleep. More chapters are coming. Days on the claim go on, and so do the cast’s own stories.</p>`));
 };

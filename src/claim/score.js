@@ -150,7 +150,7 @@ const SCORE = {
   },
 
   dawn: {
-    name: 'First Light', blurb: 'Dawn: a short cue as the sun comes up, turning the night\'s minor into the morning\'s major.',
+    name: 'First Light', blurb: 'Dawn: a short cue as the sun comes up, turning the night’s minor into the morning’s major.',
     bpm: 66, beats: 4, tpb: 2, key: 'G', level: 1, once: true,
     layers: {
       box: { kind: 'line', inst: 'box', vol: 0.36, rev: 0.45, pan: 0.2 },
@@ -175,7 +175,7 @@ const SCORE = {
   },
 
   letter: {
-    name: 'A Letter Under Seal', blurb: 'Baron Tallow\'s motif: low brass in C minor, over a ticking music box, for his letters.',
+    name: 'A Letter Under Seal', blurb: 'Baron Tallow’s motif: low brass in C minor, over a ticking music box, for his letters.',
     bpm: 60, beats: 4, tpb: 2, key: 'Cm', level: 0.85,
     layers: {
       brass: { kind: 'line', inst: 'brass', vol: 0.36, rev: 0.4, pan: 0 },
@@ -202,7 +202,7 @@ const SCORE = {
   },
 
   tallow: {
-    name: 'Rust-Red Sails', blurb: 'The jumpers come over the rim: Tallow\'s motif as a march, and the claim\'s own tune fighting back.',
+    name: 'Rust-Red Sails', blurb: 'The jumpers come over the rim: Tallow’s motif as a march, and the claim’s own tune fighting back.',
     bpm: 112, beats: 4, tpb: 2, key: 'Cm', level: 0.95,
     layers: {
       brass: { kind: 'line', inst: 'brass', vol: 0.32, rev: 0.3, pan: -0.05 },

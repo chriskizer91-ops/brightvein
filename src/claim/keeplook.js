@@ -13,7 +13,7 @@
 const RH = (KW / 2 - SWD / 2 - 0.15) / 2;       // half the inside width of a room (4.425)
 const CH = FH - 0.46;                            // clear height of a storey, floor to ceiling
 const LZ = 2.3;                                  // the walkway along the front of every floor
-const ROOF_H = 5.0;                              // the attic's height at the ridge
+const ROOF_H = 5.0;                              // the attic’s height at the ridge
 const roomCX = side => side * (SWD / 2 + 0.15 + RH);
 
 // ----------------------------------------------------------------- the faked lamplight
@@ -246,7 +246,7 @@ function plantAtlas() {
 
 // ----------------------------------------------------------------- putting pieces in place
 // Every piece is baked into world space with its tint as vertex colours and textures in metres, ready to merge.
-let KB = null, KR = null, KT = 1;                      // the pieces being collected, the room they're for, their tier
+let KB = null, KR = null, KT = 1;                      // the pieces being collected, the room they’re for, their tier
 const _km = new THREE.Matrix4(), _kq = new THREE.Quaternion(), _ke = new THREE.Euler(), _kv = new THREE.Vector3(), _ks = new THREE.Vector3(), _kc = new THREE.Color();
 function kput(geo, mat, x, y, z, o = {}) {
   _ke.set(o.rx || 0, o.ry || 0, o.rz || 0, o.ord || 'XYZ'); _kq.setFromEuler(_ke);
@@ -1409,7 +1409,7 @@ function keepLightK(g, now, out) {
   return out.setRGB(g.col[0] * s, g.col[1] * s, g.col[2] * s);
 }
 const _klc = new THREE.Color();
-function setInteriorLights() { /* the Keep's light is set every frame in keepLookUpdate */ }
+function setInteriorLights() { /* the Keep’s light is set every frame in keepLookUpdate */ }
 function keepLookUpdate(rdt, gdt) {
   if (!KEEPV.group || VIEW.mode !== 'keep') return;
   const now = performance.now() / 1000, night = TOD.night, M = WEATHER.mix, cover = wxCover(), day = clamp(1 - night * 1.15, 0, 1), light = QUALITY.level === 'light';

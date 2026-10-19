@@ -305,7 +305,7 @@ function bossDown(f) {
   for (const raw of extra) { const it = addToStash(raw, true, { pos: f.pos.clone().setY(Math.max(0, f.pos.y)), line: `${f.name} gave it up` }); if (N) N.drops.push(it); }
   FX.sparks(f.pos.clone().setY(1.5 * f.root.scale.x), 80, 0xfff0c0, 8);
   camShake(0.9); AUDIO.play('crack');
-  toast(`<b>${esc(f.name)} is down!</b> It leaves ${SHARD} ${bonus + (r.shards || 0)}${(r.items || []).length + extra.length ? ' and what it swallowed' : ''}.`, 'night');
+  toast(`${f.name === WARDEN.name ? `<b>${esc(f.name)} is calm</b>, and sinks back down the shaft.` : `<b>${esc(f.name)} is down!</b>`} It leaves ${SHARD} ${bonus + (r.shards || 0)}${(r.items || []).length + extra.length ? ' and what it swallowed' : ''}.`, 'night');
   const el = document.getElementById('bossbar'); if (el) el.classList.add('won');
   setTimeout(() => bossBar(f, false), 1800);
 }
@@ -598,7 +598,7 @@ function nightReport(N) {
   }
   // the verdict, in plain words
   let head;
-  if (R.bossKilled) head = `${R.boss} is down, and the Keep stood.`;
+  if (R.bossKilled) head = R.boss === WARDEN.name ? `${R.boss} is calm, and sinks back down the shaft. The Keep stood.` : `${R.boss} is down, and the Keep stood.`;
   else if (R.bossEscaped) head = `${R.boss} went back down the cliff at dawn, wounded. It will be back.`;
   else if (R.drained >= 40) head = `A hard night. They drank ${R.drained} shards from the claim.`;
   else if (R.breaches) head = `They broke through the wall, but the Keep stood.`;
@@ -618,7 +618,7 @@ function showDawn(R, big) {
   const mini = hudEl('dawnmini', '');
   card.hidden = true; mini.hidden = true;
   if (!big) {
-    mini.innerHTML = `<b>Dawn · Night ${R.n}</b> ${R.downed} Wildlight downed${R.lamps ? `, ${R.lamps} lamp${R.lamps > 1 ? 's' : ''} out` : ''}${R.drained ? `, ${R.drained} shards drunk` : ''}. ${esc(R.head)} <u>More</u>`;
+    mini.innerHTML = `<b>Dawn · Night ${R.n}</b> ${R.downed} Wildlight downed${R.lamps ? `, ${R.lamps} lamp${R.lamps > 1 ? 's' : ''} out` : ''}${R.drained ? `, ${R.drained} shard${R.drained === 1 ? '' : 's'} drunk` : ''}. ${esc(R.head)} <u>More</u>`;
     mini.hidden = false; NIGHT.miniT = 9;
     mini.onclick = () => { mini.hidden = true; showDawn(R, true); };
     return;

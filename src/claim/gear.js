@@ -116,7 +116,7 @@ function mineFindHere(gallery = 'upper') {
   if (f.item) addToStash(f.item, false, { pos: head.worldPos(0, 0, 2.4), line: 'The miners turned something up' });
   else if (f.cell) { GAME.cells[f.cell] = (GAME.cells[f.cell] || 0) + 1; toast(`The miners found a <b>${esc(D.CELLS[f.cell].name)}</b> in the rock.`); }
   else if (f.blueprint && !GAME.blueprints.includes(f.blueprint)) { GAME.blueprints.push(f.blueprint); toast(`A blueprint in the spoil: <b>${esc(D.ITEMS[f.blueprint].name)}</b>. Odile pins it up.`); }
-  else if (f.material) { GAME.mats[f.material] = (GAME.mats[f.material] || 0) + f.n; toast(`The miners kept back <b>${f.n} ${esc(D.MATERIALS[f.material].name)}</b> for Odile's bench.`); }
+  else if (f.material) { GAME.mats[f.material] = (GAME.mats[f.material] || 0) + f.n; toast(`The miners kept back <b>${f.n} ${esc(D.MATERIALS[f.material].name)}</b> for Odile’s bench.`); }
   UI.refresh();
 }
 function starterStash() {
@@ -189,7 +189,7 @@ function economy(dt) {
   else if (!POWER.on && GAME.shards > 3) POWER.on = true;
   // recruits
   const beds = totalBeds();
-  if (bedsUsed() < beds) {   // the cast are guests and don't take beds (people.js)
+  if (bedsUsed() < beds) {   // the cast are guests and don’t take beds (people.js)
     GAME.recruit += sum('keep') * RATES.recruit * dt * (1 + modV(TOWN.b.keep, 'recruit') / 100);   // modules: the Telegraph Key
     if (GAME.recruit >= 1) { GAME.recruit = 0; recruitArrives(); }
   }

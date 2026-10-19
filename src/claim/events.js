@@ -61,7 +61,7 @@ const EVENTS = [
   { id: 'courier', title: 'A courier with a rare trade', min: 1, w: 1.2, cool: 6,
     make() {
       const rar = STORY.ch >= 7 ? 'signed' : 'calibrated', it = LOOT.makeGear({ slot: pickOne(['hand', 'hand', 'rig', 'head', 'charm', 'offhand']), rarity: rar, ilvl: evIlvl() + 2, from: 'a courier' }), price = evAmt(rar === 'signed' ? 140 : 90);
-      return { who: ['absalom'], text: `A gnome courier sets down at the mast with one crate she won't open for just anyone. Absalom talks her into it. Inside, wrapped in oilcloth: ${itemTag(it)}. “${price} shards,” she says, “and I'm being generous.”`,
+      return { who: ['absalom'], text: `A gnome courier sets down at the mast with one crate she won’t open for just anyone. Absalom talks her into it. Inside, wrapped in oilcloth: ${itemTag(it)}. “${price} shards,” she says, “and I’m being generous.”`,
         choices: [
           { label: 'Buy it', hint: `−${price} shards · ${it.name}`, can: GAME.shards >= price, why: `You need ${price} shards`, act: () => res('She counts the shards twice, tips her cap, and leaves the crate.', { shards: -price, item: it }, `Bought ${it.name} from a courier.`) },
           { label: 'Not today', hint: 'Keep your shards', act: () => res('She shrugs, shoulders the crate and climbs back aboard. “Your loss, claim.”', {}, 'Turned away a courier’s rare trade.') },
@@ -71,27 +71,27 @@ const EVENTS = [
     make() {
       const d = strangers(1)[0], keys = ['G', 'E', 'A', 'R', 'S'], top = pickOne(keys), two = pickOne(keys.filter(k => k !== top));
       d.stats[top] = 10; d.stats[two] = Math.max(d.stats[two], 8); d.trait = pickOne(['Skittish', 'Night owl']);
-      const odd = d.trait === 'Skittish' ? 'jumps at shadows, and will run from Wildlight at the first glimmer' : 'only really wakes up after dark, and works slowly by day';
+      const odd = d.trait === 'Skittish' ? 'jump at shadows, and will run from Wildlight at the first glimmer' : 'only really wake up after dark, and work slowly by day';
       const first = d.name.split(' ')[0], bed = freeBeds() > 0;
-      return { faces: [d], text: `${esc(d.name)} walks up the bridge with forty years of dust on their boots and a pick over one shoulder. “Best ${STAT_NAMES[top]} in the Ironspire,” they say, and they mean it: ${STAT_NAMES[top]} 10, ${STAT_NAMES[two]} ${d.stats[two]}. They also ${odd}.`,
+      return { faces: [d], text: `${esc(d.name)} walks up the bridge with years of dust on their boots and a pick over one shoulder. “Best ${STAT_NAMES[top]} in the Ironspire,” they say, and they mean it: ${STAT_NAMES[top]} 10, ${STAT_NAMES[two]} ${d.stats[two]}. They also ${odd}.`,
         choices: [
-          { label: `Take ${first} in`, hint: `+1 person · ${STAT_NAMES[top]} 10 · ${d.trait}`, can: bed, why: 'No free bed in the Keep', act: () => res(`${esc(first)} drops their pack by the stove like they've lived here for years.`, { people: [d] }, `${d.name}, a wandering prospector, joined the claim.`) },
-          { label: 'Send them on with a meal', hint: '−5 food · mood +2', act: () => res(`${esc(first)} eats two bowls of Marigold's stew, says it's the best on the mountain, and heads off down the bridge.`, { food: -5, mood: [2, 1, 'Fed a traveller'] }, `Fed ${d.name}, a prospector passing through.`) },
+          { label: `Take ${first} in`, hint: `+1 person · ${STAT_NAMES[top]} 10 · ${d.trait}`, can: bed, why: 'No free bed in the Keep', act: () => res(`${esc(first)} drops their pack by the stove like they’ve lived here for years.`, { people: [d] }, `${d.name}, a wandering prospector, joined the claim.`) },
+          { label: 'Send them on with a meal', hint: '−5 food · mood +2', act: () => res(`${esc(first)} eats two bowls of Marigold’s stew, says it’s the best on the mountain, and heads off down the bridge.`, { food: -5, mood: [2, 1, 'Fed a traveller'] }, `Fed ${d.name}, a prospector passing through.`) },
         ] };
     } },
   { id: 'fever', title: 'A fever in the Keep', min: 1, w: 0.9, cool: 8, when: () => settlers(v => v.d.job).length >= 2,
     make() {
       const v = pickOne(settlers(v => v.d.job)), f = firstOf(v);
-      return { faces: [v], text: `${esc(f)} woke up hot and shivering. Marigold says it's the mountain fever: a day in bed and they'll mend. Or there's her honey tonic, which works by noon, and tastes like a boot.`,
+      return { faces: [v], text: `${esc(f)} woke up hot and shivering. Marigold says it’s the mountain fever: a day in bed and they’ll mend. Or there’s her honey tonic, which works by noon, and tastes like a boot.`,
         choices: [
           { label: 'A day in bed', hint: `${f} does no work today · mood +2`, act: () => { v.d.sick = { until: claimNow() + 0.8, rest: true }; return res(`${esc(f)} sleeps for most of the day, and wakes up hungry. A good sign.`, { mood: [2, 1, 'Looking after the sick'] }, `${v.d.name} had the mountain fever, and a day in bed.`); } },
-          { label: 'Marigold’s honey tonic', hint: '−20 food · back at work by noon', can: GAME.food >= 20, why: 'You need 20 food', act: () => { v.d.sick = { until: claimNow() + 0.2, rest: true }; return res(`${esc(f)} drinks it, pulls a face like a sprung trap, and is back at work by noon.`, { food: -20 }, `${v.d.name} had the mountain fever; Marigold's tonic cured it.`); } },
+          { label: 'Marigold’s honey tonic', hint: '−20 food · back at work by noon', can: GAME.food >= 20, why: 'You need 20 food', act: () => { v.d.sick = { until: claimNow() + 0.2, rest: true }; return res(`${esc(f)} drinks it, pulls a face like a sprung trap, and is back at work by noon.`, { food: -20 }, `${v.d.name} had the mountain fever; Marigold’s tonic cured it.`); } },
         ] };
     } },
   { id: 'festival', title: 'A festival day', min: 2, w: 0.8, cool: 12,
     make() {
       const first = !EVT.flags.founders, host = castHere('fox') ? 'Clem' : 'Pip';
-      return { who: ['marigold'], title: first ? 'Founders’ Day' : 'A festival day', text: `${first ? 'It is a year to the day since the founders staked the claim, near enough. ' : ''}Somebody has strung lanterns between the yards, Marigold has baked enough pies to sink a ship, and ${host} is selling tickets to a dance that is free. Nobody is going to get much work done today.`,
+      return { who: ['marigold'], title: first ? 'Founders’ Day' : 'A festival day', text: `${first ? 'Absalom has declared today Founders’ Day, and stamped it, so it is. ' : ''}Somebody has strung lanterns between the yards, Marigold has baked enough pies to sink a ship, and ${host} is selling tickets to a dance that is free. Nobody is going to get much work done today.`,
         choices: [
           { label: 'Down tools and dance', hint: 'Half the work today · −20 food · mood +15 for a day', act: () => { EVT.flags.founders = true; workFor(dayEnd() - claimNow(), 0.5, null, 'festival'); return res('The fiddles come out before breakfast. By noon even Corwin is tapping one foot.', { food: -Math.min(20, Math.floor(GAME.food)), mood: [15, 1.3, 'A festival day'] }, first ? 'Founders’ Day: the whole claim downed tools and danced.' : 'A festival day: the claim downed tools and danced.'); } },
           { label: 'Work first, dance at dusk', hint: '−10 food · mood +6', act: () => { EVT.flags.founders = true; return res('The work gets done, and at dusk the lanterns go up. It is a short dance, but a good one.', { food: -Math.min(10, Math.floor(GAME.food)), mood: [6, 1, 'A dance at dusk'] }, 'A dance at dusk after the day’s work.'); } },
@@ -126,9 +126,9 @@ const EVENTS = [
   { id: 'spy', title: 'Tallow’s spy', min: 9, w: 0.9, cool: 15,
     make() {
       const pay = evAmt(50);
-      return { who: [castHere('sol') ? 'sol' : 'hesper'], text: 'Brisa caught a man in a grey coat counting the lamps on the north rim and writing the numbers in a little book. “For the Baron,” he says, very fast. “Who works for the Exchange now. Who want to know how bright you are. Please don’t drop me off anything.”',
+      return { who: [castHere('sol') ? 'sol' : 'pip'], text: `${castHere('sol') ? 'Brisa' : 'Pip'} caught a man in a grey coat counting the lamps on the north rim and writing the numbers in a little book. “For the Baron,” he says, very fast. “Who works for the Exchange now. They want to know how bright you are. Please don’t drop me off anything.”`,
         choices: [
-          { label: 'Walk him off the bridge', hint: 'Mood +3 · he goes home empty-handed', act: () => res('Brisa walks him to the end of the bridge, very gently, and waits there until his skiff is a dot.', { mood: [3, 1, 'Saw off a spy'] }, 'Caught one of Tallow’s spies, and saw him off.') },
+          { label: 'Walk him off the bridge', hint: 'Mood +3 · he goes home empty-handed', act: () => res(`${castHere('sol') ? 'Brisa' : 'Pip'} walks him to the end of the bridge, very gently, and waits there until his skiff is a dot.`, { mood: [3, 1, 'Saw off a spy'] }, 'Caught one of Tallow’s spies, and saw him off.') },
           { label: 'Pay him to talk', hint: `−${pay} shards · learn what the Exchange is counting (codex)`, can: GAME.shards >= pay, why: `You need ${pay} shards`, act: () => res('He talks the whole way through a pot of tea. The Exchange counts everything: lamps, shards, people. Mostly people.', { shards: -pay, codex: 'ledger' }, 'Paid one of Tallow’s spies to talk.') },
         ] };
     } },
@@ -148,7 +148,7 @@ const EVENTS = [
       return { faces: two, text: `${esc(A)} and ${esc(B)} have walked the rim together every evening since spring. This morning they asked Absalom whether he can marry people. He says he can marry anyone to anything, and has the stamp to prove it.`,
         choices: [
           { label: 'Throw a proper feast', hint: `−30 food · −${evAmt(20)} shards · mood +12 for two days`, can: GAME.food >= 30 && GAME.shards >= evAmt(20), why: 'You need 30 food and some shards', act: () => res(`Absalom stamps the certificate, then ${esc(A)}, then ${esc(B)}. The feast goes on until the lamps need trimming.`, { food: -30, shards: -evAmt(20), mood: [12, 2, `${A} and ${B}’s wedding`] }, `${a.d.name} and ${b.d.name} married in the Hearth Hall, with a feast.`) },
-          { label: 'A quiet one in the Keep', hint: '−5 food · mood +4', act: () => res(`A few friends, a cake, and Absalom's stamp. ${esc(B)} cries. ${esc(A)} says they didn't, and did.`, { food: -5, mood: [4, 1, `${A} and ${B}’s wedding`] }, `${a.d.name} and ${b.d.name} married quietly in the Hearth Hall.`) },
+          { label: 'A quiet one in the Keep', hint: '−5 food · mood +4', act: () => res(`A few friends, a cake, and Absalom’s stamp. ${esc(B)} cries. ${esc(A)} says they didn’t, and did.`, { food: -5, mood: [4, 1, `${A} and ${B}’s wedding`] }, `${a.d.name} and ${b.d.name} married quietly in the Hearth Hall.`) },
         ] };
     } },
   { id: 'dispute', title: 'Two settlers fall out', min: 1, w: 0.9, cool: 8, when: () => settlers().length >= 2,
@@ -158,7 +158,7 @@ const EVENTS = [
       return { faces: two, text: `${esc(A)} and ${esc(B)} have stopped speaking, over ${why}. Half the Keep has taken sides. The other half is selling tickets.`,
         choices: [
           { label: 'Ask Absalom to settle it', hint: `−${fee} shards (his fee) · mood +2`, can: GAME.shards >= fee, why: 'Not enough shards', act: () => res(`Absalom hears both sides, consults a very thick book, and rules that they are both right and both buying the next round.`, { shards: -fee, mood: [2, 1, 'A quarrel settled'] }, `Absalom settled a quarrel between ${a.d.name} and ${b.d.name}.`) },
-          { label: 'Let them work it out', hint: 'Mood −4 for two days', act: () => res(`They do, eventually. It takes two days of very loud silence.`, { mood: [-4, 2, `${A} and ${B} aren't speaking`] }, `${a.d.name} and ${b.d.name} fell out, and made up in the end.`) },
+          { label: 'Let them work it out', hint: 'Mood −4 for two days', act: () => res(`They do, eventually. It takes two days of very loud silence.`, { mood: [-4, 2, `${A} and ${B} aren’t speaking`] }, `${a.d.name} and ${b.d.name} fell out, and made up in the end.`) },
         ] };
     } },
   { id: 'bees', title: 'The bees swarm', min: 1, w: 0.8, cool: 10, when: () => byType('garden').length > 0,
@@ -174,7 +174,7 @@ const EVENTS = [
     make() {
       const mend = evAmt(30), bp = evAmt(40), hurt = WALL.segs.filter(s => s.hp < 1 || s.broken).length;
       const known = new Set(GAME.blueprints), pool = Object.keys(D.ITEMS).filter(k => !known.has(k)), pick = pool.length ? pickOne(pool) : null;
-      return { who: [castHere('tock') ? 'tock' : 'corwin'], text: `A gnome tinker with a cart full of clockwork has talked her way past the watch. She'll mend anything with a gear in it, she says, or sell you the drawings for something new.${hurt ? ' She has already noticed the wall.' : ''}`,
+      return { who: [castHere('tock') ? 'tock' : 'corwin'], text: `A gnome tinker with a cart full of clockwork has talked her way past the watch. She’ll mend anything with a gear in it, she says, or sell you the drawings for something new.${hurt ? ' She has already noticed the wall.' : ''}`,
         choices: [
           { label: 'Mend the wall', hint: `−${mend} shards · every stretch of wall made sound`, can: hurt > 0 && GAME.shards >= mend, why: hurt ? 'Not enough shards' : 'The wall is sound already', act: () => { for (const s of WALL.segs) { s.hp = 1; s.broken = false; s.stage = wallStage(s); } wallMatrices(); buildNav(); return res('She runs along the wall with a little brass machine that spits mortar. Corwin follows her, checking. He finds nothing to say.', { shards: -mend }, 'A tinker mended the wall all the way round.'); } },
           { label: 'Buy a blueprint', hint: `−${bp} shards · Odile can make ${pick ? esc(D.ITEMS[pick].name) : 'something new'}`, can: !!pick && GAME.shards >= bp, why: pick ? 'Not enough shards' : 'Odile has every drawing', act: () => res('She unrolls the drawing with a flourish. Odile reads it twice and says “huh”, which from Odile is a rave review.', { shards: -bp, blueprint: pick }, `Bought the drawings for ${D.ITEMS[pick].name} from a tinker.`) },
@@ -201,7 +201,7 @@ const EVENTS = [
   { id: 'shard', title: 'A shard that sings', min: 3, w: 0.8, cool: 10,
     make() {
       const miner = pickOne(settlers(v => v.jobB && v.jobB.type === 'head')), sell = evAmt(70), who = miner ? firstOf(miner) : 'A miner';
-      return { who: ['odile'], faces: miner ? [miner] : null, text: `${esc(who)} came up the shaft holding a shard at arm's length. It glows on its own, with no sun on it at all, and it hums the same note Odile hears under the plateau at night.`,
+      return { who: ['odile'], faces: miner ? [miner] : null, text: `${esc(who)} came up the shaft holding a shard at arm’s length. It glows on its own, with no sun on it at all, and it hums the same note Odile hears under the plateau at night.`,
         choices: [
           { label: 'Give it to Odile', hint: '+1 Heartstone for her bench', act: () => res('Odile holds it to her ear for a long time, then puts it in her pocket and pats it.', { mats: { heartstone: 1 } }, 'A singing shard came up the shaft; Odile kept it.') },
           { label: STORY.ch >= 9 ? 'Sell it to the Exchange’s buyer' : 'Sell it to the next courier', hint: `+${sell} shards`, act: () => res('The buyer pays without haggling, which worries Absalom more than anything else this week.', { shards: sell }, 'Sold a singing shard.') },
@@ -230,7 +230,7 @@ const EVENTS = [
       const n = STORY.ch >= 6 ? 3 : 2, sell = evAmt(25);
       return { who: ['odile'], text: 'The storm struck the scree below the rim a hundred times. Where it hit, the sand melted into tubes of glass, rough on the outside and clear as water within.',
         choices: [
-          { label: 'Send a crew to dig it out', hint: `+${n} Cut Glass · the yards lose a morning's work`, act: () => { workFor(0.15, 0, 'yard'); return res('The tenders come back with their arms full of glass tubes, and Odile with her arms full of tenders’ complaints.', { mats: { glass: n } }, 'Dug lightning glass out of the scree.'); } },
+          { label: 'Send a crew to dig it out', hint: `+${n} Cut Glass · the yards lose a morning’s work`, act: () => { workFor(0.15, 0, 'yard'); return res('The tenders come back with their arms full of glass tubes, and Odile with her arms full of tenders’ complaints.', { mats: { glass: n } }, 'Dug lightning glass out of the scree.'); } },
           { label: 'Sell the spot to a glass-pedlar', hint: `+${sell} shards`, act: () => res('A pedlar pays you for the spot and digs it out himself, whistling.', { shards: sell }, 'Sold a field of lightning glass to a pedlar.') },
         ] };
     } },
@@ -275,10 +275,10 @@ const EVENTS = [
 ];
 const BIRTHDAYS = [
   { k: 'pip', name: 'Pip', text: 'Pip is nineteen today. Or twenty. Pip has lost count, and would like a cake to help work it out.', cake: 'There are twenty candles, to be safe. Pip blows out nineteen and keeps one for the night watch.' },
-  { k: 'corwin', name: 'Corwin', text: 'Corwin turns fifty today. He told Marigold. It is the most he has said all week.', cake: 'Corwin looks at the cake for a long time, then says “thank you”. People talk about it for days.' },
+  { k: 'corwin', name: 'Corwin', text: 'Corwin turns forty-five today. He told Marigold. It is the most he has said all week.', cake: 'Corwin looks at the cake for a long time, then says “thank you”. People talk about it for days.' },
   { k: 'absalom', name: 'Absalom', text: 'Absalom is two hundred and eleven today, and would like it known that he expects a cake shaped like his stamp.', cake: 'The cake is shaped like his stamp. He stamps it before he eats it.' },
   { k: 'marigold', name: 'Marigold', text: 'It is Marigold’s birthday. She has baked her own cake, because nobody else is allowed near her oven.', cake: 'Everyone sings. The bees join in, which nobody asked for.' },
-  { k: 'odile', name: 'Odile', text: 'Odile is sixty today. She would like a quiet day, a sharp lens, and for nobody to sing.', cake: 'Everyone sings anyway. Odile pretends to hate it, and judges the pitch: “flat, but warm.”' },
+  { k: 'odile', name: 'Odile', text: 'Odile is fifty today. She would like a quiet day, a sharp lens, and for nobody to sing.', cake: 'Everyone sings anyway. Odile pretends to hate it, and judges the pitch: “flat, but warm.”' },
   { k: 'hesper', name: 'Hesper', text: 'Hesper’s birthday. She says she is thirty-five. Her flying licence says something else, in very small writing.', cake: 'Hesper takes the Lark up at dusk and loops the plateau twice, with cake on her coat.' },
 ];
 function birthdayFor() {
@@ -401,7 +401,7 @@ function eventsTick() {
       EVT.pend.splice(EVT.pend.indexOf(p), 1);
       if (Math.random() < 0.34) {
         const y = pickOne(byType('yard')); GAME.shards = Math.max(0, GAME.shards - p.loss); if (y) y.scorch = Math.max(y.scorch || 0, 0.6);
-        toast(`<b>A tray cracked</b> in the heat${y ? ` at ${esc(y.name)}` : ''}: ${SHARD} −${p.loss}. It will be slower until it's patched.`, 'night'); daysLog('A tray cracked in the heat in the sunning yards.', 'event');
+        toast(`<b>A tray cracked</b> in the heat${y ? ` at ${esc(y.name)}` : ''}: ${SHARD} −${p.loss}. It will be slower until it’s patched.`, 'night'); daysLog('A tray cracked in the heat in the sunning yards.', 'event');
       } else toast('The yards ran hot all day, and <b>nothing cracked</b>.');
     }
   }
@@ -412,8 +412,8 @@ function eventsDawn(R) {
     if (p.kind !== 'bet' || R.n < p.night) continue;
     EVT.pend.splice(EVT.pend.indexOf(p), 1);
     const need = Math.ceil(R.spawned * 0.7), won = R.spawned > 0 && R.downed >= need;
-    if (won) { GAME.shards += p.stake * 2; moodAdd('bet', 3, 1, 'Won Juno’s wager'); toast(`<b>Juno's wager:</b> the watch brought down ${R.downed} of ${R.spawned}. She pays up, ${SHARD} ${p.stake * 2}, and doesn't gloat.`); daysLog(`Won Juno’s wager: ${R.downed} of ${R.spawned} brought down.`, 'event'); }
-    else { toast(`<b>Juno's wager:</b> ${R.downed} of ${R.spawned} brought down; she needed ${need}. She gloats.`); daysLog(`Lost Juno’s wager: ${R.downed} of ${R.spawned} brought down.`, 'event'); }
+    if (won) { GAME.shards += p.stake * 2; moodAdd('bet', 3, 1, 'Won Juno’s wager'); toast(`<b>Juno’s wager:</b> the watch brought down ${R.downed} of ${R.spawned}. She pays up, ${SHARD} ${p.stake * 2}, and doesn’t gloat.`); daysLog(`Won Juno’s wager: ${R.downed} of ${R.spawned} brought down.`, 'event'); }
+    else { toast(`<b>Juno’s wager:</b> ${R.downed} of ${R.spawned} brought down; she needed ${need}. She gloats.`); daysLog(`Lost Juno’s wager: ${R.downed} of ${R.spawned} brought down.`, 'event'); }
   }
 }
 function eventsTrip(v) {
@@ -460,7 +460,7 @@ function daysLog(text, kind = 'event') {
 function daysJournal(ui, body) {
   if (cardsOn() && EVT.next && EVT.next.day === GAME.day + 1) {
     const e = EVENTS.find(x => x.id === EVT.next.id);
-    body.append(ui.h(`<p class="jr-cards"><b>Clem’s cards for tomorrow:</b> ${e ? esc(e.title.replace(/^A |^An /, 'a ').replace(/^The /, 'the ')) : 'a quiet day'}.${GAME.day - EVT.turned >= 7 ? ' She can turn one day away this week.' : ''}</p>`));
+    body.append(ui.h(`<p class="jr-cards"><b>Clem’s cards for tomorrow:</b> ${e ? esc(e.title.replace(/^A /, 'a ').replace(/^An /, 'an ').replace(/^The /, 'the ').replace(/^(Two|Three|Some|Someone|Something|Folk|Lightning|Bees|Birthdays) /, (m, w) => w.toLowerCase() + ' ')) : 'a quiet day'}.${GAME.day - EVT.turned >= 7 ? ' She can turn one day away this week.' : ''}</p>`));
   }
   body.append(ui.h(`<h3>Days on the claim</h3>`));
   if (!EVT.log.length) { body.append(ui.h(`<p class="small">Nothing yet. Every so often something happens by day: a courier, a fever, a festival. It goes here.</p>`)); return; }

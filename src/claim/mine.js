@@ -12,7 +12,7 @@ const ROOMK = {
   face: { name: 'Ore Face', tag: 'Ore', short: 'Digs ore', job: { title: 'Miner', stat: 'G', night: true }, gear: 'head', cost: 40, up: [0, 0, 90, 200],
     blurb: 'Miners cut raw sunstone out of the vein. The deeper the row, the richer the ore.',
     levels: ['Picks, a lantern and a barrow', 'Timber sets, iron rails and brass lamps', 'Iron arches, crystal lamps and a steam drill'] },
-  grotto: { name: 'Crystal Grotto', tag: 'Grotto', short: 'Grows shards, day and night', job: { title: 'Cutter', stat: 'E', stat2: 'A', night: true }, cost: 90, minRow: 2, up: [0, 0, 150, 320],
+  grotto: { name: 'Crystal Grotto', tag: 'Grotto', short: 'Grows shards, day and night', job: { title: 'Grotto hand', stat: 'E', stat2: 'A', night: true }, cost: 90, minRow: 2, up: [0, 0, 150, 320],
     blurb: 'Charged crystal grows on the walls down here, with no sun at all. Cutters tend it and take shards from it, day and night. Engineering and Agility both help. Only in the lower rows and deeper.',
     levels: ['A few clusters and a cutter’s bench', 'Brass growing frames: bigger clusters', 'Lenses that feed the growth: the biggest clusters'] },
   pump: { name: 'Pump Room', tag: 'Pump', short: 'Keeps the rows below it dry', job: { title: 'Pump hand', stat: 'E', night: true }, cost: 60, up: [0, 0, 100, 220],
@@ -36,8 +36,8 @@ const ROOMK = {
 };
 const DIG_ORDER = ['face', 'grotto', 'pump', 'shore', 'depot', 'assay', 'lamp'];
 const DIG_TIERS = [
-  { name: 'Upper rows', rock: 'soft sandstone', ore: 1, gallery: 'upper' },
-  { name: 'Lower rows', rock: 'dark slate and sunstone veins', ore: 1.6, gallery: 'lower' },
+  { name: 'The upper gallery', rock: 'soft sandstone', ore: 1, gallery: 'upper' },
+  { name: 'The lower gallery', rock: 'dark slate and sunstone veins', ore: 1.6, gallery: 'lower' },
   { name: 'The deep', rock: 'amber geodes and Wildlight burrows', ore: 2.2, gallery: 'deep' },
 ];
 const tierOf = r => r < 2 ? 0 : r < 4 ? 1 : 2;
@@ -95,7 +95,7 @@ function digResolve(bid) {
 function digWhyNot(r, c) {
   if (r < 0 || r >= MINE.rows || c < 0 || c >= MINE.cols) return 'Off the edge of the claim.';
   if (digAt(r, c)) return 'Already dug.';
-  if (r > digReach()) return headLv() < 3 ? `The lift doesn't go that deep yet. Raise the Headframe to level ${headLv() + 1}.` : 'Too deep.';
+  if (r > digReach()) return headLv() < 3 ? `The lift doesn’t go that deep yet. Raise the Headframe to level ${headLv() + 1}.` : 'Too deep.';
   const byShaft = c === MINE.cols - 1 && r <= shaftBottom();
   if (!byShaft && !roomAt(r, c + 1) && !roomAt(r, c - 1)) return 'Dig next to a room you have, or next to the shaft.';
   return null;
@@ -633,7 +633,7 @@ UI.dig = function (body, ref) {
   if (ref.cell) return digCellPanel.call(this, body, ref);
   if (ref.isDig) return digSitePanel.call(this, body, ref);
   if (!DIG.byId[ref.id]) { const id = digResolve(ref.id); if (id) { this.cur.ref = DIG.byId[id]; return this.dig(body, DIG.byId[id]); } body.append(this.h('<p>Gone.</p>')); return; }
-  const R = ref, K = ROOMK[R.kind], t = tierOf(R.r), lv = R.lv, max = R.def.max, wide = ['', 'One cell', 'Two wide', 'Three wide'][R.w];
+  const R = ref, K = ROOMK[R.kind], t = tierOf(R.r), lv = R.lv, max = R.def.max, wide = ['', 'One room', 'Two wide', 'Three wide'][R.w];
   const pips = Array.from({ length: max }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
   body.append(this.h(`<h2>${esc(K.name)}<span class="lvl" aria-label="Level ${lv} of ${max}">${pips}</span></h2>
     <p class="sub">${R.kind === 'seam' ? 'The bottom of the shaft' : `${wide} · row ${R.r + 1} of ${MINE.rows}`} · ${esc(DIG_TIERS[t].name)}, ${esc(DIG_TIERS[t].rock)}</p>
@@ -669,12 +669,12 @@ UI.dig = function (body, ref) {
 // the crew slots, as on a building
 UI.crew = function (body, b) {
   const def = b.def, n = slotsOf(b), ws = workersOf(b.id), st = def.job.stat2 ? `${STAT_NAMES[def.job.stat]} and ${STAT_NAMES[def.job.stat2]}` : STAT_NAMES[def.job.stat];
-  body.append(this.h(`<h3>${esc(def.job.title)}s · ${ws.length} of ${n} · best stat ${esc(st)}</h3>`));
+  body.append(this.h(`<h3>${esc(jobsOf(def.job.title))} · ${ws.length} of ${n} · best stat ${esc(st)}</h3>`));
   const box = document.createElement('div'); box.className = 'workers';
   for (let i = 0; i < n; i++) {
     const v = ws.find(w => w.d.job.slot === i), el = document.createElement('button'); el.type = 'button';
     if (v) { el.className = 'wslot'; el.append(miniSprite(v)); el.append(this.h(`<b>${esc(v.d.name.split(' ')[0])}</b><span>${SHORT_STAT[def.job.stat]} ${statOf(v, def.job.stat)}</span>`)); el.onclick = () => { SEL.villager = v; UI.open('villager', v); }; el.setAttribute('aria-label', `${v.d.name}, open`); }
-    else { el.className = 'wslot empty'; el.append(this.h(`<span>+</span>Add`)); el.onclick = () => UI.open('pick', b); el.setAttribute('aria-label', `Add a ${def.job.title.toLowerCase()}`); }
+    else { el.className = 'wslot empty'; el.append(this.h(`<span>+</span>Add`)); el.onclick = () => UI.open('pick', b); el.setAttribute('aria-label', `Add ${aJob(def.job.title)}`); }
     box.append(el);
   }
   body.append(box);
@@ -706,7 +706,7 @@ function digSitePanel(body, d) {
     <div class="hp" role="meter" aria-label="Dug" aria-valuenow="${Math.round(k * 100)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.max(2, k * 100)}%"></i></div>
     <p>${esc(K.blurb)}</p>`));
   this.crew(body, d);
-  body.append(this.h(`<p class="small">Anyone can dig; Grit digs fastest. When it's done the diggers go back to their own work.</p>`));
+  body.append(this.h(`<p class="small">Anyone can dig; Grit digs fastest. When it’s done the diggers go back to their own work.</p>`));
   if (!workersOf(d.id).length) { const a = this.h(`<div class="stats-row"><button type="button" class="btn primary">Find diggers</button></div>`); a.querySelector('button').onclick = () => { if (!digAutoCrew(d)) toast('Nobody can be spared. Tap + to pick someone.'); UI.refresh(); }; body.append(a); }
   const x = this.h(`<div class="stats-row" style="margin-top:10px"><button type="button" class="btn">Stop digging · half the shards back</button></div>`);
   x.querySelector('button').onclick = () => { digCancel(d); UI.close(); };

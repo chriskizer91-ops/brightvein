@@ -315,7 +315,7 @@ function keepPets(rdt, dt, snap) {
       }
       if (to) {
         const ground = kplace(to), fy = ground.attic ? floorY(KEEPV.nF) : floorY(ground.f), foot = KV(to.x, fy, to.bed ? to.z + 0.7 : to.z);
-        if (P.kind === 'dog' && ground.attic) { /* the dog won't climb the ladder */ }
+        if (P.kind === 'dog' && ground.attic) { /* the dog won’t climb the ladder */ }
         else if (!P.p || snap) { P.p = to.clone(); P.path = []; P.up = to; }
         else { P.path = kpath(P.up && P.up.y - floorY(kplace(P.up).f) > 0.25 ? KV(P.p.x, floorY(kplace(P.p).f), P.p.z + 0.5) : P.p.clone(), foot); if (to.bed || to.y - fy > 0.25) P.path.push(to.clone()); P.up = to; }
       }

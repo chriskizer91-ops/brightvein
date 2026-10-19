@@ -29,7 +29,7 @@ function moodFactors() {
   if (GAME.food < 1) add(-25, 'There is nothing to eat');
   else if ((GAME.rates && GAME.rates.food || 0) < 0 && GAME.food < n * 1.5) add(-8, 'The food is running out');
   else if (GAME.food >= n * 3) add(6, 'Full larders');
-  const free = totalBeds() - bedsUsed();   // the cast are guests, so they don't fill the Keep
+  const free = totalBeds() - bedsUsed();   // the cast are guests, so they don’t fill the Keep
   if (free <= 0) add(-2, 'The Keep is full: no free beds'); else if (free >= 4) add(2, 'Room to spare in the Keep');
   if (typeof POWER !== 'undefined' && !POWER.on) add(-15, 'The lamps are dark: no shards to light them');
   const out0 = DECOR.lamps ? DECOR.lamps.filter(l => !l.lit).length : 0; if (out0 && !day) add(-Math.min(10, out0 * 2), 'Lamps snuffed by the Wildlight');
@@ -66,11 +66,11 @@ function moodHUD(dt) {
   const b = moodBand(), v = Math.round(MOOD.v), T = Math.round(moodTarget()), key = `${v}|${b.name}|${Math.sign(T - v)}`;
   if (key === MOOD.shown) return; MOOD.shown = key;
   el.querySelector('svg').innerHTML = moodFace(b);
-  const ic = $('#r-pop .mood-ic'); if (ic) { ic.innerHTML = moodFace(b); $('#r-pop').title = `People and beds. The face is the claim's mood: ${v}, ${b.name}. Tap for what's moving it.`; }
+  const ic = $('#r-pop .mood-ic'); if (ic) { ic.innerHTML = moodFace(b); $('#r-pop').title = `People and beds. The face is the claim’s mood: ${v}, ${b.name}. Tap for what’s moving it.`; }
   el.querySelector('b').textContent = v;
   el.querySelector('span').textContent = b.name;
   el.classList.toggle('low', b.at < 40); el.classList.toggle('up', T > v + 2); el.classList.toggle('down', T < v - 2);
-  el.title = `Mood ${v} · ${b.name}. ${b.text} ${T > v + 2 ? 'Rising.' : T < v - 2 ? 'Falling.' : ''} Tap for what's moving it.`;
+  el.title = `Mood ${v} · ${b.name}. ${b.text} ${T > v + 2 ? 'Rising.' : T < v - 2 ? 'Falling.' : ''} Tap for what’s moving it.`;
   el.setAttribute('aria-label', `Mood ${v}, ${b.name}`);
 }
 { const el = $('#r-mood'); if (el) { el.onclick = () => UI.open('journal', { tab: 'days' }); el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); } }; } }
@@ -81,7 +81,7 @@ function moodHUD(dt) {
 // ---- in the journal: the mood, what it does, and what's moving it
 function moodJournal(ui, body) {
   const b = moodBand(), v = Math.round(MOOD.v), T = Math.round(moodTarget()), f = moodFactors().sort((x, y) => y.amt - x.amt);
-  body.append(ui.h(`<div class="mood-head"><svg viewBox="0 0 20 20" aria-hidden="true">${moodFace(b)}</svg><div><b>Mood ${v} · ${b.name}</b><span>${esc(b.text)}${T > v + 2 ? ` It's rising toward ${T}.` : T < v - 2 ? ` It's falling toward ${T}.` : ''}</span></div></div>`));
+  body.append(ui.h(`<div class="mood-head"><svg viewBox="0 0 20 20" aria-hidden="true">${moodFace(b)}</svg><div><b>Mood ${v} · ${b.name}</b><span>${esc(b.text)}${T > v + 2 ? ` It’s rising toward ${T}.` : T < v - 2 ? ` It’s falling toward ${T}.` : ''}</span></div></div>`));
   body.append(ui.h(`<p class="small">How the claim feels, from 0 to 100. Fed, housed, lit and safe people are happy; hunger, dark lamps and hard nights wear them down. Happy people work faster and draw newcomers; miserable ones work slower, and nobody new will come.</p>`));
   body.append(ui.h(`<ul class="mood-list">${f.map(x => `<li class="${x.amt > 0 ? 'good' : 'bad'}"><em>${x.amt > 0 ? '+' : '−'}${Math.abs(x.amt)}</em>${esc(x.text)}</li>`).join('') || '<li>Nothing much either way.</li>'}</ul>`));
 }

@@ -23,7 +23,7 @@ Two things want the claim's light:
 | 1 | First Light | The town gets brighter, and more Wildlight come. | A Lens Tower; 250 shards; three nights | 100 shards; the Wildlight in the codex |
 | 2 | A Letter Under Seal | Tallow's courier drops a demand for a tithe. The founders won't pay. | Keep to level 2; take Tallow's prospect camp | 80 shards; Tallow in the codex |
 | 3 | The Nightjar | Tamsin Vey, a lamp-witch, and Brisa Hale, a convoy guard out of work since Tallow bought the Brass Road, come in at dusk on the Nightjar, drawn by the light. Brisa takes over the watch. | Give them both jobs; a night with them on the claim | They stay as crew |
-| 4 | Redspire | The jumpers' outpost on a red crag. Barnabus Teague (the old skyman who gave Tamsin the Nightjar) and Nib Tolliver (the gnome who keeps her flying) arrive after. | Take Redspire; two ballistas | Barnabus and Nib join |
+| 4 | Redspire | The jumpers' outpost on a red crag. Barnabus Teague (the old skyman who taught Tamsin to fly) and Nib Tolliver (the gnome who keeps her flying) arrive after. | Take Redspire; two ballistas | Barnabus and Nib join |
 | 5 | The Wickmoor | Tallow's supply galleon. Torvald Pike, a smith, wants the forge it was carrying. | Capture the Wickmoor; 400 shards | Torvald joins |
 | 6 | The Moon Faire | The Faire's painted ship tours in for a festival night, with its four Moons: Mirabel Quell (New), Rowan Thorne (Full), Hazel Brightwater (Waxing) and Clem Fennick (Waning). The Faire is an old travelling tradition by now, centuries older than its current troupe. | Light the sun beacon (Keep level 3); the festival night | Clem stays |
 | 7 | The Deep Seam | The vein runs on below the lower gallery, and hums at night. A Brightmaw climbs the shaft. At dawn Dame Seraphine Vael, the last knight of the Thinwatch, comes up the bridge: she has hunted their kind across the Ironspire. | Open the deep seam; a night with it open | 200 shards; Seraphine joins |
@@ -70,7 +70,7 @@ Each visitor who stays on as crew has a short story of their own: two or three s
 | Brisa | The Brass Road | Brisa to the gorse moors and back; anyone to the old-age ruins and back | 250 shards and a Signed weapon from the convoy's last strongbox; a convoy calls every four days with 40 shards |
 | Seraphine | The Last Vigil | A Bright Night's boss brought down with Seraphine on the wall; Seraphine tutors in the Drill Yard | Her vigil renewed: Wildlight take a third more harm (was a fifth) |
 | Barnabus | The Gannet | Someone to the wreck fields and back; give Nib 4 Brass Scrap and 200 shards | The Gannet, his old cutter, joins the fleet (or toughens the one you have); voyages bring a fifth more (was a tenth) |
-| Nib | Mirrors on Poles | Give Nib 2 Cut Glass; two cutters in a Lens Workshop; make 150 shards in one day | Cloud and rain dim the yards half as much |
+| Nib | Mirrors on Poles | Give Nib 2 Cut Glass; two lens cutters in a Lens Workshop; make 150 shards in one day | Cloud and rain dim the yards half as much |
 | Torvald | Pike's Forge | A Lens Workshop at level 2; give Torvald 1 Heartstone and 150 shards | Pike's Answer, a Masterwork hammer |
 | Clem | Clem's Cards | Give Clem 40 food; see three day events through | Tomorrow's event in the journal each morning, and once a week Clem can turn a day away |
 

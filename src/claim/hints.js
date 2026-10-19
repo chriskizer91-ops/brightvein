@@ -41,7 +41,7 @@ function hintShow(id) {
   el.querySelector('.hc-t').textContent = H.title; el.querySelector('.hc-x').textContent = H.text;
   el.dataset.where = H.where; el.hidden = false; el.style.bottom = ''; el.classList.remove('out'); void el.offsetWidth; el.classList.add('in');
   hintPlace(el);
-  $('#app').style.setProperty('--hint-h', el.offsetHeight + 'px');   // a day event's card makes room for it on a phone (style.css)
+  $('#app').style.setProperty('--hint-h', el.offsetHeight + 'px');   // a day event’s card makes room for it on a phone (style.css)
   HINTS.cur = { id, t: 0 };
   AUDIO.play('chime');
 }

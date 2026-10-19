@@ -11,10 +11,10 @@
   <header class="topbar">
     <div class="res" role="group" aria-label="Stores">
       <div class="pill" id="r-ore" title="Raw sunstone, dug from the vein"><svg viewBox="0 0 20 20" class="ic"><path d="M4 12 7 5l6-1 4 6-3 6-7 1z" fill="#8a7a6c" stroke="#2a1c22" stroke-width="1.2"/><path d="M8 7l3 2-1 4-3-1z" fill="#e8a44a"/></svg><b>0</b><span>Ore</span></div>
-      <div class="pill" id="r-shards" title="Charged sunstone shards: the town's power and its money"><svg viewBox="0 0 20 20" class="ic"><path d="M10 1.5 15.5 9 10 18.5 4.5 9z" fill="#ffb347" stroke="#5a2a10" stroke-width="1.2"/><path d="M10 3.5 12.6 9 10 9z" fill="#fff0c4"/></svg><b>0</b><span>Shards</span></div>
+      <div class="pill" id="r-shards" title="Charged sunstone shards: the town’s power and its money"><svg viewBox="0 0 20 20" class="ic"><path d="M10 1.5 15.5 9 10 18.5 4.5 9z" fill="#ffb347" stroke="#5a2a10" stroke-width="1.2"/><path d="M10 3.5 12.6 9 10 9z" fill="#fff0c4"/></svg><b>0</b><span>Shards</span></div>
       <div class="pill" id="r-food" title="Food from the gardens"><svg viewBox="0 0 20 20" class="ic"><path d="M10 18c-4-3-6-7-4-11 3 0 5 3 4 11z" fill="#8cc06a" stroke="#24321a" stroke-width="1.2"/><path d="M10 18c4-3 6-7 4-11-3 0-5 3-4 11z" fill="#6ea44e" stroke="#24321a" stroke-width="1.2"/></svg><b>0</b><span>Food</span></div>
       <div class="pill" id="r-pop" title="People and beds"><svg viewBox="0 0 20 20" class="ic"><circle cx="10" cy="6.5" r="3.5" fill="#f2d2b0" stroke="#2a1c22" stroke-width="1.2"/><path d="M4 18c0-4 2.5-6 6-6s6 2 6 6z" fill="#6b3a5e" stroke="#2a1c22" stroke-width="1.2"/></svg><b>0/0</b><span>People</span></div>
-      <div class="pill mood" id="r-mood" role="button" tabindex="0" title="The claim's mood. Tap for what's moving it." aria-label="Mood"><svg viewBox="0 0 20 20" class="ic" aria-hidden="true"></svg><b>60</b><span>Content</span></div>
+      <div class="pill mood" id="r-mood" role="button" tabindex="0" title="The claim’s mood. Tap for what’s moving it." aria-label="Mood"><svg viewBox="0 0 20 20" class="ic" aria-hidden="true"></svg><b>60</b><span>Content</span></div>
     </div>
     <div class="clock" id="clock">
       <canvas id="dial" width="96" height="96" aria-hidden="true"></canvas>
@@ -45,7 +45,7 @@
   </nav>
 
   <div id="hint" class="hint" hidden></div>
-  <div id="journal" class="journal" hidden role="button" tabindex="0" aria-label="The journal: this chapter's goals"></div>
+  <div id="journal" class="journal" hidden role="button" tabindex="0" aria-label="The journal: this chapter’s goals"></div>
   <div id="talk" class="talk" hidden role="dialog" aria-live="polite">
     <p id="talk-title" class="talk-title"></p>
     <div class="talk-card"><div id="talk-por" class="talk-por"></div><div class="talk-body"><b id="talk-name"></b><p id="talk-text"></p><span class="talk-more" aria-hidden="true">▾</span></div><button type="button" id="talk-skip" class="btn talk-skip">Skip scene</button></div>
@@ -88,10 +88,10 @@
         <div class="row"><span>Sound</span><button type="button" class="btn tog" id="b-sound" aria-pressed="true">On</button></div>
         <div class="row vol"><label for="vol-music">Music</label><input type="range" id="vol-music" min="0" max="100" step="1" value="70"></div>
         <div class="row vol"><label for="vol-sfx">Effects</label><input type="range" id="vol-sfx" min="0" max="100" step="1" value="80"></div>
-        <p class="small" id="sound-note" hidden>This browser can't make sound, so the game plays silently.</p>
+        <p class="small" id="sound-note" hidden>This browser can’t make sound, so the game plays silently.</p>
         <details class="mbox" id="mbox">
           <summary>Music box <span class="small">every tune in the game</span></summary>
-          <p class="small">Tap a tune to hear it. The game's own music comes back when you close the settings.</p>
+          <p class="small">Tap a tune to hear it. The game’s own music comes back when you close the settings.</p>
           <ul id="mb-list" class="mb-list"></ul>
         </details>
       </section>

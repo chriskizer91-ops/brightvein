@@ -25,7 +25,7 @@ function slotClear(n) { try { localStorage.removeItem(slotKey(n)); if (n === 1) 
 function chapterLabel(ch) {
   const C = CHAPTERS[ch];
   if (!C) return 'The story so far is told';
-  return `${ch ? `Chapter ${ch}` : 'Prologue'}: ${C.title}`;
+  return `${ch ? `Chapter ${ch}` : 'Prologue'} · ${C.title}`;
 }
 function saveSummary(s) {
   if (!s) return null;

@@ -454,7 +454,7 @@ UI.weather = function (body) {
   if (NIGHT.grudge) lines.push(`${esc(NIGHT.grudge.name)} got away. It will be back.`);
   const open = WALL.segs.filter(s => s.broken).length, hurt = WALL.segs.filter(s => s.hp < 1).length;
   if (hurt) lines.push(`The wall has ${hurt} damaged section${hurt > 1 ? 's' : ''}${open ? `, ${open} broken through` : ''}. ${workersOf('wall').length ? 'The watch mends it by day.' : 'Put someone on the watch to mend it.'}`);
-  if (byType('rod').length) lines.push(`Lightning rods: ${byType('rod').reduce((s, b) => s + (b.caught || 0), 0)} bolts caught so far.`);
+  if (byType('rod').length) { const n = byType('rod').reduce((s, b) => s + (b.caught || 0), 0); lines.push(`Lightning rods: ${n} bolt${n === 1 ? '' : 's'} caught so far.`); }
   body.append(this.h(`<h3>Nights</h3><ul class="traits">${lines.map(l => `<li>${l}</li>`).join('')}</ul>`));
   if (NIGHT.last) {
     const R = NIGHT.last;

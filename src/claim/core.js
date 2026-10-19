@@ -225,7 +225,7 @@ const MINE = {
   shaftTop: -0.9,
   walkZ: WORLD.faceZ - 1.5,
 };
-MINE.x0 = MINE.shaft.x0 - MINE.cols * MINE.cw;                   // the grid's west edge
+MINE.x0 = MINE.shaft.x0 - MINE.cols * MINE.cw;                   // the grid’s west edge
 MINE.rowY0 = r => MINE.top - MINE.rh - r * MINE.pitch;           // the floor of row r
 MINE.colX0 = c => MINE.x0 + c * MINE.cw;                         // the west side of column c
 // the old names, still used for the dust in the lamplight and the Wildlight's way up from the deep seam

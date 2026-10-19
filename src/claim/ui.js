@@ -22,7 +22,7 @@ function toastsHeld() {
 function toastPump() {
   if (toastsHeld()) return;
   const box = $('#toasts');
-  if (TOASTS.q.length && TOASTS.live.length < 3) toastPlace();   // how many fit where they'll go
+  if (TOASTS.q.length && TOASTS.live.length < 3) toastPlace();   // how many fit where they’ll go
   while (TOASTS.live.length < TOASTS.max() && TOASTS.q.length) {
     const t = TOASTS.q.shift();
     if (!t.el) { t.el = document.createElement('div'); t.el.className = 'toast ' + t.kind; t.el.innerHTML = t.html; }
@@ -43,7 +43,7 @@ setInterval(() => {
   const hurry = TOASTS.q.length > 2 ? 1.6 : 1;
   for (const t of TOASTS.live.slice()) { if (!t.el.isConnected) { TOASTS.live.splice(TOASTS.live.indexOf(t), 1); continue; } if ((t.left -= dt * hurry) <= 0) toastGone(t); }
   toastPump();
-  if (TOASTS.live.length && ++TOASTS.placeN % 3 === 0) toastPlace();   // a panel, the tray or the night's wave chip may have come up since
+  if (TOASTS.live.length && ++TOASTS.placeN % 3 === 0) toastPlace();   // a panel, the tray or the night’s wave chip may have come up since
 }, 100);
 // where the stack sits: above the bottom bar, the build tray or a phone's panel; beside a wide screen's panel
 function toastPlace() {
@@ -57,7 +57,7 @@ function toastPlace() {
     else bottom = Math.max(bottom, H - r.top + 8);
   }
   if (hint && !hint.hidden && bottom < 110) bottom = 110;
-  const chip = document.getElementById('wavechip');   // on a phone the night's wave chip sits just above the controls
+  const chip = document.getElementById('wavechip');   // on a phone the night’s wave chip sits just above the controls
   if (chip && !chip.hidden && W <= 560 && bottom < 100) bottom = 100;
   // a first-time tip low on the screen: beside it on a wide screen, above it otherwise
   let lo = 0, hi = W >= 900 && panel && !panel.hidden ? left * 2 : W;
@@ -93,6 +93,9 @@ function miniSprite(v, w = 36, h = 48, col = 0, row = 0) {
   else { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(v.canvas, sx, sy, PX.FW, PX.FH, 0, 0, cw, ch); }
   return c;
 }
+// 'a lens cutter', 'an assayer'; and a job title made plural for headings ('Watch hands', 'Deckhands')
+const aJob = title => (/^[aeiou]/i.test(title) ? 'an ' : 'a ') + title.toLowerCase();
+const jobsOf = title => title + 's';
 const SHORT_STAT = { G: 'Grit', E: 'Eng', A: 'Agility', R: 'Rapport', S: 'Sowing' };
 // a person's portrait in a gilt frame: the cast's painted ones, a drawn bust for everyone else (or, failing that, the
 // head and shoulders of their sprite, close up)
@@ -165,16 +168,16 @@ const UI = {
     if (chips.length) body.append(this.h(`<div class="stats-row">${chips.join('')}</div>`));
     if (def.job) {
       const n = slotsOf(b), ws = workersOf(b.id);
-      body.append(this.h(`<h3>${esc(def.job.title)}s · ${ws.length} of ${n} · best stat ${STAT_NAMES[def.job.stat]}</h3>`));
+      body.append(this.h(`<h3>${esc(jobsOf(def.job.title))} · ${ws.length} of ${n} · best stat ${STAT_NAMES[def.job.stat]}</h3>`));
       const box = document.createElement('div'); box.className = 'workers';
       for (let i = 0; i < n; i++) {
         const v = ws.find(w => w.d.job.slot === i);
         const el = document.createElement('button'); el.type = 'button';
         if (v) { el.className = 'wslot'; el.append(miniSprite(v)); el.append(this.h(`<b>${esc(v.d.name.split(' ')[0])}</b><span>${SHORT_STAT[def.job.stat]} ${statOf(v, def.job.stat)}</span>`)); el.onclick = () => { SEL.villager = v; UI.open('villager', v); }; el.setAttribute('aria-label', `${v.d.name}, open`); }
-        else { el.className = 'wslot empty'; el.append(this.h(`<span>+</span>Add`)); el.onclick = () => UI.open('pick', b); el.setAttribute('aria-label', `Add a ${def.job.title.toLowerCase()}`); }
+        else { el.className = 'wslot empty'; el.append(this.h(`<span>+</span>Add`)); el.onclick = () => UI.open('pick', b); el.setAttribute('aria-label', `Add ${aJob(def.job.title)}`); }
         box.append(el);
       }
-      if (!n) box.append(this.h(`<p class="small">No room for workers until it's built.</p>`));
+      if (!n) box.append(this.h(`<p class="small">No room for workers until it’s built.</p>`));
       body.append(box);
       if (def.job.night) body.append(this.h(`<p class="small">Works through the night.</p>`));
     }
@@ -188,7 +191,7 @@ const UI = {
     if (b.type === 'shop' && lv > 0) this.benchLink(body, b);
     this.socketBlock(body, b);
     if (b.type === 'mast') {
-      const fl = (GAME.sockets.lark || []).filter(Boolean).length, r = this.h(`<div class="stats-row"><button type="button" class="btn">The Lark's fittings · ${fl} of ${LARK_SLOTS}</button><button type="button" class="btn">The courier's wares</button></div>`);
+      const fl = (GAME.sockets.lark || []).filter(Boolean).length, r = this.h(`<div class="stats-row"><button type="button" class="btn">The Lark’s fittings · ${fl} of ${LARK_SLOTS}</button><button type="button" class="btn">The courier’s wares</button></div>`);
       const [a, c] = r.querySelectorAll('button'); a.onclick = () => UI.open('lark'); c.onclick = () => UI.open('courier'); body.append(r);
     }
     // actions
@@ -206,7 +209,7 @@ const UI = {
   },
   picker(body, b) {
     const def = b.def, stat = def.job.stat;
-    body.append(this.h(`<h2>Choose a ${esc(def.job.title.toLowerCase())}</h2><p class="sub">For the ${esc(b.name || def.name)}. ${STAT_NAMES[stat]} matters most here.</p>`));
+    body.append(this.h(`<h2>Choose ${esc(aJob(def.job.title))}</h2><p class="sub">For the ${esc(b.name || def.name)}. ${STAT_NAMES[stat]} matters most here.</p>`));
     const list = document.createElement('div'); list.className = 'list';
     const people = GAME.villagers.filter(v => !v.d.exp && !v.d.study && !(v.d.job && v.d.job.bid === b.id)).sort((a, c) => (!!a.d.job - !!c.d.job) || statOf(c, stat) - statOf(a, stat));
     for (const v of people) {
@@ -215,7 +218,7 @@ const UI = {
       const el = document.createElement('button'); el.type = 'button'; el.className = 'li';
       el.append(faceOf(v));
       el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${esc(jb)}</span></span><span class="fit">${stars(s)} <em>${STAT_NAMES[stat]} ${s}</em></span>`));
-      el.onclick = () => { if (assignJob(v, b.id)) { if (!b.isDig) v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now a ${def.job.title.toLowerCase()}.`); AUDIO.play('tap'); } UI.open(b.isRoom ? 'dig' : 'building', b); };
+      el.onclick = () => { if (assignJob(v, b.id)) { if (!b.isDig) v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now ${aJob(def.job.title)}.`); AUDIO.play('tap'); } UI.open(b.isRoom ? 'dig' : 'building', b); };
       list.append(el);
     }
     body.append(list);
@@ -265,7 +268,7 @@ const UI = {
     }
     const i = key, r = GAME.rooms[i];
     if (!r.type) {
-      body.append(this.h(`<h2>Empty room</h2><p class="sub">Furnish it as a place to study. Each kind trains one GEARS stat; you can have one of each.</p>`));
+      body.append(this.h(`<h2>Empty room</h2><p class="sub">Furnish it as a place to study. Each kind trains one stat; you can have one of each.</p>`));
       const list = document.createElement('div'); list.className = 'list';
       for (const k of 'GEARS') {
         const S = STUDY[k], built = GAME.rooms.some(x => x.type === k), cost = ROOM_COST[1], can = !built && GAME.shards >= cost;
@@ -475,7 +478,7 @@ const UI = {
       const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; if (full) el.disabled = true;
       el.style.gridTemplateColumns = '1fr auto'; el.style.opacity = full ? 0.5 : 1;
       el.append(this.h(`<span><span class="nm">${esc(b.def.job.title)} · ${esc(b.name || b.def.name)}</span><span class="jb">${mine ? 'Current job' : full ? 'Full' : `${used} of ${n} places taken`}${b.def.job.night ? ' · works nights' : ''}</span></span><span class="fit">${stars(s)} <em>${STAT_NAMES[b.def.job.stat]} ${s}</em></span>`));
-      el.onclick = () => { if (mine) return UI.open('villager', v); if (v.d.study) endStudy(v); if (assignJob(v, b.id)) { if (!b.isDig) v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now a ${b.def.job.title.toLowerCase()}.`); AUDIO.play('tap'); } UI.open('villager', v); };
+      el.onclick = () => { if (mine) return UI.open('villager', v); if (v.d.study) endStudy(v); if (assignJob(v, b.id)) { if (!b.isDig) v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now ${aJob(b.def.job.title)}.`); AUDIO.play('tap'); } UI.open('villager', v); };
       list.append(el);
     }
     const none = document.createElement('button'); none.type = 'button'; none.className = 'li'; none.style.gridTemplateColumns = '1fr'; none.append(this.h(`<span><span class="nm">No job</span><span class="jb">Rest and wander the plateau</span></span>`));
@@ -503,7 +506,7 @@ const UI = {
         list.append(el);
       }
     } else if (this.tab === 'wilds') {
-      body.append(this.h(`<p class="small">Down the rope stair in the cut face: scree, then gorse moor, old-age ruins and the wreck fields under the Thinning. The longer they stay, the farther they get. ${out.length} of ${expLimit()} out; raise the Keep to send more.</p>`));
+      body.append(this.h(`<p class="small">Down the rope stair in the cut face: scree, then the gorse moors, the old ruins and the wreck fields under the Thinning. The longer they stay, the farther they get. ${out.length} of ${expLimit()} out; raise the Keep to send more.</p>`));
       for (const v of out) {
         const E = v.d.exp, el = document.createElement('button'); el.type = 'button'; el.className = 'li';
         el.append(faceOf(v));
@@ -534,14 +537,14 @@ const UI = {
     const O = UI.orders, FAR = ['Scree', 'Moors', 'Ruins', 'Wrecks'], TURN = [[0.5, 'Half health'], [0.25, 'A quarter'], [0, 'Never']];
     const ord = this.h(`<h3>Orders</h3><p class="small">Go as far as</p><div class="seg" role="group" aria-label="How far">${FAR.map((n, i) => `<button type="button" data-f="${i}" aria-pressed="${O.far === i}">${n}</button>`).join('')}</div>
       <p class="small" style="margin-top:8px">Turn back when health falls below</p><div class="seg" role="group" aria-label="Turn back at">${TURN.map(([k, n]) => `<button type="button" data-t="${k}" aria-pressed="${O.turnAt === k}">${n}</button>`).join('')}</div>
-      <p class="small" style="margin-top:6px">${esc(WILDS.zones[O.far].name)}: ${esc(WILDS.zones[O.far].text)} They'll spend about a day there, then come home.${O.far === 3 ? ' (At the wrecks they keep searching until hurt.)' : ''}</p>`);
+      <p class="small" style="margin-top:6px">${esc(WILDS.zones[O.far].name)}: ${esc(WILDS.zones[O.far].text)} They’ll spend about a day there, then come home.${O.far === 3 ? ' (At the wrecks they keep searching until hurt.)' : ''}</p>`);
     for (const b of ord.querySelectorAll('[data-f]')) b.onclick = () => { O.far = +b.dataset.f; UI.refresh(); };
     for (const b of ord.querySelectorAll('[data-t]')) b.onclick = () => { O.turnAt = +b.dataset.t; UI.refresh(); };
     body.append(ord);
-    if (v.jobB) body.append(this.h(`<p class="small" style="margin-top:8px">They'll leave their place as ${esc(v.jobB.def.job.title.toLowerCase())} and take it back when they're home, if it's still free.</p>`));
+    if (v.jobB) body.append(this.h(`<p class="small" style="margin-top:8px">They’ll leave their place as ${esc(aJob(v.jobB.def.job.title))} and take it back when they’re home, if it’s still free.</p>`));
     const go = this.h(`<div class="stats-row" style="margin-top:12px"><button type="button" class="btn primary">Set out</button><button type="button" class="btn">Not yet</button></div>`);
     const [ok, no] = go.querySelectorAll('button');
-    ok.onclick = () => { if (sendExpedition(v, UI.rations, { ...UI.orders })) { toast(`<b>${esc(d.name)}</b> heads for the rope stair.`); UI.open('exp', v); } else toast('They can\'t go just now.'); };
+    ok.onclick = () => { if (sendExpedition(v, UI.rations, { ...UI.orders })) { toast(`<b>${esc(d.name)}</b> heads for the rope stair.`); UI.open('exp', v); } else toast('They can’t go just now.'); };
     no.onclick = () => UI.open('villager', v);
     body.append(go);
   },

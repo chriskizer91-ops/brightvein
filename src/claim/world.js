@@ -6,7 +6,7 @@ const LAYOUT = {
   mast: { x: -31, z: -26.5 },          // where the mast starts on a new claim
   keep: { x: 0, z: -3 },               // and the Keep
   trail: { x: -25, z: 34.4 },          // the rope stair down the cut face, for expeditions (west of the dig)
-  dock: { x: 6, z: 0 },                // the Sky Dock's bridge, out over the north rim (z: the rim's edge there)
+  dock: { x: 6, z: 0 },                // the Sky Dock’s bridge, out over the north rim (z: the rim’s edge there)
 };
 { let bd = 1e9; for (const [x, z] of OUTLINE) if (z < 0 && Math.abs(x - LAYOUT.dock.x) < bd) { bd = Math.abs(x - LAYOUT.dock.x); LAYOUT.dock.z = z; } }
 // where things stood before the grid: used to bring an old save across
@@ -555,7 +555,7 @@ function applyTimeOfDay(t, time) {
   const envK = lerp(1, 0.18, TOD.night);
   for (const m of ENV_MATS) m.envMapIntensity = m.userData.env * envK;
   if (bloom) { bloom.strength = lerp(0.42, 0.95, TOD.night); bloom.threshold = lerp(0.88, 0.62, TOD.night); }
-  weatherMood(t, time);   // cloud, rain, fog and storm over the hour's light (weather.js)
+  weatherMood(t, time);   // cloud, rain, fog and storm over the hour’s light (weather.js)
 }
 const ENV_MATS = [];
 function trackEnv(m, k) { if (!m.envMap) m.envMap = envTex; m.envMapIntensity = k; m.userData.env = k; ENV_MATS.push(m); return m; }

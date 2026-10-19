@@ -133,7 +133,7 @@ function bestFor(it) {
   if (w) {
     const dw = itemDps(it, 'flarehound'), dj = itemDps(it, 'jumper'), asp = D.ASPECTS[it.aspect || w.aspect];
     const fight = dw > dj * 1.12 ? 'Best against Wildlight' : dj > dw * 1.12 ? 'Best against claim-jumpers' : 'Good against Wildlight and jumpers alike';
-    out.push(`${fight}${asp ? ` · ${asp.name}: ${asp.text}` : ''}${w.range > 3 ? ' · shoots from reach' : ''}`);
+    out.push(`${fight}${asp ? ` · ${asp.name}: ${asp.text.replace(/\.$/, '')}` : ''}${w.range > 3 ? ' · shoots from reach' : ''}`);
   } else if (s.vsWild || s.night) out.push('For the night watch');
   if (s.findLuck) out.push('For miners and expeditions: better finds');
   if (s.guard >= 6 || s.hp >= 6) out.push('For the wilds: it turns a blow');
@@ -235,7 +235,7 @@ UI.compareBlock = function (body, it) {
   const people = GAME.villagers.filter(v => !v.d.exp && v !== wearer).sort((a, b) => (b === UI.cmpV) - (a === UI.cmpV) || want.has(jobOf(b)) - want.has(jobOf(a)) || (b.d.gear[slot] ? 0 : 1) - (a.d.gear[slot] ? 0 : 1));
   if (!people.length) return;
   const v = people.includes(UI.cmpV) ? UI.cmpV : people[0];
-  body.append(this.h(`<h3>Compare · on ${esc(v.d.name.split(' ')[0])}, against ${v.d.gear[slot] ? 'what they wear now' : 'nothing in that slot'}</h3>`));
+  body.append(this.h(`<h3>Compare · on ${esc(v.d.name.split(' ')[0])}, against ${v.d.gear[slot] ? 'what they wear now' : slot === 'hand' ? 'their bare hands' : 'nothing in that slot'}</h3>`));
   const faces = document.createElement('div'); faces.className = 'cmp-faces';
   for (const p of people.slice(0, 8)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'cmp-face' + (p === v ? ' on' : ''); b.setAttribute('aria-pressed', p === v); b.title = p.d.name; b.append(faceOf(p)); b.append(this.h(`<span>${esc(p.d.name.split(' ')[0])}</span>`)); b.onclick = () => { UI.cmpV = p; UI.refresh(); }; faces.append(b); }
   body.append(faces);

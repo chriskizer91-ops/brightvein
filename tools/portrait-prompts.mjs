@@ -39,11 +39,13 @@ for (const [name, f] of Object.entries(FOLK_FOUNDERS)) {
   lines.push(`> ${f.desc}`);
   lines.push('');
 }
-lines.push('## The Baron');
+lines.push('## The Baron, and act two’s visitors');
+lines.push('');
+lines.push('Until their pictures arrive, act two’s visitors get a bust drawn in code.');
 lines.push('');
 for (const [id, f] of Object.entries(FOLK_OTHERS)) {
   lines.push(`### ${f.name}`);
-  lines.push(`File: \`${id}.png\` (shown when his letters are read)`);
+  lines.push(`File: \`${id}.png\`${f.note ? ` (${f.note})` : ''}`);
   lines.push('');
   lines.push(`> ${f.desc}`);
   lines.push('');

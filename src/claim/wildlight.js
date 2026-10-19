@@ -130,7 +130,7 @@ class Wildlight {
   }
   hurt(n, src) {
     if (this.dead || this.leaving) return;
-    const dealt = Math.min(Math.max(0, this.hp), n * (castPerk('halcyon') ? 1.2 : 1));   // Seraphine's vigil
+    const dealt = Math.min(Math.max(0, this.hp), n * wlHarmK(this));   // Seraphine's vigil, and the Warden while the mine is held (acttwo.js)
     this.hp -= dealt; this.flash = 0.15;
     nightCredit(src, dealt);
     if (this.boss) bossHurt(this, dealt);

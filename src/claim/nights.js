@@ -32,12 +32,14 @@ function planNight(n) {
   const R = mulberry(n * 7919 + 13), deep = TOWN.b.head && TOWN.b.head.level >= 2;
   const L = OUTLINE.length, lo = 9, hi = L - 10, span = hi - lo, spread = Math.round(L * 0.045);
   const seamBoss = deep && !NIGHT.seamWoke;
-  const G = n % 5 === 0 && !seamBoss ? NIGHT.grudge : null;   // a boss that got away comes back on the next Bright Night
-  const bright = n % 5 === 0 || seamBoss;
+  const SN = storyNight(n);   // a night the story asks for: the Long Bright Night (acttwo.js)
+  const G = SN ? (NIGHT.grudge && NIGHT.grudge.name === SN.name ? NIGHT.grudge : null)
+    : n % 5 === 0 && !seamBoss ? NIGHT.grudge : null;   // a boss that got away comes back on the next Bright Night
+  const bright = n % 5 === 0 || seamBoss || !!SN;
   // the threat grows with the night count and with what the claim has to lose
   const w = wealthK();
   let budget = n <= 1 ? 3 : 2 + (n - 1) * 2.2 + w * (1 + n * 0.3) + (deep ? 3 : 0);
-  if (bright) budget *= 0.5;   // the boss is most of a Bright Night
+  if (bright) budget *= SN ? SN.budgetK : 0.5;   // the boss is most of a Bright Night
   const share = [['glimmer', 1]];
   if (n >= 3) share.push(['flarehound', n >= 6 ? 1 : 0.6]);
   if (n >= (deep ? 4 : 6)) share.push(['lodestar', n >= 10 ? 0.5 : 0.3]);
@@ -74,9 +76,9 @@ function planNight(n) {
   // a Bright Night's boss: last wave, first up
   let boss = null;
   if (bright) {
-    const kind = G ? G.kind : (seamBoss || deep || n >= 10) ? 'brightmaw' : 'lodestar', B = BOSSES[kind];
-    const maxHp = G ? G.maxHp : Math.round(B.hp(n));
-    boss = { kind, name: G ? G.name : B.name, sub: B.sub, scale: B.scale, width: B.width, climb: B.climb, maxHp, hp: G ? Math.min(maxHp, Math.round(maxHp * (G.frac + 0.1))) : maxHp, from: seamBoss && !G ? 'seam' : null, grudge: !!G };
+    const kind = G ? G.kind : SN ? SN.kind : (seamBoss || deep || n >= 10) ? 'brightmaw' : 'lodestar', B = SN ? { ...BOSSES[SN.kind], ...SN } : BOSSES[kind];
+    const maxHp = G ? G.maxHp : Math.round(B.hp(n) * (SN ? SN.hpK : 1));
+    boss = { kind, name: G ? G.name : B.name, sub: B.sub, scale: B.scale, width: B.width, climb: B.climb, maxHp, hp: G ? Math.min(maxHp, Math.round(maxHp * (G.frac + 0.1))) : maxHp, from: SN ? SN.from : seamBoss && !G ? 'seam' : null, grudge: !!G };
     const wv = waves[Math.min(1, waves.length - 1)];
     wv.units.unshift({ kind, at: boss.from, boss });
     wv.t0 = Math.min(wv.t0, nw === 1 ? 0.7 : 0.735);
@@ -85,7 +87,8 @@ function planNight(n) {
   const counts = {}; for (const u of units) counts[u] = (counts[u] || 0) + 1;
   const wx = WEATHER.today, first = waves[0].side;
   let title, line;
-  if (n <= 1) { title = 'The first night'; line = `A few Glimmers will climb the ${first} cliffs, drawn by the lamps. The watch and the Lark will meet them.`; }
+  if (SN) { title = SN.title; line = G ? `${SN.line} It got away once, and it is still hurt.` : SN.line; }
+  else if (n <= 1) { title = 'The first night'; line = `A few Glimmers will climb the ${first} cliffs, drawn by the lamps. The watch and the Lark will meet them.`; }
   else if (boss && boss.grudge) { title = `${boss.name} returns`; line = `It got away, and it remembers. It climbs again tonight, still wounded, with ${kindList(counts)}.`; }
   else if (boss) {
     title = 'A Bright Night';

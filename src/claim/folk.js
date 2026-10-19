@@ -13,8 +13,15 @@ const FOLK_FOUNDERS = {
   'Corwin Ashlar': { id: 'founder-corwin', desc: 'The wallwright, about 45; he says about four words a day. Deep brown skin, a bald head, a short black beard, a steady serious gaze. A grey work shirt with the sleeves rolled, a brown leather vest, stone dust on his shoulders, a brass plumb bob on a cord.' },
   'Absalom Pockett': { id: 'founder-absalom', desc: 'The claim’s assayer: an elderly gnome, kindly and a little mischievous. A white beard and bushy white brows, round spectacles, a tall rust-red gnome hat, a plum coat with brass buttons, a loupe in one eye and a big brass official stamp in his hand.' },
 };
+// note: when they're seen. look: for act two's visitors, the bust drawn until their painted portrait arrives.
 const FOLK_OTHERS = {
-  'baron-tallow': { name: 'Baron Ambrose Tallow', desc: 'The claim-jumpers’ master, about 60, a candle-maker grown rich. Pale, waxy skin, silver hair slicked back, long mutton-chop whiskers, a polished and dangerous smile. A rust-red frock coat with black velvet lapels, a gold candle-flame pin, a lit candle in a brass holder held up beside his face.' },
+  'baron-tallow': { name: 'Baron Ambrose Tallow', note: 'shown when his letters are read', desc: 'The claim-jumpers’ master, about 60, a candle-maker grown rich. Pale, waxy skin, silver hair slicked back, long mutton-chop whiskers, a polished and dangerous smile. A rust-red frock coat with black velvet lapels, a gold candle-flame pin, a lit candle in a brass holder held up beside his face.' },
+  'provost-marchbank': { name: 'Provost Lucan Marchbank', note: 'act two: the Gilded Exchange’s man, in person and in his letters',
+    desc: 'Provost of the Gilded Exchange, a counting-house in the coast cities, about 55. Pale, well-kept skin, neat silver hair parted on one side, small round gold spectacles, a thin polite smile that never reaches his grey eyes. A dove-grey frock coat buttoned high, a gold silk cravat with a coin-shaped pin, a slim ledger tucked under one arm.',
+    look: { skin: '#ecd0b4', hair: '#cfc6b8', hairStyle: 'crop', fringe: 'parted', hat: null, shirt: '#e7dcc2', over: 'coat', overCol: '#7d8590', scarf: '#c99a3c', eyes: '#5a6a78', glasses: true, beard: false, satchel: false } },
+  'captain-ferrars': { name: 'Juno Ferrars', note: 'act two: the Hollowcrest claim’s boss, across the gorge',
+    desc: 'The boss of the rival Hollowcrest claim, about 30, brash and grinning. Warm brown skin, thick black hair in a high ponytail, brass flying goggles pushed up on her forehead, a confident sideways grin and a smudge of soot on one cheek. A battered brown leather flight jacket over a cream shirt, a green scarf, a prospector’s hammer on her shoulder.',
+    look: { skin: '#b0764e', hair: '#2a1d1c', hairStyle: 'ponytail', fringe: 'swept', hat: 'goggles', hatCol: '#5a3a26', shirt: '#e7dcc2', over: 'coat', overCol: '#7a5234', scarf: '#3f7a5a', eyes: '#4a3020', glasses: false, beard: false, satchel: false } },
 };
 // [id, name, who, focus, trade, description, look]
 const FOLK = [

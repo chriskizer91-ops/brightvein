@@ -191,9 +191,63 @@ with sync_playwright() as p:
       return out; })()''')
     check('the music turns to the night watch at night', r['night'] == 'night', json.dumps(r))
     check("a minute of play doesn't pile up sounds", r['state'] == 'running' and r['voices'] < 72 and r['persist'] < 200, json.dumps(r))
+    # act two: a claim that has finished act one goes on into act two (the Chandlery's closing scene, then a pause, then
+    # chapter 9's opening under an "Act two" heading, and its goals in the journal)
+    r = pg.evaluate('''(() => { const B = __bv, out = {};
+      for (let i = 0; i < 60 && B.STORY.shown; i++) B.talkNext(); B.eventClose();
+      B.STORY.ch = 8; B.STORY.started = true; B.STORY.at = { day: B.GAME.day, nights: B.GAME.nights, tally: { ...B.ACT.tally } };
+      B.FLEET.data.ships.brig.owned = true; B.FLEET.data.raids.citadel.won = Math.max(1, B.FLEET.data.raids.citadel.won);
+      B.storyTick(10); out.closing = !!B.STORY.shown;
+      for (let i = 0; i < 60 && B.STORY.shown; i++) B.talkNext();
+      B.storyTick(10); out.title = B.STORY.shown ? document.getElementById('talk-title').textContent : null;
+      out.speakers = []; for (let i = 0; i < 60 && B.STORY.shown; i++) { out.speakers.push(document.getElementById('talk-name').textContent); B.talkNext(); }
+      out.ch = B.STORY.ch; out.started = B.STORY.started; B.journalHUD(); out.journal = document.getElementById('journal').textContent;
+      out.speakers = [...new Set(out.speakers)].join(', ');
+      return out; })()''')
+    check('act two begins after the Chandlery', r['closing'] and r['ch'] == 9 and r['started'] and 'Act two' in (r['title'] or '') and 'Silver Sails' in r['journal'] and 'Marchbank' in r['speakers'], json.dumps(r))
+    # a day event: its card comes up (time waits), a choice does what it says, and it goes in the journal's days
+    r = pg.evaluate('''(() => { const B = __bv, out = {}; B.eventClose();
+      B.GAME.shards += 500; const s0 = B.GAME.shards, n0 = B.GAME.stash.length;
+      out.fired = B.eventFire('courier'); const card = document.getElementById('evcard');
+      out.shown = !card.hidden && card.querySelectorAll('.ev-ch').length >= 2 && B.GAME.talk;
+      B.eventChoose(0); out.paid = Math.round(s0 - B.GAME.shards); out.got = B.GAME.stash.length - n0;
+      out.result = card.querySelector('.ev-result') ? card.querySelector('.ev-result').textContent.slice(0, 100) : null;
+      out.logged = B.EVT.log[0] && B.EVT.log[0].text;
+      B.eventClose(); out.closed = card.hidden && !B.GAME.talk;
+      return out; })()''')
+    check("a day event's card comes up, and its choice does what it says", r['fired'] and r['shown'] and r['paid'] > 0 and r['got'] == 1 and r['closed'] and 'courier' in (r['logged'] or ''), json.dumps(r))
+    # the mood: it falls when the food runs out, an event lifts it, and it changes how fast people work
+    r = pg.evaluate('''(() => { const B = __bv, out = {};
+      B.GAME.food = 300; out.hi = B.moodTarget(); B.GAME.food = 0; out.lo = B.moodTarget();
+      const m0 = B.MOOD.v; B.lifeTick(30); out.fell = Math.round(m0 - B.MOOD.v);
+      B.GAME.food = 300; B.moodAdd('test', 20, 1, 'A test'); out.up = B.moodTarget(); B.MOOD.mods = B.MOOD.mods.filter(m => m.id !== 'test');
+      const v = B.GAME.villagers.find(v => v.d.job && B.TOWN.b[v.d.job.bid] && !v.d.exp); v.working = true;
+      B.MOOD.v = 90; out.fast = v.eff(); B.MOOD.v = 10; out.slow = v.eff(); B.MOOD.v = 65; B.MOOD.shown = '';
+      B.actFrame(1); out.hud = document.getElementById('r-mood').textContent;
+      return out; })()''')
+    check('the mood moves (hunger, events) and moves work speed', r['lo'] < r['hi'] - 15 and r['fell'] > 5 and r['up'] > r['hi'] and r['fast'] > r['slow'] > 0 and 'Happy' in r['hud'], json.dumps(r))
+    # a cast member's own story: offered at the Keep, a step comes true by itself, a gift completes the next, and the
+    # last pays off (Torvald's: a Masterwork from his forge)
+    r = pg.evaluate('''(() => { const B = __bv, out = {};
+      B.castArrive(['brann']); const v = B.GAME.villagers.find(x => x.d.hero === 'brann'); v.d.arrived = B.GAME.day - 5;
+      if (!B.STORY.done.includes('wickmoor')) B.STORY.done.push('wickmoor');
+      delete B.QST.brann; out.ready = B.questReady('brann'); B.QST.brann = { state: 'offer', step: 0, day: B.GAME.day };
+      B.UI.open('building', B.TOWN.b.keep); out.atKeep = !!document.querySelector('#panel-body .qoffer'); B.UI.close();
+      B.questAccept('brann', true); out.on = B.QST.brann.state;
+      const shop = B.byType('shop')[0]; shop.level = 2; B.questsCheck(); out.step1 = B.QST.brann.step;
+      B.GAME.mats.heartstone = (B.GAME.mats.heartstone || 0) + 1; B.GAME.shards += 200; const n0 = B.GAME.stash.length;
+      out.gave = B.questGive('brann'); for (let i = 0; i < 30 && B.STORY.shown; i++) B.talkNext();
+      out.state = B.QST.brann.state; out.mw = B.GAME.stash.length > n0 && B.GAME.stash[0].name;
+      B.UI.open('journal', { tab: 'cast' }); out.journal = document.getElementById('panel-body').textContent.includes('Pike’s Forge ✓'); B.UI.close();
+      B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1')).story;
+      out.saved = s.ch === 9 && s.quests.brann.state === 'done' && s.events.log.length >= 2 && typeof s.mood.v === 'number' && 'nights' in s.act.tally;
+      return out; })()''')
+    check("a cast member's story: a step completes, and the last pays off", r['ready'] and r['atKeep'] and r['on'] == 'on' and r['step1'] == 1 and r['gave'] and r['state'] == 'done' and r['mw'] == 'Pike’s Answer' and r['journal'], json.dumps(r))
+    check('act two, the stories, the days and the mood are saved', r['saved'], json.dumps(r))
     # a claim saved before the dig, with the deep seam open: its miners keep their places in the matching rooms
     pg.evaluate('''(() => { const B = __bv; B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
       delete s.dig; for (const b of s.buildings) if (b.type === 'head') b.level = 2;
+      for (const k of ['act', 'quests', 'events', 'mood']) delete s.story[k];   // and from before act two's days and stories
       const ps = s.people.filter(p => !p.exp); ps[0].job = { bid: 'head', slot: 1 }; ps[1].job = { bid: 'head', slot: 5 }; ps[0].name = 'Upper Test'; ps[1].name = 'Lower Test';
       const set = Storage.prototype.setItem; localStorage.setItem('brightvein-keep-v1', JSON.stringify(s));
       Storage.prototype.setItem = function (k, v) { if (k === 'brightvein-keep-v1') return; return set.call(this, k, v); }; })()''')
@@ -202,6 +256,8 @@ with sync_playwright() as p:
     r = pg.evaluate('''(() => { const B = __bv; B.begin(false); const job = n => { const v = B.GAME.villagers.find(v => v.d.name === n); return v && v.d.job && v.d.job.bid; };
       return { rooms: B.DIG.rooms.map(R => R.id + ' ' + R.kind + ' ' + R.w), upper: job('Upper Test'), lower: job('Lower Test') }; })()''')
     check('an old save loads: the galleries are rooms, the miners keep their places', 'm:0.8 face 2' in r['rooms'] and 'm:2.8 face 2' in r['rooms'] and 'm:5.8 seam 2' in r['rooms'] and r['upper'] == 'm:0.8' and r['lower'] == 'm:2.8', json.dumps(r))
+    r = pg.evaluate('''(() => { const B = __bv; return { ch: B.STORY.ch, started: B.STORY.started, last: B.ACT.lastNight, night: B.NIGHT.last && B.NIGHT.last.n, mood: B.MOOD.v, quests: Object.keys(B.QST).length }; })()''')
+    check('a save from before act two loads, and goes on in act two', r['ch'] == 9 and r['last'] == (r['night'] or 0) and r['quests'] == 0 and 0 <= r['mood'] <= 100, json.dumps(r))
     extra = os.environ.get('SMOKE_EXTRA')
     if extra: print(pg.evaluate(extra))
     # a claim saved before Odile's bench and the module sockets: no workshop in it, and only gear in the stash

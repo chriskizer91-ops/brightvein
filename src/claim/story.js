@@ -8,14 +8,20 @@
 // games' names), but Brightvein is hundreds of years later: here they're new people, with the names in CAST_NAMES.
 // Each chapter opens with a scene, sets a few goals the player can see in the journal, and closes with a scene and a
 // reward. Scenes pause the claim. The story's state is saved with the claim as `story`.
-const STORY = { ch: 0, started: false, at: null, codex: [], done: [], queue: [], shown: null };
+// Act one (here) runs from the prologue to the Chandlery. Act two (acttwo.js) follows the money that backed Tallow,
+// the charter, a rival claim, what the deep seam really is, and the Long Bright Night. The cast's own stories are in
+// quests.js, the days' events in events.js and the claim's mood in mood.js; all of it is saved inside `story`.
+const STORY = { ch: 0, started: false, at: null, codex: [], done: [], queue: [], shown: null, voice: null };
 
-// who can speak: the six founders (found among the claim's people by name), the cast, and the Baron (by letter)
+// who can speak: the six founders (found among the claim's people by name), the cast, the Baron (by letter), and act
+// two's new faces (with a look, so a bust can be drawn until their painted portrait arrives; folk.js has their prompts).
+// `voice` is one of the claim's own settlers, picked when a scene needs a newcomer to speak up (whoOf).
 const WHO = {
   hesper: { name: 'Hesper Lark', founder: 'Hesper Lark' }, odile: { name: 'Odile Fenn', founder: 'Odile Fenn' },
   pip: { name: 'Pip Kettleby', founder: 'Pip Kettleby' }, marigold: { name: 'Marigold Thresh', founder: 'Marigold Thresh' },
   corwin: { name: 'Corwin Ashlar', founder: 'Corwin Ashlar' }, absalom: { name: 'Absalom Pockett', founder: 'Absalom Pockett' },
-  tallow: { name: 'Baron Ambrose Tallow', letter: true },
+  tallow: { name: 'Baron Ambrose Tallow', letter: true, portrait: 'baron-tallow' },
+  voice: { name: 'A newcomer', voice: true },
 };
 // the visitors, by the id of the look they wear: their names and callings in Brightvein
 const CAST_NAMES = {
@@ -31,6 +37,9 @@ const CAST_NAMES = {
   fox: { name: 'Clem Fennick', title: 'The Waning Moon, of the Moon Faire' },
 };
 for (const [id, c] of Object.entries(CAST_NAMES)) WHO[id] = { name: c.name, hero: id };
+// what friends call someone: Seraphine, not Dame; Marchbank, not Provost
+const shortName = n => String(n).split(' ').find(w => !['Dame', 'Provost', 'Baron', 'Captain', 'Sir'].includes(w)) || String(n);
+const castFirst = id => shortName(CAST_NAMES[id].name);
 
 // the cast as crew: their stats, trade, trait and the gift they bring the whole claim while they're on it
 const CAST_CREW = {
@@ -166,7 +175,7 @@ const CHAPTERS = [
     ],
     visitAfter: { cast: ['brann'] },
     reward: { shards: 150, codex: ['wickmoor'], crew: ['brann'] } },
-  { id: 'moonfaire', title: 'The Moon Faire', line: 'A painted airship tours in for a festival night.',
+  { id: 'moonfaire', title: 'The Moon Faire', line: 'A painted airship tours in for a festival night.', festival: true,
     visit: { ship: 'faire', cast: ['jester', 'ranger', 'herbal', 'fox'] },
     open: [
       ['jester', 'Ladies, gentlemen, and things that glow in the dark! The Moon Faire has come to Brightvein!'],
@@ -200,7 +209,7 @@ const CHAPTERS = [
     ],
     visitAfter: { cast: ['halcyon'] },
     reward: { shards: 200, codex: ['deepseam', 'thinwatch'], crew: ['halcyon'] } },
-  { id: 'chandlery', title: 'The Chandlery', line: 'Every crew Tallow has left is at his citadel.',
+  { id: 'chandlery', title: 'The Chandlery', line: 'Every crew Tallow has left is at his citadel.', actEnd: 'one',
     open: [
       ['hesper', 'Every crew Tallow has left is at the Chandlery. Six gun towers, his frigate and a Man-o’-war.'],
       ['sol', 'Then we need a bigger ship.'],
@@ -217,15 +226,21 @@ const CHAPTERS = [
     reward: { shards: 400, codex: ['chandlery'] } },
 ];
 
-// ---- saving
-function storySave() { return { ch: STORY.ch, started: STORY.started, at: STORY.at, codex: STORY.codex, done: STORY.done }; }
+// ---- saving: the chapters, and inside them act two's state, the cast's stories, the days' events and the mood.
+// A claim saved before any of those existed simply starts them fresh; one that finished act one goes on into act two.
+function storySave() {
+  return { ch: STORY.ch, started: STORY.started, at: STORY.at, codex: STORY.codex, done: STORY.done, voice: STORY.voice,
+    act: actSave(), quests: questsSave(), events: eventsSave(), mood: moodSave() };
+}
 function storyLoad(s) {
+  if (s) Object.assign(STORY, { ch: s.ch || 0, started: !!s.started, at: s.at || null, codex: s.codex || [], done: s.done || [], voice: s.voice ?? null });
+  actLoad(s && s.act); questsLoad(s && s.quests); eventsLoad(s && s.events); moodLoad(s && s.mood);
   if (!s) return;
-  Object.assign(STORY, { ch: s.ch || 0, started: !!s.started, at: s.at || null, codex: s.codex || [], done: s.done || [] });
   // the cast keep their latest looks
   for (const v of GAME.villagers) if (v.d.hero && HERO_LOOKS[v.d.hero]) { v.d.look = { ...HERO_LOOKS[v.d.hero] }; Object.assign(v.d, CAST_NAMES[v.d.hero]); v.redraw(); }
   const C = CHAPTERS[STORY.ch];
   if (C && STORY.started && C.visit && C.visit.ship) visitShip(C.visit.ship, true);
+  if (C && STORY.started && C.ship) visitShip(C.ship, true);
   if (GAME.villagers.some(v => v.d.hero === 'io' || v.d.hero === 'sol')) visitShip('magpie', true);
 }
 
@@ -233,14 +248,16 @@ function storyLoad(s) {
 const VISIT = { ships: {} };
 function visitShip(kind, quiet) {
   if (VISIT.ships[kind] || !SKY || !SKY.shipArt) { if (!VISIT.ships[kind] && SKY) SKY.art.then(() => visitShip(kind, quiet)); return; }
-  // the Nightjar: small and black-hulled; the Moon Faire's ship: a brig painted teal, with rose-violet sails
+  // the Nightjar: small and black-hulled; the Moon Faire's ship: a brig painted teal, with rose-violet sails; the
+  // Exchange's: a brig in pale grey with silver sails, standing off farther out and higher, as a bank would
   const A = SKY.shipArt, M = { ...A.M, hull: A.M.hull.clone(), canvas: A.M.canvas.clone() };
   M.canvas.onBeforeCompile = A.M.canvas.onBeforeCompile; M.canvas.customProgramCacheKey = A.M.canvas.customProgramCacheKey;
   if (kind === 'faire') { M.hull.color.set(0x5f9aa0); M.canvas.color.set(0xe0a0dc); M.canvas.emissive.set(0x5a2050); }
+  else if (kind === 'exchange') { M.hull.color.set(0x5c626c); M.canvas.color.set(0xaab6c6); M.canvas.emissive.set(0x1c2a3a); }
   else { M.hull.color.set(0x4a4048); }
-  const R = SHIPS.find(x => x.id === (kind === 'faire' ? 'brig' : 'cutter')), s = buildShipAt(R, 'middle', { ...A, M });
-  const D = LAYOUT.dock, at = kind === 'faire' ? new THREE.Vector3(D.x - 34, 9, D.z - 18) : new THREE.Vector3(D.x + 30, 7, D.z - 13);
-  s.root.position.copy(at); s.root.rotation.y = kind === 'faire' ? -Math.PI / 2 : Math.PI / 2;
+  const R = SHIPS.find(x => x.id === (kind === 'magpie' ? 'cutter' : 'brig')), s = buildShipAt(R, 'middle', { ...A, M });
+  const D = LAYOUT.dock, at = kind === 'faire' ? new THREE.Vector3(D.x - 34, 9, D.z - 18) : kind === 'exchange' ? new THREE.Vector3(D.x - 16, 10, D.z - 24) : new THREE.Vector3(D.x + 30, 7, D.z - 13);
+  s.root.position.copy(at); s.root.rotation.y = kind === 'magpie' ? Math.PI / 2 : -Math.PI / 2;
   scene.add(s.root);
   VISIT.ships[kind] = { s, at, t: Math.random() * 10, arrive: quiet ? 1 : 0 };
 }
@@ -259,7 +276,7 @@ function castArrive(ids) {
   for (const id of ids) {
     if (GAME.villagers.some(v => v.d.hero === id) || !HERO_LOOKS[id]) continue;
     const L = HERO_LOOKS[id], N = CAST_NAMES[id], C = CAST_CREW[id] || { stats: { G: 5, E: 5, A: 6, R: 8, S: 5 }, trait: 'Warm', pref: null };
-    const d = { id: GAME.nextId++, hero: id, name: N.name, title: N.title, stats: { ...C.stats }, trait: C.trait, look: { ...L }, named: true, job: null, home: 'keep', gear: {}, pref: C.pref || null, guest: !CAST_CREW[id] };
+    const d = { id: GAME.nextId++, hero: id, name: N.name, title: N.title, stats: { ...C.stats }, trait: C.trait, look: { ...L }, named: true, job: null, home: 'keep', gear: {}, pref: C.pref || null, guest: !CAST_CREW[id], arrived: GAME.day };
     const v = addVillager(d, new THREE.Vector3(D.x - 8 + Math.random() * 2, 0, D.z + 6 + Math.random() * 2));
     v.replan = true;
   }
@@ -272,21 +289,25 @@ function castLeave(ids) {
   }
   if (VISIT.ships.faire && !GAME.villagers.some(v => ['jester', 'ranger', 'herbal'].includes(v.d.hero))) { scene.remove(VISIT.ships.faire.s.root); delete VISIT.ships.faire; }
 }
+function shipLeaves(kind) { const V = VISIT.ships[kind]; if (V) { scene.remove(V.s.root); delete VISIT.ships[kind]; } }
 
 // ---- the story's clock: open the chapter, watch its goals, close it
 let storyT = 0;
 function storyTick(dt) {
   if (!started || !BUILD.setupDone) return;
   updateVisits(dt);
-  if ((storyT -= dt) > 0 || STORY.shown || (SKY && SKY.on) || BUILD.on) return;
+  actFrame(dt);   // the day's event card, the cast waiting at the Keep, the mood on the HUD (events.js, quests.js, mood.js)
+  if ((storyT -= dt) > 0 || STORY.shown || EVT.card || (SKY && SKY.on) || BUILD.on) return;
   storyT = 0.5;
   if (STORY.queue.length) return playScene(STORY.queue.shift());
-  const C = CHAPTERS[STORY.ch]; if (!C) return;
+  const C = CHAPTERS[STORY.ch]; if (!C) { journalHUD(); return; }
   if (!STORY.started) {
-    STORY.started = true; STORY.at = { day: GAME.day, nights: GAME.nights };
+    STORY.started = true; STORY.at = { day: GAME.day, nights: GAME.nights, tally: { ...ACT.tally } };
     if (C.visit) { if (C.visit.ship) visitShip(C.visit.ship); castArrive(C.visit.cast || []); }
-    if (C.id === 'letter' || (C.visit && C.visit.ship)) AUDIO.play('horn');
-    playScene({ lines: C.open, title: C.title, chapter: STORY.ch });
+    if (C.ship) visitShip(C.ship);
+    if (C.onOpen) C.onOpen();
+    if (C.id === 'letter' || C.ship || (C.visit && C.visit.ship)) AUDIO.play('horn');
+    playScene({ lines: C.open, title: C.title, chapter: STORY.ch, act: C.actStart });
     journalHUD(); return;
   }
   journalHUD();
@@ -297,39 +318,65 @@ function storyTick(dt) {
       if (R.shards) GAME.shards += R.shards;
       for (const k of R.codex || []) if (!STORY.codex.includes(k)) STORY.codex.push(k);
       if (C.leave) castLeave(C.leave);
+      if (C.ship) shipLeaves(C.ship);
+      if (C.onClose) C.onClose();
       STORY.done.push(C.id);
-      toast(`<b>${esc(C.title)}</b>: chapter done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${(R.crew || []).length ? ` · ${R.crew.map(id => CAST_NAMES[id].name.split(' ')[0]).join(' and ')} join${R.crew.length > 1 ? '' : 's'} the crew` : ''}${(R.codex || []).length ? ' · new in the journal' : ''}.`);
+      daysLog(`${C.actEnd ? 'The end of act ' + C.actEnd + ': ' : 'Chapter done: '}${C.title}.`, 'story');
+      toast(C.actEnd ? `<b>The end of act ${C.actEnd}.</b> ${esc(C.title)} is done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${CHAPTERS[STORY.ch + 1] ? '. The story goes on…' : '. More to come.'}`
+        : `<b>${esc(C.title)}</b>: chapter done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${(R.crew || []).length ? ` · ${R.crew.map(castFirst).join(' and ')} join${R.crew.length > 1 ? '' : 's'} the crew` : ''}${(R.codex || []).length ? ' · new in the journal' : ''}.`);
       AUDIO.play('chapter');
       STORY.ch++; STORY.started = false; STORY.at = null; storyT = 6;
       journalHUD(); saveGame();
     } });
   }
 }
+// what has happened since this chapter opened: a count of something the claim keeps a tally of (ACT.tally)
+const sinceCh = k => (ACT.tally[k] || 0) - ((STORY.at && STORY.at.tally && STORY.at.tally[k]) ?? (ACT.tally[k] || 0));
 
 // ---- scenes: a portrait, a name and the words, one line at a time. Tap to go on; the claim waits meanwhile.
+// who a speaker key is right now: the voice of the claim's newcomers is one of its own settlers (the same one each
+// time, while they're here), so the person arguing at supper is someone you've seen walking about town
+function whoOf(k) {
+  const W = WHO[k]; if (!W || !W.voice) return W;
+  let v = GAME.villagers.find(x => x.d.id === STORY.voice);
+  if (!v) {
+    const pool = GAME.villagers.filter(x => !x.d.hero && !x.d.named && !x.d.exp).sort((a, b) => statOf(b, 'R') - statOf(a, 'R'));
+    v = pool[0] || null; STORY.voice = v ? v.d.id : null;
+  }
+  return v ? { name: v.d.name, villager: v } : W;
+}
+const framed = (size, cls = '') => { const w = document.createElement('div'); w.className = 'pframe' + (cls ? ' ' + cls : ''); w.style.width = w.style.height = size + 'px'; return w; };
 function speakerPortrait(key, size = 120) {
-  const W = WHO[key];
-  if (W.letter && ART.portraits && ART.portraits['baron-tallow']) { const w = document.createElement('div'); w.className = 'pframe painted'; w.style.width = w.style.height = size + 'px'; const im = new Image(); im.src = ART.portraits['baron-tallow']; w.append(im); return w; }
+  const W = whoOf(key);
+  if (W.villager) return portraitOf(W.villager, size);
+  // a painted portrait (the Baron's, and act two's visitors once Chris has made theirs), else a bust drawn from a look
+  if (W.portrait && ART.portraits && ART.portraits[W.portrait]) { const w = framed(size, 'painted'), im = new Image(); im.src = ART.portraits[W.portrait]; im.alt = ''; w.append(im); return w; }
+  if (W.look && typeof drawPortrait === 'function') { const w = framed(size), c = document.createElement('canvas'); try { drawPortrait({ ...W.look }, c); w.append(c); return w; } catch (e) { console.warn(e); } }
   if (W.letter) {
-    const wrap = document.createElement('div'); wrap.className = 'pframe letter'; wrap.style.width = wrap.style.height = size + 'px';
+    const wrap = framed(size, 'letter');
     wrap.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="14" width="44" height="36" rx="2" fill="#efe2c4" stroke="#6a4a2a" stroke-width="2"/><path d="M10 16l22 18 22-18" fill="none" stroke="#6a4a2a" stroke-width="2"/><circle cx="32" cy="40" r="8" fill="#9a2a1e" stroke="#4a120c" stroke-width="2"/><path d="M29 37h6M29 43h6M32 35v10" stroke="#e8b0a0" stroke-width="1.5"/></svg>';
     return wrap;
   }
   const v = GAME.villagers.find(x => (W.hero && x.d.hero === W.hero) || (W.founder && x.d.name === W.founder));
   if (v) return portraitOf(v, size);
-  if (W.hero && ART.cast && ART.cast[W.hero]) { const w = document.createElement('div'); w.className = 'pframe'; w.style.width = w.style.height = size + 'px'; const im = new Image(); im.src = ART.cast[W.hero]; w.append(im); return w; }
-  const w = document.createElement('div'); w.className = 'pframe'; w.style.width = w.style.height = size + 'px'; return w;
+  if (W.hero && ART.cast && ART.cast[W.hero]) { const w = framed(size), im = new Image(); im.src = ART.cast[W.hero]; w.append(im); return w; }
+  return framed(size);
 }
 const TALK = { lines: null, i: 0, typing: 0, full: '', after: null };
+// sc: { lines: [[who, text]], title, chapter, act (the first chapter of an act), heading (a title of its own), after }
 function playScene(sc) {
   STORY.shown = sc; TALK.lines = sc.lines.filter(([k]) => WHO[k]); TALK.i = 0; TALK.after = sc.after || null;
+  if (!TALK.lines.length) { STORY.shown = null; if (TALK.after) { const a = TALK.after; TALK.after = null; a(); } return; }
   GAME.talk = true; UI.close();
-  $('#talk').hidden = false; $('#talk-title').textContent = sc.title ? `Chapter ${sc.chapter} · ${sc.title}` : ''; $('#talk-title').hidden = !sc.title;
-  if (sc.chapter === 0) $('#talk-title').textContent = `Prologue · ${sc.title}`;
+  const dm = document.getElementById('dawnmini'); if (dm) dm.hidden = true;   // the dawn line would sit over the title
+  const head = sc.heading || (sc.title ? `${sc.chapter ? `Chapter ${sc.chapter}` : 'Prologue'} · ${sc.title}` : '');
+  const T = $('#talk-title'); T.textContent = head; T.hidden = !head;
+  if (sc.act && head) { const s = document.createElement('small'); s.textContent = `Act ${sc.act}`; T.prepend(s); }
+  $('#talk').hidden = false;
   showLine();
 }
 function showLine() {
-  const [k, text] = TALK.lines[TALK.i], W = WHO[k];
+  const [k, text] = TALK.lines[TALK.i], W = whoOf(k);
   const por = $('#talk-por'); por.innerHTML = ''; por.append(speakerPortrait(k, 128));
   $('#talk-name').textContent = W.name; TALK.full = text; TALK.typing = 0; $('#talk-text').textContent = '';
   $('#talk').classList.toggle('letter', !!W.letter);
@@ -355,29 +402,45 @@ function endScene() {
 $('#talk').addEventListener('click', e => { if (e.target.id === 'talk-skip') { endScene(); return; } talkNext(); });
 addEventListener('keydown', e => { if (STORY.shown && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); talkNext(); } });
 
-// ---- the journal: the chapter and its goals on screen, and a panel with the story so far and the codex
+// ---- the journal: the chapter and its goals on screen (and the cast's stories under them), and a panel with the
+// story so far, the cast and their stories, the claim's days and mood, and the codex
+const actOf = i => i >= ACT_TWO ? 'two' : 'one';
 function journalHUD() {
   const el = $('#journal'), C = CHAPTERS[STORY.ch];
-  if (!started || !BUILD.setupDone || !C || !STORY.started) { el.hidden = true; return; }
+  if (!started || !BUILD.setupDone) { el.hidden = true; return; }
+  let html = '';
+  if (C && STORY.started) html = `<b>${STORY.ch ? `Chapter ${STORY.ch}` : 'Prologue'} · ${esc(C.title)}</b>` + C.goals.map(g => { const ok = g.done(), p = g.prog && g.prog(); if (ok && g.seen === false && !g.rang) { g.rang = true; AUDIO.play('goal'); } g.seen = ok; return `<span class="${ok ? 'ok' : ''}"><i>${ok ? '✓' : '◇'}</i>${esc(g.text)}${p && !ok ? ` <em>${p[0]}/${p[1]}</em>` : ''}</span>`; }).join('');
+  html += questsHUD(!!html);
+  if (!html) { el.hidden = true; return; }
+  if (el.innerHTML !== html) el.innerHTML = html;
   el.hidden = false;
-  el.innerHTML = `<b>${STORY.ch ? `Chapter ${STORY.ch}` : 'Prologue'} · ${esc(C.title)}</b>` + C.goals.map(g => { const ok = g.done(), p = g.prog && g.prog(); if (ok && g.seen === false && !g.rang) { g.rang = true; AUDIO.play('goal'); } g.seen = ok; return `<span class="${ok ? 'ok' : ''}"><i>${ok ? '✓' : '◇'}</i>${esc(g.text)}${p && !ok ? ` <em>${p[0]}/${p[1]}</em>` : ''}</span>`; }).join('');
 }
-$('#journal').onclick = () => UI.open('journal');
-UI.journal = function (body) {
-  body.append(this.h(`<h2>Journal</h2><p class="sub">The story of the claim so far.</p>`));
+// tapping it opens the journal: at the cast's page if someone is waiting for a word or a gift, else the story
+const journalOpen = () => UI.open('journal', { tab: questsWaiting().length || questsGiveReady() ? 'cast' : 'story' });
+$('#journal').onclick = journalOpen;
+$('#journal').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); journalOpen(); } };
+UI.jtab = 'story';
+UI.journal = function (body, ref) {
+  if (ref && ref.tab) { UI.jtab = ref.tab; UI.cur.ref = null; }
+  body.append(this.h(`<h2>Journal</h2><p class="sub">The story of the claim so far, the people in it, and its days.</p>`));
+  const live = questsWaiting().length;
+  const tabs = this.h(`<div class="tabs" role="group" aria-label="Show"><button type="button" data-t="story">Story</button><button type="button" data-t="cast">The cast${live ? ` · ${live} new` : ''}</button><button type="button" data-t="days">Days and mood</button><button type="button" data-t="codex">Codex · ${STORY.codex.length}</button></div>`);
+  for (const bt of tabs.querySelectorAll('button')) { bt.setAttribute('aria-pressed', bt.dataset.t === UI.jtab); bt.onclick = () => { UI.jtab = bt.dataset.t; this.refresh(); }; }
+  body.append(tabs);
+  if (UI.jtab === 'cast') return questsJournal(this, body);
+  if (UI.jtab === 'days') { moodJournal(this, body); daysJournal(this, body); return; }
+  if (UI.jtab === 'codex') {
+    if (!STORY.codex.length) body.append(this.h(`<p class="small">Nothing here yet. The codex fills up as the story goes on.</p>`));
+    for (const k of [...STORY.codex].reverse()) if (CODEX[k]) body.append(this.h(`<p><b>${esc(CODEX[k].title)}.</b> ${esc(CODEX[k].text)}</p>`));
+    return;
+  }
+  let act = null;
   CHAPTERS.forEach((C, i) => {
     if (i > STORY.ch) return;
+    if (actOf(i) !== act) { act = actOf(i); body.append(this.h(`<p class="eyebrow jr-act">Act ${act}</p>`)); }
     const cur = i === STORY.ch;
     body.append(this.h(`<h3>${i ? `Chapter ${i}` : 'Prologue'} · ${esc(C.title)}${cur ? '' : ' ✓'}</h3><p class="small">${esc(C.line)}</p>`));
-    if (cur && STORY.started) body.append(this.h(`<ul class="traits">${C.goals.map(g => `<li>${g.done() ? '✓ ' : ''}${esc(g.text)}</li>`).join('')}</ul>`));
+    if (cur && STORY.started) body.append(this.h(`<ul class="traits">${C.goals.map(g => { const p = g.prog && g.prog(), ok = g.done(); return `<li>${ok ? '✓ ' : ''}${esc(g.text)}${p && !ok ? ` (${p[0]} of ${p[1]})` : ''}</li>`; }).join('')}</ul>`));
   });
-  const crew = Object.keys(CAST_CREW).filter(castHere);
-  if (crew.length) {
-    body.append(this.h(`<h3>The cast on the claim</h3>`));
-    for (const id of crew) body.append(this.h(`<p><b>${esc(CAST_NAMES[id].name)}</b> · ${esc(CAST_CREW[id].perk)}: ${esc(CAST_CREW[id].perkText)}</p>`));
-  }
-  if (STORY.codex.length) {
-    body.append(this.h(`<h3>Codex</h3>`));
-    for (const k of STORY.codex) if (CODEX[k]) body.append(this.h(`<p><b>${esc(CODEX[k].title)}.</b> ${esc(CODEX[k].text)}</p>`));
-  }
+  if (STORY.ch >= CHAPTERS.length) body.append(this.h(`<p class="small jr-end">The story so far ends here: Brightvein is a free town, with a heart under it, asleep. More chapters are coming. Days on the claim go on, and so do the cast's own stories.</p>`));
 };

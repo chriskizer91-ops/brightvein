@@ -115,7 +115,7 @@ const MUSIC = (() => {
     if (lastPhase === 'night' && ph === 'dawn') playCue('dawn');   // the sun's up (endNight asks for it too; it plays once)
     lastPhase = ph;
     if (ph === 'night' || (ph === 'dusk' && TOD.night > 0.55)) {
-      if (STORY.ch === 6 && STORY.started) return { theme: 'faire', i: 0 };   // the Moon Faire's festival night
+      if (storyFestival()) return { theme: 'faire', i: 0 };   // the Moon Faire's festival night, Charter Night, a festival day (acttwo.js)
       let n = 0; for (const f of WL.list) if (!f.dead && !f.air) n++;
       const broken = n > 0 && WALL.segs && WALL.segs.some(s => s.broken);
       return { theme: 'night', i: Math.min(3, (n === 0 ? 0 : n < 4 ? 1 : n < 8 ? 2 : 3) + (broken ? 1 : 0)), smooth: true };
@@ -123,6 +123,7 @@ const MUSIC = (() => {
     if (VIEW.mode === 'mine') return { theme: 'mine', i: 0 };
     if (VIEW.mode === 'keep') return { theme: 'keep', i: 0 };
     if (ph === 'dusk') return { theme: 'dusk', i: 0 };
+    if (storyFestival()) return { theme: 'faire', i: 0 };
     return { theme: 'day', i: 0 };
   }
   function decide() {

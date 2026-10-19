@@ -22,9 +22,10 @@ for (const f of fs.readdirSync(path.join(ROOT, 'assets/claim')).sort()) {
   assets[f.replace(/\.\w+$/, '')] = `data:${mime};base64,` + fs.readFileSync(path.join(ROOT, 'assets/claim', f)).toString('base64');
 }
 // pictures the claim shows as they are, by folder and name: ART.cast.io (the cast's portraits), ART.items['wind-rifle']
-// (painted item pictures, named after the item's base id in src/claim/loot.js)
+// (painted item pictures, named after the item's base id in src/claim/loot.js), ART.events.wedding (the day events'
+// cards, named after the event's id in src/claim/events.js; docs/art-requests/04-events.md)
 const art = {};
-for (const dir of ['cast', 'items', 'portraits']) {
+for (const dir of ['cast', 'items', 'portraits', 'events']) {
   art[dir] = {};
   const at = path.join(ROOT, 'assets', dir);
   if (!fs.existsSync(at)) continue;

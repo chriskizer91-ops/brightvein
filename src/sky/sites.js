@@ -3,6 +3,8 @@
 // Wickmoor, runs between them. Each is guarded by jumper ships, and the rocks by gun towers. Bring down the guards and
 // silence the guns and the place strikes its colours: its crates are yours to take home (the claim opens them, with
 // the Armory's raid tables, src/claim/loot.js RAIDS). A taken place is manned again after a few days on the claim.
+// Act two adds the Gilded Exchange's two: the Plumbline, a survey rig off Hollowcrest, and the Grindstone, a dredge
+// that drills under the claim's south cliff. They turn up in their chapters (ch: hidden in the Dock's list until then).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { intercept } from './guns.js';
@@ -21,6 +23,12 @@ export const SITES = [
   { id: 'citadel', loot: 'citadel', name: 'The Chandlery, Baron Tallow\'s citadel', short: 'The Chandlery', x: HOME.x + 2200, z: HOME.z + 4300, y: 760, size: 86,
     line: 'A fortress of candle-works on a great lifted rock. Six gun towers, the Baron\'s frigate and his Man-o\'-war.', towers: 6,
     guard: [{ ids: ['frigate', 'brig'], captain: 0 }, { ids: ['manowar', 'cutter', 'cutter'], captain: -1 }], crates: 5, regrow: 4, after: 'galleon' },
+  { id: 'survey', loot: 'outpost', name: 'The Plumbline, the Exchange\'s survey rig', short: 'The Plumbline', x: HOME.x + 3000, z: HOME.z - 1300, y: 660, size: 46, ch: 11, flag: 'silver',
+    line: 'A survey rig on a lifted rock off Hollowcrest: brass derricks, very long drills, two gun towers and an escort under silver sails.', towers: 2,
+    guard: [{ ids: ['cutter', 'cutter'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 3, regrow: 3, after: 'citadel' },
+  { id: 'dredge', loot: 'citadel', name: 'The Grindstone, the Exchange\'s dredge', short: 'The Grindstone', x: HOME.x + 500, z: HOME.z + 2700, y: 640, size: 0, moving: true, ch: 14,
+    line: 'A great dredge with a drill on her bow, cutting into the rock under the claim\'s south cliff, with a frigate and a brig to guard her. Shoot her sails and she strikes.', towers: 0,
+    guard: [{ ids: ['galleon', 'frigate', 'brig'], captain: -1 }], crates: 5, regrow: 6, after: 'survey' },
 ];
 
 const rnd = (a) => { const x = Math.sin(a * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
@@ -68,16 +76,18 @@ function pieces() {
 }
 
 // the jumpers' flag: rust red with a black hoist (Brightvein's, once taken: plum with a gold hoist)
+// (the Exchange's: silver with a gold hoist)
+const FLAGS = { jumpers: [[0.08, 0.06, 0.06], [0.7, 0.1, 0.07]], silver: [[0.85, 0.66, 0.22], [0.82, 0.85, 0.9]], ours: [[0.9, 0.7, 0.25], [0.3, 0.1, 0.25]] };
 function flagGeo(w = 5, h = 3) {
   const g = new THREE.PlaneGeometry(w, h, 6, 1).translate(w / 2, 0, 0);
   const c = [], p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) { const hoist = p.getX(i) < w * 0.2; c.push(...(hoist ? [0.08, 0.06, 0.06] : [0.7, 0.1, 0.07])); p.setZ(i, Math.sin(p.getX(i) * 0.9) * 0.3); }
+  for (let i = 0; i < p.count; i++) { const hoist = p.getX(i) < w * 0.2; c.push(...(hoist ? FLAGS.jumpers[0] : FLAGS.jumpers[1])); p.setZ(i, Math.sin(p.getX(i) * 0.9) * 0.3); }
   g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
   return g;
 }
 function colourFlag(flag, ours) {
-  const c = flag.geometry.attributes.color, p = flag.geometry.attributes.position, w = flag.userData.w;
-  for (let i = 0; i < c.count; i++) { const hoist = p.getX(i) < w * 0.2; if (ours) c.setXYZ(i, ...(hoist ? [0.9, 0.7, 0.25] : [0.3, 0.1, 0.25])); else c.setXYZ(i, ...(hoist ? [0.08, 0.06, 0.06] : [0.7, 0.1, 0.07])); }
+  const c = flag.geometry.attributes.color, p = flag.geometry.attributes.position, w = flag.userData.w, F = FLAGS[ours ? 'ours' : flag.userData.kind || 'jumpers'];
+  for (let i = 0; i < c.count; i++) { const hoist = p.getX(i) < w * 0.2; c.setXYZ(i, ...(hoist ? F[0] : F[1])); }
   c.needsUpdate = true;
 }
 
@@ -157,6 +167,17 @@ export function buildSite(def, M) {
     P.add(new THREE.CylinderGeometry(2.4, 2.4, 9, 12), M.candle, 0, 28.5, -3);
     P.add(new THREE.ConeGeometry(1.1, 3.4, 8), M.flame, 0, 34.6, -3);
     for (let i = 0; i < 6; i++) P.add(new THREE.CylinderGeometry(3, 3, 3, 12), M.dark, 20 + (i % 3) * 7, 1.5, -40 + Math.floor(i / 3) * 7);
+  } else if (def.id === 'survey') {
+    // the Plumbline: three brass derricks with their drill strings hanging down past the rock, and a counting-house
+    for (const [x, z, h] of [[-12, -8, 22], [10, -12, 26], [-2, 14, 20]]) {
+      for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) P.add(new THREE.CylinderGeometry(0.22, 0.32, h, 5), M.brass, x + dx * 2.2 * 0.5, h / 2, z + dz * 2.2 * 0.5, 0, dz * 0.09, -dx * 0.09);
+      for (let k = 1; k < 4; k++) P.add(new THREE.BoxGeometry(2.6 - k * 0.4, 0.18, 2.6 - k * 0.4), M.iron, x, h * k / 4, z);
+      P.add(new THREE.CylinderGeometry(0.16, 0.16, h + 26, 6), M.iron, x, h / 2 - 13, z);
+      P.add(new THREE.ConeGeometry(0.7, 2.4, 8), M.iron, x, -26.5, z, 0, Math.PI);
+    }
+    shed(P, M, 14, 10, 12, 8, 5, 0.2); shed(P, M, -18, 10, 7, 6, 3.6, -0.4);
+    P.add(new THREE.BoxGeometry(12.2, 0.6, 8.2), M.stone, 14, 0.3, 10, 0.2);
+    for (let i = 0; i < 5; i++) P.add(new THREE.CylinderGeometry(0.5, 0.5, 6, 8), M.iron, 22 - i * 1.2, 0.5, -20, 0, 0, Math.PI / 2);
   }
   // the gun towers, round the edge
   for (let i = 0; i < def.towers; i++) {
@@ -167,7 +188,7 @@ export function buildSite(def, M) {
   // the flag, high on a pole
   const poleH = def.id === 'citadel' ? 46 : def.id === 'outpost' ? 36 : 14, px = def.id === 'outpost' ? -14 : 0, pz = def.id === 'outpost' ? -10 : 0;
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, poleH, 6), M.dark); pole.position.set(px, poleH / 2, pz); group.add(pole);
-  const flag = new THREE.Mesh(flagGeo(def.id === 'citadel' ? 9 : 5, def.id === 'citadel' ? 5 : 3), M.flag); flag.position.set(px, poleH - 2, pz); flag.userData.w = def.id === 'citadel' ? 9 : 5; group.add(flag);
+  const flag = new THREE.Mesh(flagGeo(def.id === 'citadel' ? 9 : 5, def.id === 'citadel' ? 5 : 3), M.flag); flag.position.set(px, poleH - 2, pz); flag.userData.w = def.id === 'citadel' ? 9 : 5; flag.userData.kind = def.flag || 'jumpers'; group.add(flag);
   return { group, towers, flag, depth };
 }
 

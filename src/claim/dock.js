@@ -158,7 +158,7 @@ function dockHome(r) {
   clock.getDelta();
   dockMoor();
   // Barnabus's gift (the old skyman): a tenth more shards from every voyage
-  if (r && r.got && castPerk('quill')) { const extra = Math.round(r.got * 0.1); GAME.shards += extra; r.got += extra; }
+  if (r && r.got && castPerk('quill')) { const extra = Math.round(r.got * (castGift('quill', 1.1, 1.2) - 1)); GAME.shards += extra; r.got += extra; }   // a fifth, once his story's done (quests.js)
   // a raid: the place is ours for now, and its crates are opened at home
   if (r && r.raid && r.raid.taken) {
     const R = FLEET.data.raids[r.raid.id]; R.won++; R.day = GAME.day;
@@ -193,6 +193,7 @@ UI.dock = function (body) {
   body.append(this.h(`<h3>Raids on the claim-jumpers</h3>`));
   const list = document.createElement('div'); list.className = 'list';
   for (const s of SITES) {
+    if (s.ch && STORY.ch < s.ch && !(d.raids[s.id] && d.raids[s.id].won)) continue;   // act two's places turn up in their chapters
     const st = d.raids[s.id], after = s.after && SITES.find(x => x.id === s.after), locked = after && !d.raids[after.id].won;
     const wait = st.won ? s.regrow - (GAME.day - st.day) : 0;
     const el = document.createElement('button'); el.type = 'button'; el.className = 'li raid';

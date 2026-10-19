@@ -20,8 +20,8 @@ import * as THREE from 'three';
 import { intercept } from './guns.js';
 import { HOME } from './world.js';
 import { WIND } from './flight.js';
-import { FLEET } from '../ships/index.js';
-import { materials, buildSite, colourFlag, buildCliff, buildDrill, buildEngine, buildBeacon } from './sites.js';
+import { FLEET, STATS } from '../ships/index.js';
+import { materials, buildSite, colourFlag, buildCliff, buildDrill, buildEngine, buildBeacon, REPEAT } from './sites.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const rnd = (a) => { const x = Math.sin(a * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
@@ -40,11 +40,11 @@ const mmss = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math
 
 // the bosses: their names, their ship, their health (before the skies' toughness) and where their phases turn
 export const BOSSES = {
-  candle: { name: 'The Black Candle', sub: 'Baron Tallow’s flagship', ship: 'manowar', look: 'candle', hp: { hull: 5200, sails: 1900, crystals: 2400 }, marks: [0.6, 0.3] },
-  grindstone: { name: 'The Grindstone', sub: 'the Gilded Exchange’s dredge', ship: 'galleon', look: 'silver', hp: { hull: 6500, sails: 2200, crystals: 2800 }, marks: [0.3] },
+  candle: { name: 'The Black Candle', sub: 'Baron Tallow’s flagship', ship: 'manowar', look: 'candle', hp: { hull: 5200, sails: 1900, crystals: 2400 }, marks: [0.6, 0.3], damage: 0.4 },
+  grindstone: { name: 'The Grindstone', sub: 'the Gilded Exchange’s dredge', ship: 'galleon', look: 'silver', hp: { hull: 6500, sails: 2200, crystals: 2800 }, marks: [0.3], damage: 0.45 },
 };
 export const DRILL_TIME = { fair: 260, cross: 220, mael: 190 };   // seconds for the Grindstone to drill through
-export const STORM_TIME = { per: 15, base: 40, fair: 20, cross: 0, mael: -10 };
+export const STORM_TIME = { per: 13, base: 30, fair: 20, cross: 0, mael: -10 };
 
 // ctx: scene, bolts, smoke, raiders, skies(), skiesId(), pickups, debris, flash, sfx(name, at), say { banner, toast },
 // shake(seconds)
@@ -59,12 +59,13 @@ export function makeRaids(ctx) {
   // ---------- setting out ----------
   // def from SITES (or bountySite). opts.repeat: taken before (no boss, smaller pay). Returns where the Captain sets
   // out from, and her heading.
-  function start(def, opts = {}) {
+  function start(def0, opts = {}) {
     clear();
+    let def = def0;
     const S = skies();
     cur = { def, kind: def.kind, state: 'approach', t: 0, wave: 0, waveT: 0, guards: [], towers: [], mounts: [], taken: false, lost: false, why: '',
       center: V(def.x, def.y, def.z), prize: null, boss: null, phase: 0, smokeT: 0, repeat: !!opts.repeat, flagged: {}, beacons: [], next: 0, barges: [] };
-    if (cur.kind === 'dredge' && cur.repeat) cur.kind = 'galleon';         // the Grindstone's wreck draws salvagers
+    if (cur.kind === 'dredge' && cur.repeat) { cur.kind = 'galleon'; cur.def = def = { ...def, guard: def.repeatGuard, short: 'The salvagers' }; }   // the Grindstone's wreck draws salvagers
     if (cur.kind === 'citadel' && cur.repeat) cur.kind = 'rock';           // the Black Candle doesn't come back
     const toward = Math.atan2(def.x - HOME.x, def.z - HOME.z);
     let out = { pos: V(HOME.x + Math.sin(toward) * 900, 680, HOME.z + Math.cos(toward) * 900), heading: toward };
@@ -75,7 +76,7 @@ export function makeRaids(ctx) {
       colourFlag(m.flag, false);
       for (const s of m.strings) { s.visible = true; s.position.y = 0; s.rotation.set(0, 0, 0); s.userData.fall = 0; }
       cur.towers = m.towers.map((t) => {
-        const hp = (t.silent ? 220 : t.spire ? 900 : def.id === 'citadel' ? 420 : 260) * S.toughness;
+        const hp = (t.silent ? 220 : t.spire ? 700 : def.id === 'citadel' ? 420 : 260) * S.toughness;
         return { ...t, hp, max: hp, ready: 2 + Math.random() * 2, alive: true, goal: def.winches ? !!t.silent : true, world: t.local.clone().applyMatrix4(m.group.matrixWorld) };
       });
       for (const t of cur.towers) { t.head.visible = true; t.head.rotation.set(0, 0, 0); t.barrel.visible = true; }
@@ -99,19 +100,23 @@ export function makeRaids(ctx) {
     w.ids.forEach((id, k) => {
       if (cur.kind === 'galleon' && id === 'galleon' && !cur.prize) {
         const r = raiders.spawn('galleon', c.clone(), Math.atan2(HOME.x - c.x, HOME.z - c.z) + Math.PI / 2, false, false, { look: def.look });
-        r.name = cur.repeat && def.id === 'dredge' ? 'Exchange salvage galleon' : def.short; cur.prize = r; cur.guards.push(r); out.push(r); return;
+        r.name = cur.repeat && def.id === 'dredge' ? 'The salvage galleon' : def.short; cur.prize = r; cur.guards.push(r); out.push(r);
+        if (cur.repeat) r.bounty *= REPEAT;   // her hold's lighter the second time
+        return;
       }
       const a = (def.moving && !from ? toFoe + Math.PI : toFoe) + (k - (w.ids.length - 1) / 2) * 0.5, d = (def.size || 60) + 120 + k * 30;
       const pos = V(c.x + Math.sin(a) * d, c.y + 30 + k * 15, c.z + Math.cos(a) * d);
       const cap = k === w.captain, B = def.bounty;
       const r = raiders.spawn(id, pos, foe ? Math.atan2(foe.pos.x - pos.x, foe.pos.z - pos.z) : a + Math.PI, false, cap, { look: cap && !def.look ? 'captain' : def.look ?? (cap ? 'captain' : 'crew'),
-        ...(B && cap ? { name: B.name, bounty: B.reward * 0.2 } : {}) });
+        ...(B && cap ? { name: B.name, bounty: B.reward * 0.2, hp: bountyHp(id), damage: id === 'manowar' ? 0.5 : 0.8 } : {}) });
       if (!(B && cap)) r.name = named(def.look, cap, r.R.cls);
       if (B && cap) { cur.boss = r; r.canEscape = true; r.escapeAt = 3200; }
       cur.guards.push(r); out.push(r);
     });
     return out;
   }
+  // a wanted captain's ship: half as tough again as her class (a raider captain is twice)
+  const bountyHp = (id) => { const st = STATS[id]; return { hull: st.hull * 1.4, sails: st.sails * 1.4, crystals: st.crystals * 1.4 }; };
   // where the place is now (a moving one is where its prize or boss is; a convoy is its lead barge)
   function where() {
     if (!cur) return ZERO;
@@ -166,13 +171,13 @@ export function makeRaids(ctx) {
       t.barrel.rotation.x = -Math.atan2(foe.pos.y - t.world.y, Math.hypot(foe.pos.x - t.world.x, foe.pos.z - t.world.z));
       t.ready -= dt;
       if (fighting && td < (t.spire ? 1400 : 1150) && t.ready <= 0 && !foe.down) {
-        // a volley of two (three from the Chandlery's heavier towers, four from the spire gun), each a little off
-        t.ready = (t.spire ? 4.2 : 2.6) * S.reload * (0.85 + Math.random() * 0.3);
-        const from = t.world.clone().add(V(0, 0.4, 0)), e = td * 0.012 * S.aim + 1, n = t.spire ? 4 : def.id === 'citadel' ? 3 : 2;
+        // a volley of two (heavier from the Chandlery), or three heavy shot from the spire gun, each a little off
+        t.ready = (t.spire ? 4.6 : 2.6) * S.reload * (0.85 + Math.random() * 0.3);
+        const from = t.world.clone().add(V(0, 0.4, 0)), e = td * 0.012 * S.aim + 1, n = t.spire ? 3 : 2;
         for (let k = 0; k < n; k++) {
           aimP.copy(intercept(from, ZERO, foe.aimAt(), foe.velocity, 430));
           aimP.add(V(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(2 * e));
-          bolts.fire(from, aimP.sub(from).normalize(), t.spire ? 'broadside' : 'chaser', 'raider', ZERO, (t.spire ? 1.1 : def.id === 'citadel' ? 1.25 : 0.9) * S.damage);
+          bolts.fire(from, aimP.sub(from).normalize(), t.spire ? 'broadside' : 'chaser', 'raider', ZERO, (t.spire ? 0.85 : def.id === 'citadel' ? 1.1 : 0.9) * S.damage);
         }
         if (t.spire) sfx('cannon', from);
       }
@@ -212,7 +217,7 @@ export function makeRaids(ctx) {
   function riseCandle(foe) {
     const B = BOSSES.candle, c = cur.center, out = Math.atan2(foe.pos.x - c.x, foe.pos.z - c.z) + 0.6, R = cur.def.size + 90;
     const pos = V(c.x + Math.sin(out) * R, c.y - cur.model.depth - 30, c.z + Math.cos(out) * R);
-    const r = raiders.spawn(B.ship, pos, out + Math.PI / 2, false, false, { look: B.look, hp: B.hp, name: B.name, role: 'broadside', bounty: 500 });
+    const r = raiders.spawn(B.ship, pos, out + Math.PI / 2, false, false, { look: B.look, hp: B.hp, name: B.name, role: 'broadside', bounty: 500, damage: B.damage });
     r.boss = 'candle'; r.f.invuln = true; r.holdFire = true; r.rise = { t: 0, y0: pos.y, y1: c.y + 25, time: 9 }; r.ai = () => ({ turn: 0, climb: 0, sailTo: 0 });
     candleFlames(r);
     cur.boss = r; cur.guards.push(r); cur.phase = 0;
@@ -309,7 +314,7 @@ export function makeRaids(ctx) {
   // ---------- the Grindstone ----------
   function startDredge() {
     const def = cur.def, B = BOSSES.grindstone, c = cur.center, heading = Math.PI / 2;   // she lies across the gorge, drilling east
-    const r = raiders.spawn(B.ship, c.clone(), heading, false, false, { look: B.look, hp: B.hp, name: B.name, role: 'broadside', bounty: 600 });
+    const r = raiders.spawn(B.ship, c.clone(), heading, false, false, { look: B.look, hp: B.hp, name: B.name, role: 'broadside', bounty: 600, damage: B.damage });
     r.boss = 'grindstone'; cur.boss = r; cur.guards.push(r); cur.phase = 0; cur.drill = 0; cur.state = 'fight';
     const drill = buildDrill(M, 24, 5.2); drill.position.set(0, r.R.ram.y + 0.6, r.R.hull.bow - 0.5); r.ship.body.add(drill); cur.drillM = drill;
     // the two drill engines on outriggers, port and starboard, amidships
@@ -323,7 +328,7 @@ export function makeRaids(ctx) {
     cliff.position.copy(c).addScaledVector(fwd, tip + 80 - 4); cliff.rotation.y = heading + Math.PI;
     scene.add(cliff); cliff.updateMatrixWorld(true); cur.cliff = cliff;
     r.ai = () => ({ turn: 0, climb: 0, sailTo: 0 });   // anchored to the cliff while she drills
-    r.f.speed = 0;
+    r.f.speed = 0; r.f.armor = 0.2;                     // and braced: her hull is shored with iron for the drilling
     spawnGuard(0, null, c.clone().add(V(-300, 30, -250)));
   }
   function dredge(dt, foe) {
@@ -342,8 +347,8 @@ export function makeRaids(ctx) {
       if (!cur.flagged.half && cur.drill > 0.5) { cur.flagged.half = true; say.banner('The drill is halfway through', 'Knock out her drill engines'); sfx('alarm'); }
       if (cur.drill >= 1) { cur.why = 'drilled'; return 'lost'; }
       if (!cur.mounts.some((m) => m.alive)) {
-        cur.phase = 1; r.ai = null; r.side = 1;
-        say.banner('The drill stops', 'The Grindstone backs off the cliff to fight: sink her'); sfx('bossroar');
+        cur.phase = 1; r.ai = null; r.side = 1; r.f.armor = 1;
+        say.banner('The drill stops', 'Her bracing is down: the Grindstone backs off the cliff to fight. Sink her'); sfx('bossroar');
         cur.wave = 1; spawnGuard(1, foe, r.f.pos.clone().add(V(0, 40, -500)));
       }
     }
@@ -548,7 +553,7 @@ export function makeRaids(ctx) {
     if (B && !B.gone) {
       const K = BOSSES[B.boss];
       out.boss = { name: B.name, sub: K ? K.sub : def.bounty ? `“${def.bounty.nick}” · a ${B.R.cls}` : B.R.cls, frac: B.f.down ? 0 : B.f.frac('hull'), frac2: B.f.frac('crystals'),
-        marks: K ? K.marks : [0.3], phase: B.rise ? 'Rising' : B.ram ? 'Ramming' : B.fleeing ? 'Running' : K && cur.phase ? `Phase ${cur.phase + 1}` : '', shield: !!B.f.invuln };
+        marks: K ? K.marks : [0.3], phase: B.rise ? 'Rising' : B.f.armor < 1 ? 'Braced: knock out her engines' : B.ram ? 'Ramming' : B.fleeing ? 'Running' : K && cur.phase ? `Phase ${cur.phase + 1}` : '', shield: !!B.f.invuln || B.f.armor < 1 };
     } else if (cur.kind === 'galleon' && cur.prize && !cur.prize.gone) {
       const P = cur.prize;
       out.boss = { name: P.name, sub: 'shoot her sails to make her strike', frac: P.f.frac('sails'), frac2: P.f.frac('hull'), label2: 'Hull', marks: [0.5], phase: P.fleeing ? 'Running' : '', sails: true };

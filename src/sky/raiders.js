@@ -121,7 +121,8 @@ export function makeRaiders(scene, art, bolts, skies) {
   let ai = true;
 
   // opts: look ('crew', 'captain', 'silver', 'candle', 'friend'), friend (sails with the Captain), role, name,
-  // hp ({ hull, sails, crystals } to set outright), speed (a multiple of her pace), bounty
+  // hp ({ hull, sails, crystals } to set outright), speed (a multiple of her pace), damage (her shot's weight, a
+  // multiple: a boss's two gun decks would sink anything in three broadsides otherwise), bounty
   function spawn(id, pos, heading, frozen = false, captain = false, opts = {}) {
     const S = skies(), look = opts.look ?? (captain ? 'captain' : 'crew'), Tm = template(id, look), tough = S.toughness * (captain ? CAPTAIN.toughness : 1);
     const ship = raiderShip(Tm), st = STATS[id], friend = !!opts.friend;
@@ -140,7 +141,7 @@ export function makeRaiders(scene, art, bolts, skies) {
     f.strikes = role === 'prize';
     ship.root.position.copy(pos); ship.root.rotation.y = heading;
     scene.add(ship.root);
-    const gun = makeGunnery(ship, { reload: RAIDER.slow * S.reload * (HEAVY[id] ?? 1) * (captain ? CAPTAIN.reload : 1), damage: S.damage * (captain ? CAPTAIN.damage : 1) });
+    const gun = makeGunnery(ship, { reload: RAIDER.slow * S.reload * (HEAVY[id] ?? 1) * (captain ? CAPTAIN.reload : 1), damage: S.damage * (captain ? CAPTAIN.damage : 1) * (opts.damage ?? 1) });
     const r = { id, R: Tm.R, name: opts.name ?? `Raider ${captain ? 'captain\'s ' + Tm.R.cls : Tm.R.cls}`, captain, ship, f, gun, zones: Tm.zones, role, frozen, friend, look,
       bounty: opts.bounty ?? BOUNTY[id] * (captain ? CAPTAIN.bounty : 1), aim: RAIDER.aim * S.aim,
       mode: 'attack', timer: 0, side: 1, alt: (Math.random() - 0.5) * (role === 'chaser' ? 50 : 20), counted: false, gone: false,

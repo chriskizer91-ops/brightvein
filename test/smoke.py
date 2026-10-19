@@ -110,6 +110,62 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1200)
     r = pg.evaluate('({ stash: __bv.GAME.stash.length, won: __bv.FLEET.data.raids.camp.won, panel: __bv.UI.cur && __bv.UI.cur.kind })')
     check("the camp's crates opened at home", r['stash'] >= before + 2 and r['won'] == 1 and r['panel'] == 'haul', json.dumps(r))
+    # the Shipyard: a ship bought with shards and materials, a refit that raises her numbers and rebuilds her model,
+    # crew from the claim who make the guns reload faster (in the Shipyard's numbers and in the air), and repairs
+    pg.evaluate('__bv.UI.close(); __bv.openSky("port")')
+    pg.wait_for_function('__bv.SKY.mode === "port"', timeout=120000)
+    r = pg.evaluate('''(() => { const B = __bv, g = B.SKY, d = B.FLEET.data, out = {};
+      B.STORY.ch = Math.max(B.STORY.ch, 2); B.GAME.shards = 3000; Object.assign(B.GAME.mats, { brass: 10, glass: 10, heartstone: 10 });
+      const c = d.ships.cutter; c.owned = false; c.refit = { hull: 0, sails: 0, guns: 0, crystals: 0 }; c.wear = { hull: 1, sails: 1, crystals: 1 }; c.repair = null;
+      [...document.querySelectorAll('#port-ships button')].find(b => b.dataset.ship === 'cutter').click();
+      const s0 = B.GAME.shards, b0 = B.GAME.mats.brass; document.getElementById('btn-buy').click();
+      out.bought = c.owned && d.flying === 'cutter'; out.paid = [Math.round(s0 - B.GAME.shards), b0 - B.GAME.mats.brass];
+      const R = { id: 'cutter' }, ship0 = g.shipNow(B.SKY.parts.raiders.templates['cutter:crew'].R), h0 = g.loadoutOf('cutter').stats.hull, straps0 = ship0.recipe.bands.straps.length;
+      g.port.tab = 'refit'; document.querySelector('#pp-refit-list [data-part=hull] button').click();
+      const ship1 = g.shipNow(B.SKY.parts.raiders.templates['cutter:crew'].R);
+      out.hull = [h0, g.loadoutOf('cutter').stats.hull]; out.rebuilt = ship1 !== ship0 && ship1.recipe.bands.straps.length > straps0; void R;
+      // the crew: nobody aboard, then the two best at Agility on the guns
+      d.crew = { pilot: 0, bosun: 0, gunners: [] }; const r0 = g.loadoutOf('cutter').guns.reload;
+      const ppl = B.GAME.villagers.filter(v => !v.d.exp && !v.d.study && !v.hurt).sort((a, b) => b.d.stats.A - a.d.stats.A);
+      ppl[0].d.stats.A = 10; ppl[1].d.stats.A = 9; B.yardSeat('gunner', 0, ppl[0]); B.yardSeat('gunner', 1, ppl[1]);
+      out.reload = [r0, g.loadoutOf('cutter').guns.reload]; out.names = B.yardCrewNames('cutter');
+      B.UI.open('dock', { tab: 'crew' }); out.portraits = document.querySelectorAll('#panel-body .yseat .pframe').length; B.UI.close();
+      // in the air: the gunnery reloads faster with them aboard
+      g.fly('cutter'); const withCrew = g.gunnery.reload('port'); g.endVoyage(1);
+      const keep = d.crew.gunners; d.crew.gunners = []; g.fly('cutter'); const without = g.gunnery.reload('port'); g.endVoyage(1); d.crew.gunners = keep;
+      out.air = [without, withCrew];
+      // repairs: harm she brought home costs shards and time at the dock, and the claim finishes them
+      c.wear = { hull: 0.4, sails: 0.7, crystals: 0.9 }; B.UI.open('dock'); const rb = [...document.querySelectorAll('#panel-body .btn')].find(b => /Repair her/.test(b.textContent));
+      const s1 = B.GAME.shards; if (rb) rb.click(); out.repair = { paid: Math.round(s1 - B.GAME.shards), until: c.repair && Math.round((c.repair.until - c.repair.from) * 24 * 10) / 10 };
+      B.UI.close();
+      return out; })()''')
+    check('buy a ship in the Shipyard with shards and materials', r['bought'] and r['paid'][0] == 300 and r['paid'][1] == 2, json.dumps(r))
+    check('a refit raises her numbers and changes her model', r['hull'][1] > r['hull'][0] and r['rebuilt'], json.dumps(r['hull']))
+    check('crew from the claim make the guns reload faster, in the Shipyard and in the air', r['reload'][1] < r['reload'][0] * 0.9 and r['air'][1] < r['air'][0] * 0.9 and r['portraits'] >= 2, json.dumps({k: r[k] for k in ('reload', 'air', 'portraits', 'names')}))
+    check('a ship brought home hurt is repaired at the dock for shards and time', r['repair']['paid'] > 0 and (r['repair']['until'] or 0) >= 1, json.dumps(r['repair']))
+    pg.evaluate('__bv.SKY.on || __bv.openSky("port")')
+    pg.wait_for_function('__bv.SKY.mode === "port"', timeout=120000)
+    # a boss raid: the Chandlery's guns and guards, then Tallow's flagship rising from the rock, brought down in her
+    # phases; at home its crates hold a Lark part or a module for certain
+    r = pg.evaluate('''(() => { const B = __bv, d = B.FLEET.data; d.skies = 'fair'; const b = d.ships.brig; b.wear = { hull: 1, sails: 1, crystals: 1 }; b.repair = null;
+      b.refit = { hull: 2, sails: 1, guns: 2, crystals: 1 }; d.raids.citadel.won = 0;
+      const r = __raidPilot('citadel', 'brig', 700); const cur = B.SKY.sites.cur;
+      return { state: r.state, t: r.t, saves: r.saves, boss: !!cur.boss && cur.boss.boss, bossDown: !!cur.boss && !!cur.boss.f.down, card: r.card, log: r.log.filter(x => /boss/.test(x)).slice(0, 2).concat(r.log.slice(-2)) }; })()''')
+    check('a boss raid: the Black Candle rises from the Chandlery, and is brought down', r['state'] == 'taken' and r['boss'] == 'candle' and r['bossDown'], json.dumps(r))
+    before = pg.evaluate('__bv.GAME.stash.length')
+    pg.evaluate('document.getElementById("btn-go-port").click()')
+    pg.wait_for_timeout(1200)
+    r = pg.evaluate('({ stash: __bv.GAME.stash.length, won: __bv.FLEET.data.raids.citadel.won, best: __bv.FLEET.data.raids.citadel.best, lark: __bv.GAME.stash.slice(0, 8).some(it => it.type === "lark" || it.type === "module"), panel: __bv.UI.cur && __bv.UI.cur.kind })')
+    check("the boss's crates come home: five, and a Lark part or module", r['stash'] >= before + 6 and r['won'] == 1 and r['best'] > 0 and r['lark'], json.dumps(r) + f' before {before}')
+    # a repeat raid: the camp, taken before, is manned again after a day, and pays half
+    r = pg.evaluate('''(() => { const B = __bv, out = {}; B.UI.close();
+      const row = () => B.yardSites().find(x => x.s.id === 'camp');
+      B.FLEET.data.raids.camp.day = B.GAME.day; out.wait = row().wait;
+      B.UI.open('dock', { tab: 'raids' }); const li = [...document.querySelectorAll('#panel-body .li.raid')].find(e => /prospect camp/.test(e.textContent)); out.disabled = !!li && li.disabled; out.side = li && li.querySelector('.side').textContent; B.UI.close();
+      B.simulate(240, 0.25); out.after = row().wait;
+      B.SKY.raid('camp', 'skiff'); out.repeat = B.SKY.sites.cur.repeat; B.SKY.endVoyage(1); B.UI.close();
+      return out; })()''')
+    check("a place taken is manned again after its cooldown, and a repeat raid pays less", r['wait'] >= 1 and r['disabled'] and 'Manned again' in (r['side'] or '') and r['after'] <= 0 and r['repeat'], json.dumps(r))
     # the dig: the upper Ore Face a new claim starts with, ore up the lift, a room dug and staffed, two merged, an
     # upgrade, a cave-in dug clear, Wildlight out of the deep seam, and a claim from before the dig loaded
     r = pg.evaluate('''(() => { const B = __bv, out = {}, F = B.roomAt(0, 9);
@@ -274,6 +330,9 @@ with sync_playwright() as p:
     # a claim saved before the dig, with the deep seam open: its miners keep their places in the matching rooms
     pg.evaluate('''(() => { const B = __bv; B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
       delete s.dig; for (const b of s.buildings) if (b.type === 'head') b.level = 2;
+      const m0 = { armour: 0, canvas: 0, drill: 0, crystals: 0 };   // and a fleet from before the Shipyard (v1, with upgrades as mods)
+      s.sky = { skies: 'cross', flying: 'cutter', best: { fair: 3, cross: 1, mael: 0 }, voyages: 4, downed: 9, raids: { camp: { won: 2, day: 1 }, outpost: { won: 0, day: -99 } },
+        ships: { skiff: { owned: true, power: 0, mods: { ...m0, armour: 1 } }, cutter: { owned: true, power: -1, mods: { armour: 2, canvas: 1, drill: 3, crystals: 0 } }, brig: { owned: false, power: 0, mods: m0 }, frigate: { owned: false, power: 0, mods: m0 } } };
       for (const k of ['act', 'quests', 'events', 'mood']) delete s.story[k];   // and from before act two's days and stories
       const ps = s.people.filter(p => !p.exp); ps[0].job = { bid: 'head', slot: 1 }; ps[1].job = { bid: 'head', slot: 5 }; ps[0].name = 'Upper Test'; ps[1].name = 'Lower Test';
       const set = Storage.prototype.setItem; localStorage.setItem('brightvein-keep-v1', JSON.stringify(s));
@@ -285,6 +344,8 @@ with sync_playwright() as p:
     check('an old save loads: the galleries are rooms, the miners keep their places', 'm:0.8 face 2' in r['rooms'] and 'm:2.8 face 2' in r['rooms'] and 'm:5.8 seam 2' in r['rooms'] and r['upper'] == 'm:0.8' and r['lower'] == 'm:2.8', json.dumps(r))
     r = pg.evaluate('''(() => { const B = __bv; return { ch: B.STORY.ch, started: B.STORY.started, last: B.ACT.lastNight, night: B.NIGHT.last && B.NIGHT.last.n, mood: B.MOOD.v, quests: Object.keys(B.QST).length }; })()''')
     check('a save from before act two loads, and goes on in act two', r['ch'] == 9 and r['last'] == (r['night'] or 0) and r['quests'] == 0 and 0 <= r['mood'] <= 100, json.dumps(r))
+    r = pg.evaluate('''(() => { const d = __bv.FLEET.data; return { v: d.v, flying: d.flying, cutter: d.ships.cutter.refit, power: d.ships.cutter.power, skiff: d.ships.skiff.refit.hull, six: Object.keys(d.ships).length, galleon: d.ships.galleon.owned, camp: d.raids.camp.won, convoy: !!d.raids.convoy, crew: !!d.crew && Array.isArray(d.crew.gunners), wear: d.ships.cutter.wear.hull, moored: __bv.DOCK.ship && __bv.DOCK.ship.recipe.id }; })()''')
+    check('a fleet from before the Shipyard loads: its upgrades become refits', r['v'] == 2 and r['flying'] == 'cutter' and r['cutter'] == {'hull': 2, 'sails': 1, 'guns': 3, 'crystals': 0} and r['power'] == -1 and r['skiff'] == 1 and r['six'] == 6 and not r['galleon'] and r['camp'] == 2 and r['convoy'] and r['crew'] and r['wear'] == 1, json.dumps(r))
     extra = os.environ.get('SMOKE_EXTRA')
     if extra: print(pg.evaluate(extra))
     # a claim saved before Odile's bench and the module sockets: no workshop in it, and only gear in the stash

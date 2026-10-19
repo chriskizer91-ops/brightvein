@@ -65,7 +65,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .port-top { position: fixed; top: var(--top); left: var(--gutter); right: var(--gutter); display: flex; align-items: center; gap: 12px; pointer-events: none; }
 .port-top > * { pointer-events: auto; }
 .port-top h1 { margin: 0; font: 400 40px/1 var(--display); color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 20px rgba(0, 0, 0, 0.8); }
-#port-shards { padding: 5px 12px; font-size: 17px; }
+#port-shards { padding: 5px 12px; font-size: 17px; white-space: nowrap; }
 #btn-skies { margin-left: auto; padding: 6px 12px; font-size: 13px; }
 #btn-home { padding: 6px 12px; font-size: 13px; }
 #port-note { position: fixed; top: calc(var(--top) + 56px); left: var(--gutter); margin: 0; padding: 6px 12px; color: var(--gold); opacity: 0; pointer-events: none; }
@@ -135,7 +135,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .card p { margin: 8px 0 12px; color: var(--cream); font-size: 14px; }
 .choices { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
 #calm { position: fixed; left: 50%; top: 40%; translate: -50% 0; }
-#btn-pause { position: fixed; top: var(--top); left: calc(50% + 64px); width: 38px; height: 34px; padding: 0; font-size: 12px; }
+#btn-pause { position: fixed; top: var(--top); right: calc(var(--gutter) + clamp(150px, 20vw, 260px) + 12px); width: 38px; height: 34px; padding: 0; font-size: 12px; }
 
 #ship { position: fixed; top: var(--top); left: var(--gutter); padding: 6px 12px 8px; pointer-events: none; }
 #ship h1 { margin: 0; font: 400 30px/0.95 var(--display); color: var(--gold); }
@@ -185,7 +185,8 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .narrow { display: none; }
 
 /* the raiders: a tag over each one, or at the edge of the screen pointing to it */
-#tags { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+#tags { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+#objective, #sky-boss, #ship, #compass, #score, #minimap { z-index: 2; }
 .tag { position: absolute; left: 0; top: 0; display: grid; grid-template-columns: auto auto; gap: 2px 6px; padding: 3px 6px 4px; font-size: 11px; white-space: nowrap;
   background: rgba(48, 10, 14, 0.72); border: 1px solid rgba(255, 110, 90, 0.75); border-radius: 5px; color: var(--ink); will-change: transform; }
 .tag b { font-weight: 400; color: #ffb4a0; }
@@ -234,21 +235,21 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #obj-meter i { background: #ff9f45; }
 #obj-meter.warn i { background: #ff5a3a; }
 /* the boss bar, under the compass */
-#bossbar { position: fixed; left: 50%; top: calc(var(--top) + 46px); translate: -50% 0; width: min(560px, 56vw); pointer-events: none; text-shadow: 0 1px 0 #000, 0 0 10px rgba(0, 0, 0, 0.9); }
-.bb-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-#bb-name { font: 400 26px/1 var(--display); color: #ffd36a; }
-#bb-phase { font-size: 12px; color: #ffb4a0; text-transform: uppercase; letter-spacing: 0.08em; }
-.bb-bar { position: relative; height: 12px; margin-top: 3px; border: 1px solid rgba(255, 211, 106, 0.8); border-radius: 3px; background: rgba(30, 10, 12, 0.75); box-shadow: 0 0 0 2px rgba(58, 22, 49, 0.9); overflow: hidden; }
-#bb-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(#ff9a6a, #c0412a); transition: width 0.2s; }
-#bossbar.sails #bb-fill { background: linear-gradient(#fff3d8, #c8b48a); }
-#bossbar.shield .bb-bar { border-color: #9fe7ff; }
-#bossbar.shield #bb-fill { background: linear-gradient(#cfefff, #5a8aa8); }
-#bb-marks i { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: rgba(255, 243, 208, 0.85); }
-.bb-low { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 3px; font-size: 12px; color: var(--cream); }
-.bb-two { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 11px; }
-.bb-two .meter { width: 90px; margin: 0; }
-.bb-two .meter i { background: #ff9f45; }
-#bossbar.sails .bb-two .meter i { background: var(--gold); }
+#sky-boss { position: fixed; left: 50%; top: calc(var(--top) + 46px); translate: -50% 0; width: min(560px, 56vw); pointer-events: none; text-shadow: 0 1px 0 #000, 0 0 10px rgba(0, 0, 0, 0.9); }
+.sb-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+#sb-name { font: 400 26px/1 var(--display); color: #ffd36a; }
+#sb-phase { font-size: 12px; color: #ffb4a0; text-transform: uppercase; letter-spacing: 0.08em; }
+.sb-bar { position: relative; height: 12px; margin-top: 3px; border: 1px solid rgba(255, 211, 106, 0.8); border-radius: 3px; background: rgba(30, 10, 12, 0.75); box-shadow: 0 0 0 2px rgba(58, 22, 49, 0.9); overflow: hidden; }
+#sb-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(#ff9a6a, #c0412a); transition: width 0.2s; }
+#sky-boss.sails #sb-fill { background: linear-gradient(#fff3d8, #c8b48a); }
+#sky-boss.shield .sb-bar { border-color: #9fe7ff; }
+#sky-boss.shield #sb-fill { background: linear-gradient(#cfefff, #5a8aa8); }
+#sb-marks i { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: rgba(255, 243, 208, 0.85); }
+.sb-low { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 3px; font-size: 12px; color: var(--cream); }
+.sb-two { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 11px; }
+.sb-two .meter { width: 90px; margin: 0; }
+.sb-two .meter i { background: #ff9f45; }
+#sky-boss.sails .sb-two .meter i { background: var(--gold); }
 /* the compass's arrow to the objective */
 #goal-dir { margin-left: 10px; font: 13px var(--body); color: #ffcf85; white-space: nowrap; }
 #goal-dir i { display: inline-block; font-style: normal; margin-right: 3px; color: #ffb347; }
@@ -312,26 +313,31 @@ body.touch #sky .mouse-only { display: none !important; }
   #port-ships { left: 50%; translate: -50% 0; }
   #port-ships button b { font-size: 18px; }
   #port-ships button { padding: 5px 8px 4px; }
-  #btn-pause { top: calc(var(--top) + 40px); left: 50%; translate: -50% 0; }
+  #btn-pause { top: var(--top); left: 50%; right: auto; translate: -50% 0; }
   #calm { top: 30%; }
-  #wind { display: block; margin: 2px 0 0; text-align: center; font-size: 11px; }
+  #wind { display: none; }
   #ship h1 { font-size: 24px; }
   #readout { font-size: 12px; }
-  #compass { top: calc(var(--top) + 2px); font-size: 18px; }
+  #compass { top: calc(var(--top) + 97px); left: auto; right: var(--gutter); translate: none; width: 136px; padding: 2px 6px; text-align: center; font-size: 15px; white-space: nowrap; overflow: hidden; }
   #battery { top: auto; bottom: calc(var(--bottom) + 200px); right: var(--gutter); left: auto; translate: none; text-align: right; }
   #port-mats { display: none; }
   #port-panel { top: 41vh; }
-  #objective { top: calc(var(--top) + 128px); width: 168px; padding: 4px 8px 6px; }
-  #obj-goal { font-size: 16px; }
-  #obj-sub, #obj-bars .ob { font-size: 11px; }
-  #bossbar { top: calc(var(--top) + 196px); width: calc(100% - 2 * var(--gutter)); }
-  #bb-name { font-size: 21px; }
+  /* a phone: the ship's panel compact on the left with the boss bar under it; the map, the compass, the score and
+     the objective in a column on the right; the pause button at the top in the middle */
+  #ship .cls, #readout, #ship > .meter, #crew-line { display: none; }
+  #objective { top: calc(var(--top) + 155px); width: 136px; padding: 4px 8px 6px; }
+  #obj-goal { font-size: 15px; }
+  #obj-sub, #obj-bars .ob { font-size: 10.5px; }
+  #obj-bars .ob { grid-template-columns: 3.6em 1fr; }
+  #sky-boss { left: var(--gutter); top: calc(var(--top) + 122px); translate: none; width: calc(100% - 2 * var(--gutter) - 148px); }
+  #sb-name { font-size: 19px; }
+  .sb-low { flex-wrap: wrap; gap: 2px 8px; }
+  .sb-two .meter { width: 60px; }
   #target { top: calc(50% + 40px); }
   #target .meter { width: 100px; }
-  #crew-line { max-width: 150px; }
-  #goal-dir { display: block; margin: 2px 0 0; text-align: center; font-size: 11px; }
-  #minimap { width: 130px; }
-  #score { top: calc(var(--top) + 98px); }
+  #goal-dir { display: inline; margin: 0 0 0 6px; font-size: 11px; }
+  #minimap { width: 136px; }
+  #score { top: calc(var(--top) + 125px); }
   #ship { padding: 5px 10px 7px; }
   #health { font-size: 11px; gap: 1px 6px; grid-template-columns: auto 1fr; }
   #health .meter { width: 46px; }

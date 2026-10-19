@@ -34,7 +34,9 @@ export const SITES = [
     towers: 2, guard: [{ ids: ['cutter', 'cutter'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 3, regrow: 3, after: 'citadel', stars: 3, ship: 'brig', pays: 'Lark parts, modules, Cut Glass' },
   { id: 'dredge', loot: 'dredge', kind: 'dredge', name: 'The Grindstone, the Exchange\'s dredge', short: 'The Grindstone', x: HOME.x + 500, z: HOME.z + 2700, y: 640, size: 0, moving: true, ch: 14, look: 'silver',
     line: 'A great dredge with a drill on her bow, cutting into the cliff under the claim, with a frigate and a brig to guard her.', goal: 'Knock out her two drill engines before she’s through, then sink her',
-    towers: 0, guard: [{ ids: ['frigate', 'brig'], captain: -1 }, { ids: ['cutter', 'cutter', 'brig'], captain: -1 }], crates: 5, regrow: 6, after: 'survey', stars: 5, ship: 'frigate', pays: 'Five crates, a Lark part, a Masterwork likely' },
+    towers: 0, guard: [{ ids: ['frigate', 'brig'], captain: -1 }, { ids: ['cutter', 'cutter', 'brig'], captain: -1 }], crates: 5, regrow: 6, after: 'survey', stars: 5, ship: 'frigate', pays: 'Five crates, a Lark part, a Masterwork likely',
+    // sunk, her wreck draws the Exchange's salvagers: a galleon to make strike, and her guards
+    repeatGuard: [{ ids: ['galleon', 'brig', 'cutter'], captain: -1 }, { ids: ['frigate'], captain: -1 }] },
   { id: 'convoy', loot: 'convoy', kind: 'convoy', name: 'The Brass Road convoy', short: 'The convoy', x: HOME.x - 3300, z: HOME.z + 2900, y: 700, size: 0, moving: true, ch: 3,
     line: 'Three of the claim\'s ore barges, coming home up the Brass Road with jumpers waiting in the cloud.', goal: 'Bring the ore barges home to Brightvein',
     towers: 0, guard: [{ ids: ['skiff', 'skiff'], captain: -1 }, { ids: ['cutter', 'skiff', 'skiff'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 2, regrow: 2, after: 'camp', stars: 2, ship: 'cutter', pays: 'More for every barge home, Brass Scrap' },
@@ -47,7 +49,7 @@ export const SITES = [
 const WANTED = [
   ['Ottoline Grieve', 'the Rook'], ['Hollis Vane', 'Tinder'], ['Mags Corrie', 'the Red Hand'], ['Ezra Blackwick', 'the Snuffer of Lamps'],
   ['Dellah Rusk', 'Six Sails'], ['Fenwick Marr', 'Old Iron'], ['Jessamy Coil', 'the Gull'], ['Barrow Twine', 'the Knot'],
-  ['Silas Embry', 'Ember'], ['Wren Halloway', 'the Quiet Gun'], ['Corbin Stave', 'the Plank'], ['Ida Sallow', 'Wax-Eyes'],
+  ['Silas Embry', 'Ember'], ['Wren Halloway', 'the Quiet Gun'], ['Gideon Stave', 'the Plank'], ['Ida Sallow', 'Wax-Eyes'],
 ];
 // a fresh bounty for this claim day and chapter: a captain in a ship that grows with the story, a place on the map, a
 // reward, and three days before she moves on
@@ -249,19 +251,34 @@ export function buildSite(def, M) {
 }
 
 // ---------- the Grindstone's set: the cliff she's cutting into, and her drill ----------
-// a cliff face rising out of the cloud, ~420 m across and 600 m tall, its face towards +z; a glowing wound where
-// the drill bites
+// a cliff face rising out of the cloud, ~420 m across and 600 m tall, its face towards +z: banded rock, red and ochre
+// and grey, broken into buttresses, with sunstone glinting in its seams and a glowing wound where the drill bites
 export function buildCliff(M) {
   const group = new THREE.Group(), W = 420, H = 600, D = 160;
-  const g = new THREE.BoxGeometry(W, H, D, 18, 24, 2), p = g.attributes.position;
+  const g = new THREE.BoxGeometry(W, H, D, 30, 36, 3).toNonIndexed(), p = g.attributes.position, col = [];
+  // the bands, as sRGB: rust, ochre, grey-violet, sand, slate, red
+  const BANDS = [[0.5, 0.33, 0.27], [0.6, 0.45, 0.3], [0.42, 0.36, 0.38], [0.64, 0.52, 0.4], [0.36, 0.33, 0.34], [0.55, 0.3, 0.24]].map((c) => new THREE.Color().setRGB(...c, THREE.SRGBColorSpace));
+  const bump = (x, y) => (rnd(Math.round(x / 19) * 3.7 + Math.round(y / 21) * 1.3) - 0.5) * 26 + Math.sin(y / 37 + x / 61) * 14 + Math.sin(x / 23) * 9 + (rnd(Math.round(x / 70) * 9.1) - 0.5) * 40;
   for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-    const n = (rnd(Math.round(x / 23) * 3.7 + Math.round(y / 25) * 1.3) - 0.5) * 30 + Math.sin(y / 40 + x / 90) * 12;
-    p.setXYZ(i, x + (rnd(y * 0.13 + z) - 0.5) * 10, y, z > 0 ? z + n : z);
+    let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    if (z > 0) z += bump(x, y);                                        // the face: buttresses and gullies
+    if (y > H / 2 - 1) y += (rnd(Math.round(x / 30) * 2.3) - 0.5) * 70 - 20; // a broken skyline
+    x += (rnd(y * 0.13 + z * 0.7) - 0.5) * 6;
+    p.setXYZ(i, x, y, z);
+    const band = BANDS[((Math.floor((y + H / 2 + Math.sin(x / 50) * 12) / 34) % BANDS.length) + BANDS.length) % BANDS.length], k = 0.75 + rnd(Math.round(x / 9) + Math.round(y / 9) * 7.7) * 0.35;
+    col.push(band.r * k, band.g * k, band.b * k);
   }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.computeVertexNormals();
-  const rock = new THREE.Mesh(g, M.cliff); rock.position.set(0, -H / 2 + 120, 0); rock.receiveShadow = true; group.add(rock);
-  const wound = new THREE.Mesh(new THREE.SphereGeometry(11, 14, 10), M.crystal); wound.scale.z = 0.4; wound.position.set(0, 0, D / 2 + 6); group.add(wound);
+  const rockM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true });
+  const rock = new THREE.Mesh(g, rockM); rock.position.set(0, -H / 2 + 120, 0); rock.receiveShadow = true; rock.castShadow = true; group.add(rock);
+  // sunstone in the seams
+  for (let i = 0; i < 40; i++) {
+    const c = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0).scale(2.5, 7, 2.5), M.crystal);
+    const x = (rnd(i * 3.3) - 0.5) * W * 0.9, y = (rnd(i * 7.1) - 0.5) * H * 0.8 - H / 2 + 120;
+    c.position.set(x, y, D / 2 + bump(x, y - 120 + H / 2) - 1); c.rotation.set(rnd(i) * 0.6, 0, (rnd(i * 2) - 0.5) * 0.8); group.add(c);
+  }
+  const wound = new THREE.Mesh(new THREE.SphereGeometry(13, 14, 10), M.crystal); wound.scale.z = 0.35; wound.position.set(0, 0, D / 2 - 2); group.add(wound);
   group.userData.wound = wound;
   return group;
 }

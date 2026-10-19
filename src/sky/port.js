@@ -234,7 +234,7 @@ export function makePort({ renderer, env, progress, claim = {}, shipFor, crewOf,
       const n = d.best[b.dataset.skies];
       b.querySelector('small').textContent = n ? `Best: wave ${n}` : '';
     }
-    $('btn-skies').textContent = `Skies: ${SKIES[d.skies].name}`;
+    $('btn-skies').textContent = innerWidth < 500 ? SKIES[d.skies].name : `Skies: ${SKIES[d.skies].name}`;
     $('port-shards').textContent = `◆ ${fmt(d.shards)}`;
     const m = claim.mats?.();
     $('port-mats').hidden = !m; if (m) $('port-mats').textContent = `${m.brass | 0} Brass · ${m.glass | 0} Glass · ${m.heartstone | 0} Heartstone`;

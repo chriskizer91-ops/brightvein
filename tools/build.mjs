@@ -23,9 +23,10 @@ for (const f of fs.readdirSync(path.join(ROOT, 'assets/claim')).sort()) {
 }
 // pictures the claim shows as they are, by folder and name: ART.cast.io (the cast's portraits), ART.items['wind-rifle']
 // (painted item pictures, named after the item's base id in src/claim/loot.js), ART.events.wedding (the day events'
-// cards, named after the event's id in src/claim/events.js; docs/art-requests/04-events.md)
+// cards, named after the event's id in src/claim/events.js; docs/art-requests/04-events.md), ART.skies.citadel (the
+// places to raid, on the Sky Dock's raid map; docs/art-requests/06-skies.md)
 const art = {};
-for (const dir of ['cast', 'items', 'portraits', 'events']) {
+for (const dir of ['cast', 'items', 'portraits', 'events', 'skies']) {
   art[dir] = {};
   const at = path.join(ROOT, 'assets', dir);
   if (!fs.existsSync(at)) continue;

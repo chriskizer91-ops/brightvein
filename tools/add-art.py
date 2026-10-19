@@ -3,6 +3,7 @@
 #   python3 tools/add-art.py items <picture> [<picture> ...]       -> assets/items/<id>.webp, 128 x 128
 #   python3 tools/add-art.py cast <picture> [<picture> ...]        -> assets/cast/<id>.webp, 256 x 256
 #   python3 tools/add-art.py events <picture> [<picture> ...]      -> assets/events/<id>.webp, 480 x 360 (4:3, cropped to fill)
+#   python3 tools/add-art.py skies <picture> [<picture> ...]       -> assets/skies/<id>.webp, 480 x 360 (the places to raid)
 # The id is the file's name without its extension (founder-hesper.png -> founder-hesper). A picture that isn't
 # square is padded to square around its middle. A flat background colour sampled from the corners is made
 # transparent when it's uniform (so pictures made without transparency still sit on the card's own background).
@@ -10,7 +11,7 @@ import sys, os
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SIZE = {'portraits': 256, 'items': 128, 'cast': 256, 'events': (480, 360)}
+SIZE = {'portraits': 256, 'items': 128, 'cast': 256, 'events': (480, 360), 'skies': (480, 360)}
 
 def corners_flat(im):
     w, h = im.size
@@ -38,7 +39,7 @@ def main():
     size = SIZE[kind]
     out_dir = os.path.join(ROOT, 'assets', kind); os.makedirs(out_dir, exist_ok=True)
     for f in files:
-        if kind == 'events':   # a landscape picture: crop to 4:3 around the middle, keep the background
+        if kind in ('events', 'skies'):   # a landscape picture: crop to 4:3 around the middle, keep the background
             im = Image.open(f).convert('RGB'); w, h = im.size; tw, th = size
             if w / h > tw / th: nw = round(h * tw / th); im = im.crop(((w - nw) // 2, 0, (w - nw) // 2 + nw, h))
             else: nh = round(w * th / tw); im = im.crop((0, (h - nh) // 2, w, (h - nh) // 2 + nh))

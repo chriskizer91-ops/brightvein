@@ -55,6 +55,7 @@ window.__raidPilot = (site, ship, limit, opts = {}) => {
     const c = { fire, turn: Math.max(-1, Math.min(1, -Math.atan2(Math.sin(want), Math.cos(want)) * 2)), climb: Math.max(-1, Math.min(1, (tgt.y + (run ? 0 : 8) - P.pos.y) / 40)), sail: run || d > stand ? 0.6 : -0.3, pressed: new Set() };
     if (run && P.surge.charge >= 1 && Math.abs(want) < 0.2 && d > 250) c.pressed.add('r');
     out.hurt = Math.max(out.hurt ?? 0, Math.round(P.full.hull - P.health.hull));
+    out.low = Math.min(out.low ?? 100, Math.round(P.frac('hull') * 100), Math.round(P.frac('crystals') * 100));
     // the test is about the raid, not the crew: keep her afloat (and count how often she'd have gone down)
     if (P.health.hull < P.full.hull * 0.3 || P.health.crystals < P.full.crystals * 0.55) { P.repair(0.5); out.saves++; }
     g.step(0.25, c); t += 0.25;
@@ -69,6 +70,7 @@ window.__raidPilot = (site, ship, limit, opts = {}) => {
 0;   // (an expression that ends in a function would be called by Playwright's evaluate)'''
 SETUP = '''(([ship, skies, refit, site]) => { const B = __bv, d = B.FLEET.data; d.skies = skies; B.STORY.ch = Math.max(B.STORY.ch, 14);
   for (const s of B.SITES) d.raids[s.id].won = d.raids[s.id].won || 0;
+  if (!(window.__keepWon)) d.raids[site].won = 0;   // a first raid (set __keepWon for a repeat)
   const cfg = d.ships[ship]; cfg.owned = true; d.flying = ship; cfg.wear = { hull: 1, sails: 1, crystals: 1 }; cfg.repair = null;
   cfg.refit = { hull: refit, sails: refit, guns: refit, crystals: refit };
   if (site === 'bounty') d.bounty = B.makeBounty ? B.makeBounty(B.GAME.day, B.STORY.ch, 0) : d.bounty;

@@ -121,6 +121,67 @@ One number for the whole claim, 0 to 100, with a face, by the people count at th
 | 20 to 39 | Grumbling | Everyone works a tenth slower; settlers are slower to come |
 | 0 to 19 | Miserable | Everyone works a fifth slower; nobody new wants to come |
 
+## The skies: the claim's fleet and its raids
+
+The Sky Dock on the north rim is the claim's door to the skies (`src/sky/`). Its panel has three tabs: **Ship** (the
+flagship's condition and repairs, who sails, Set sail), **Crew** and **Raids**. The **Shipyard** is its own screen with
+the ship turning on a stone berth.
+
+**The six ships.** Bought with shards and the claim's materials; the bigger ones open with the Keep and the chapter.
+
+| Ship | Class | Price | Opens |
+|---|---|---|---|
+| Zephyr | Skiff | the claim's first | from the start |
+| Gale | Cutter | 300 shards, 2 Brass | chapter 2 (Barnabus's story gives his old cutter, the Gannet) |
+| Tradewind | Brig | 1,000 shards, 3 Brass, 2 Glass | Keep level 2 and chapter 4 |
+| Tempest | Frigate | 2,600 shards, 4 Glass, 2 Heartstone | Keep level 3 and chapter 9 (act two) |
+| Doldrums | Galleon | 5,000 shards, 6 Glass, 4 Heartstone | chapter 12 |
+| Thunderhead | Man-o'-war | 8,500 shards, 8 Glass, 6 Heartstone | chapter 14 |
+
+**Refits** by part, three levels each, and you can see each one on the ship: **hull** (brass straps, an iron band, then
+iron plates: a fifth more hull a level, a little slower), **sails** (wider yards, more speed and turn; the last level's
+canvas is woven with sunstone thread and glows), **guns** (a pair of rail swivels, heavier shot and longer bow guns, then
+another pair or stern chasers) and **crystals** (bigger clusters and more crystals in each crown: more crystal, quicker
+climbing, a longer Surge). A level costs shards (50, 120, 260, times the ship's size) and materials (Brass, then Glass,
+then Glass and Heartstone). **Looks** are cheap: six hull paints, six sail colours and seven figureheads (the Sun, the
+Lark, the Owl, the Lantern, the Star, the Moon), tried on before you keep them.
+
+**The crew** come from the claim's people: a **pilot** (Agility: turning, and a quicker Surge), a **bosun** (Grit: the
+hull takes less harm, the crew patch more between fights, repairs are quicker) and one to six **gunners** by the ship's
+size (Agility: reload and aim). An empty seat is a dock hand, a 3 in everything. They keep their jobs on the claim; when
+the ship sails they're aboard, and when she's home they come down the boarding bridge and walk back to work (if she went
+down, some come home hurt). Anyone in the wilds, studying or hurt stays ashore. Some of the cast are better at sea:
+Barnabus at the wheel turns a tenth sharper, Brisa and Torvald on the guns throw heavier shot, and Nib as bosun repairs a
+third quicker.
+
+**Wear and repairs.** What harm the ship takes comes home with her, and she sails like that until she's repaired at the
+dock: shards, and a few hours of claim time (a wreck takes most of a day). Between fights the crew patch her up a
+little. Lose her and the crew bring her home in pieces, with half the voyage's shards.
+
+**The places to raid** (`src/sky/sites.js`, run by `src/sky/raids.js`), each with its own objective and set piece. The
+raid map shows them on Chris's map round Brightvein, with how hard each is (stars), what it pays and the best time.
+
+| Place | From | Stars | The objective, and the set piece |
+|---|---|---|---|
+| Tallow's prospect camp | ch 2 | ★ | Silence its one gun and the camp strikes its colours (its guards strike with it) |
+| The Brass Road convoy | ch 3, after the camp | ★★ | Bring three of the claim's ore barges home from the Brass Road while jumpers come at them in waves; pays by the barges home |
+| Redspire | ch 4 | ★★ | Silence three gun towers and the great gun on the spire (a boss bar of its own) |
+| The storm front | ch 7, after Redspire | ★★★ | Fly through eight Thinwatch beacons before the front closes, through lightning (a warning glow, then the bolt) and gusts, with jumper skiffs in the murk; a strongbox at the eye. Pays half again in Storm Season |
+| The Wickmoor | ch 5 | ★★ | A moving treasure galleon with escorts: shoot her sails till she strikes (sink her and the crates go with her). At half sail she throws cargo overboard to run, and a brig comes from Redspire |
+| The Chandlery | ch 8 | ★★★★ | Six gun towers and the Baron's frigate; then **the Black Candle**, Tallow's flagship, rises from the docks under the rock: a boss bar with three phases (a broadside duel; at 60% the Baron lights the wicks, she fires faster and two cutters launch; at 30% she comes about to ram). Bring her down and the Chandlery strikes. The end of act one |
+| The Plumbline | ch 11 | ★★★ | Cut its three drill strings (shoot the winches on the derricks and watch the strings fall); two gun towers and an Exchange escort under silver sails |
+| The Grindstone | ch 14 | ★★★★★ | Drilling into the cliff under the claim, braced and nearly unhurt, with a drill meter filling: knock out her two drill engines before she's through. Then she backs off and fights, and at 30% she runs for the gorge. Sink her: act two's goal |
+
+A place taken comes back under new guards after a few days (one for the camp, six for the Grindstone's wreck), and pays
+half the next time; its boss doesn't come back (the Grindstone's wreck draws Exchange salvagers instead). From chapter 3,
+now and then a **wanted jumper captain** turns up on the raid map for three days, in a ship that grows with the story
+(a cutter, then a brig, a frigate, a Man-o'-war) with escorts; bring her down before she runs for a big reward and her
+strongbox. Twelve of them, with names and nicknames (`WANTED` in `sites.js`).
+
+**What raids pay.** Crates opened at home with the Armory's raid tables (`RAIDS` in `src/claim/loot.js`): gear, modules,
+Lark parts, materials, now and then a Masterwork. A boss brought down the first time adds a Lark part or a module for
+certain, and lifts the claim's mood.
+
 ## Still open
 
 - Whether the Moon Faire keeps that name, or gets a new one too.

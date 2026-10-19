@@ -32,6 +32,7 @@ function fresh() {
     crew: { pilot: 0, bosun: 0, gunners: [] },
     // a wanted jumper captain on the map (sites.js BOUNTY), and the claim day the next one may turn up
     bounty: null, bountyNext: 5, bounties: 0,
+    known: [],   // the places the claim has been told about (yard.js says so when a new one opens)
   };
 }
 // a fleet saved before the shipyard: its four upgrades become the four parts' refits

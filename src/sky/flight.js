@@ -50,6 +50,7 @@ export function makeFlyer(ship, stats, start, tune = {}) {
   s.hit = (part, damage) => {
     if (s.down || s.invuln) return;
     if (part === 'hull') damage *= T.guard;
+    damage *= s.armor ?? 1;   // a boss braced or armoured for a while (raids.js)
     s.health[part] = Math.max(0, s.health[part] - damage);
     if (s.health.hull <= 0) s.down = { why: 'hull', t: 0, roll: Math.random() < 0.5 ? -1 : 1 };
     else if (s.health.crystals <= 0) s.down = { why: 'crystals', t: 0, roll: Math.random() < 0.5 ? -1 : 1 };

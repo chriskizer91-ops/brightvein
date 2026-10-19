@@ -16,7 +16,7 @@ import { REPEAT as YARD_REPEAT, makeBounty as yardMakeBounty, bountySite as yard
 import { FLEET as YARD_FLEET } from './ships/index.js';
 import { MAP as YARD_MAP, minimapUrl as YARD_MAPURL, HOME as YARD_HOME } from './sky/voyage.js';
 
-const YARD = { tab: 'ship', sel: null, day: -1, repairT: 0, sparkT: 0, sailed: [], img: null };
+const YARD = { tab: 'ship', sel: null, day: -1, repairT: 0, sparkT: 0, knownT: 3, sailed: [], img: null };
 const yardNow = () => GAME.day + GAME.t;
 const yardShip = id => YARD_FLEET.find(s => s.id === id);
 const yardName = id => (FLEET.data.ships[id] && FLEET.data.ships[id].name) || yardShip(id).name;
@@ -112,6 +112,17 @@ function yardTick(dt) {
   }
   // a new day: the wanted captains come and go
   if (GAME.day !== YARD.day) { const first = YARD.day < 0; YARD.day = GAME.day; if (!first) yardNewDay(); }
+  // a new place to raid has opened: say so, once
+  if ((YARD.knownT -= dt) <= 0) {
+    YARD.knownT = 2;
+    const k = FLEET.data.known, open = yardSites().filter(L => !L.locked && !L.bounty && !k.includes(L.s.id));
+    // what's open when the claim loads is known already; a place that opens while you play is news
+    for (const L of open) {
+      k.push(L.s.id);
+      if (YARD.knownInit && L.s.id !== 'camp') { toast(`<b>A new raid:</b> ${esc(L.s.name)} (Sky Dock › Raids). ${esc(L.s.goal)}.`); AUDIO.play('horn'); break; }
+    }
+    YARD.knownInit = true;
+  }
 }
 function yardNewDay() {
   const d = FLEET.data, B = d.bounty;
@@ -170,6 +181,12 @@ function yardRaidHome(r) {
 #app .wanted h4 { margin: 0; font-family: var(--f-display); font-size: 22px; letter-spacing: .12em; text-align: center; color: #5a1a10; }
 #app .wanted p { margin: 4px 0; font-size: 13px; text-align: center; }
 #app .wanted .btn { width: 100%; margin-top: 6px; }
+#app .wanted img { display: block; width: 112px; height: 112px; margin: 6px auto; border-radius: 6px; border: 2px solid #6e4a32; filter: sepia(.35); }
+#app .yplace { display: grid; grid-template-columns: auto 1fr; gap: 10px; margin: 8px 0; padding: 8px; border-radius: 10px; border: 1px solid var(--amber-2); background: rgba(0,0,0,.2); }
+#app .yplace img { width: 112px; height: 84px; object-fit: cover; border-radius: 8px; }
+#app .yplace .stars { color: var(--amber-2); font-size: 11px; }
+#app .yplace p { margin: 3px 0; }
+#app .yplace .btn { margin-top: 4px; }
 `;
   const el = document.createElement('style'); el.textContent = css; document.head.append(el);
 })();
@@ -301,10 +318,19 @@ function yardRaidsTab(ui, body) {
     if (best) { YARD.sel = best.s.id; UI.refresh(); }
   };
   if (left) body.append(ui.h(`<p class="small">The ${esc(yardName(d.flying))} is under repair: no raids till she’s done.</p>`));
+  // the place picked on the map: its picture (when Chris has painted it: assets/skies/<id>.webp), what it is, and Raid
+  const P = list.find(L => L.s.id === YARD.sel && !L.bounty && !L.locked);
+  if (P) {
+    const s = P.s, st = P.st, pic = ART.skies && ART.skies[s.id], repeat = st.won > 0;
+    const card = ui.h(`<div class="yplace">${pic ? `<img src="${pic}" alt="">` : ''}<div><b>${esc(s.name)}</b> <span class="stars">${yardStars(s.stars)}</span><p class="small">${esc(s.line)}</p><p class="small">${esc(s.goal)}. ${esc(s.pays)}${repeat ? ' (half, taken before)' : ''}.${st.best ? ` Best time ${yardTime(st.best)}.` : ''} Best in a ${esc(yardShip(s.ship).cls)} or bigger.</p><button type="button" class="btn primary">${P.wait > 0 ? `Manned again in ${P.wait} day${P.wait > 1 ? 's' : ''}` : 'Raid'}</button></div></div>`);
+    const b = card.querySelector('button'); b.disabled = P.wait > 0 || !!left; b.onclick = () => openSky('raid', { site: s.id });
+    body.append(card);
+  }
   // a wanted captain
   const B = d.bounty;
   if (B) {
-    const W = ui.h(`<div class="wanted"><h4>WANTED</h4><p><b>${esc(B.name)}</b>, called “${esc(B.nick)}”</p><p>A jumper ${esc(yardShip(B.ship).cls)} and ${B.escorts.length} escorts · ${SHARD} ${B.reward} on her head</p><p class="small">Seen near the claim. Gone in ${Math.max(1, B.until - GAME.day + 1)} day${B.until - GAME.day ? 's' : ''}.</p><button type="button" class="btn primary">Hunt her down</button></div>`);
+    const face = ART.portraits && ART.portraits['wanted-' + B.name.toLowerCase().replace(/[^a-z]+/g, '-')];
+    const W = ui.h(`<div class="wanted"><h4>WANTED</h4>${face ? `<img src="${face}" alt="">` : ''}<p><b>${esc(B.name)}</b>, called “${esc(B.nick)}”</p><p>A jumper ${esc(yardShip(B.ship).cls)} and ${B.escorts.length} escorts · ${SHARD} ${B.reward} on her head</p><p class="small">Seen near the claim. Gone in ${Math.max(1, B.until - GAME.day + 1)} day${B.until - GAME.day ? 's' : ''}.</p><button type="button" class="btn primary">Hunt her down</button></div>`);
     const b = W.querySelector('button'); b.disabled = !!left; b.onclick = () => openSky('raid', { site: 'bounty' });
     body.append(W);
   }

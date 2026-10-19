@@ -406,12 +406,13 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
   }
   // a raid: its director (raids.js) runs it; when it's over, the card
   function raidStep(dt) {
-    const site = W.raid, ev = S.sites.update(dt, player), cur = S.sites.cur;
+    const ev = S.sites.update(dt, player), cur = S.sites.cur, site = cur?.def ?? W.raid;
     if (ev !== 'taken' && ev !== 'lost') return;
     W.state = ev; sfx(ev === 'taken' ? 'raidwon' : 'raidlost');
     const taken = ev === 'taken', t = Math.round(cur.t), time = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
     const crates = Math.max(1, Math.round(site.crates * (W.repeat ? REPEAT : 1) * (cur.got ?? 1)));
-    const what = { convoy: taken ? `${Math.round((cur.got ?? 1) * 3)} of 3 barges home` : 'The barges are lost', storm: taken ? 'Through the front' : 'The front closed', bounty: taken ? `${site.short} is down` : `${site.short} got away` }[site.kind];
+    const what = { convoy: taken ? `${Math.round((cur.got ?? 1) * 3)} of 3 barges home` : 'The barges are lost', storm: taken ? 'Through the front' : 'The front closed', bounty: taken ? `${site.short} is down` : `${site.short} got away`,
+      dredge: !W.repeat && taken ? 'The Grindstone is sunk' : null, citadel: !W.repeat && taken ? 'The Black Candle is down' : null }[site.kind];
     $('calm-title').textContent = what ?? (taken ? `${site.short} strikes ${site.moving ? 'her' : 'its'} colours` : cur.why === 'escaped' ? `${site.short} got away` : cur.why === 'drilled' ? 'The drill is through' : `${site.short} went down with her crates`);
     $('calm-line').textContent = taken
       ? `In ${time}. Your crew load ${crates === 1 ? 'one crate' : `${NUMBER[crates] ?? crates} crates`} aboard · ◆ ${fmt(V.shards)} gathered. Take them home to ${HOME.name} to open them.`
@@ -476,7 +477,8 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
       if (!el) {
         el = r.tag = document.createElement('div');
         el.className = r.friend ? 'tag friend' : r.boss || r === S.sites.cur?.boss ? 'tag captain boss' : r.captain ? 'tag captain' : r.role === 'prize' ? 'tag captain prize' : 'tag';
-        const label = r.friend ? r.name.replace('Ore barge ', 'Barge · ') : r.boss || r === S.sites.cur?.boss ? r.name : `${r.captain ? 'Captain · ' : r.role === 'prize' ? 'Treasure · ' : ''}${r.R.cls}`;
+        const named = r.boss || r === S.sites.cur?.boss || (r.role === 'prize' && r === S.sites.cur?.prize);
+        const label = r.friend ? r.name.replace('Ore barge ', 'Barge · ') : named ? r.name : `${r.captain ? 'Captain · ' : r.role === 'prize' ? 'Treasure · ' : ''}${r.R.cls}`;
         el.innerHTML = `<span class="arrow">▲</span><b></b> <span class="d"></span>${PARTS.map((k) => `<span class="meter ${k}"><i></i></span>`).join('')}`;
         el.querySelector('b').textContent = label;
         $('tags').append(el);
@@ -501,7 +503,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
       let el = cur.tag;
       if (!el) { el = cur.tag = document.createElement('div'); el.className = 'tag captain site'; el.innerHTML = `<span class="arrow">▲</span><b></b> <span class="d"></span>`; el.querySelector('b').textContent = cur.kind === 'storm' ? 'Beacon' : `Raid · ${cur.def.short}`; }
       if (!el.parentNode) $('tags').append(el);
-      const at = S.sites.where(), s = screenAt(at, cur.kind === 'storm' ? 40 : cur.def.size * 0.4 + 24);
+      const at = cur.kind === 'storm' ? S.sites.where() : cur.center, s = screenAt(at, cur.kind === 'storm' ? 40 : cur.def.size * 0.4 + 24);
       if (s.edge) el.querySelector('.arrow').style.transform = `rotate(${s.ang}rad)`;
       el.classList.toggle('edge', s.edge);
       el.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
@@ -525,8 +527,8 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
   }
   // the locked target's health, under the crosshair
   function target() {
-    const el = $('target'), t = locked, boss = S.sites.cur?.boss;
-    if (!t || t === boss) { el.hidden = true; return; }
+    const el = $('target'), t = locked, cur = S.sites.cur;
+    if (!t || t === cur?.boss || t === cur?.prize) { el.hidden = true; return; }   // (a boss's health is in the boss bar)
     el.hidden = false;
     $('tg-name').textContent = t.boss ? t.name : t.role === 'prize' ? `${t.name}` : `${t.captain ? 'Captain’s ' : ''}${t.R.cls}`;
     $('tg-d').textContent = `${Math.round(t.f.pos.distanceTo(player.pos))} m`;
@@ -534,7 +536,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
   }
   // the raid's objective, its progress, the boss bar
   function raidHud() {
-    const I = W.raid ? S.sites.info() : null, ob = $('objective'), bb = $('bossbar');
+    const I = W.raid ? S.sites.info() : null, ob = $('objective'), bb = $('sky-boss');
     ob.hidden = !I || I.done; bb.hidden = !I?.boss || I.done;
     if (!I) { $('goal-dir').hidden = true; return; }
     $('obj-goal').textContent = I.goal; $('obj-sub').textContent = I.sub;
@@ -548,11 +550,11 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
     ob.classList.toggle('urgent', (I.timer != null && I.timer < 20) || !!I.meter?.warn);
     if (I.boss) {
       const B = I.boss;
-      $('bb-name').textContent = B.name; $('bb-sub').textContent = B.sub; $('bb-phase').textContent = B.phase || '';
-      $('bb-fill').style.width = `${B.frac * 100}%`; $('bb-fill2').style.width = `${(B.frac2 ?? 0) * 100}%`;
-      $('bb-label2').textContent = B.label2 ?? 'Crystals';
+      $('sb-name').textContent = B.name; $('sb-sub').textContent = B.sub; $('sb-phase').textContent = B.phase || '';
+      $('sb-fill').style.width = `${B.frac * 100}%`; $('sb-fill2').style.width = `${(B.frac2 ?? 0) * 100}%`;
+      $('sb-label2').textContent = B.label2 ?? 'Crystals';
       bb.classList.toggle('sails', !!B.sails); bb.classList.toggle('shield', !!B.shield);
-      const marks = $('bb-marks'), key = (B.marks || []).join(',');
+      const marks = $('sb-marks'), key = (B.marks || []).join(',');
       if (marks.dataset.k !== key) { marks.dataset.k = key; marks.innerHTML = (B.marks || []).map((x) => `<i style="left:${x * 100}%"></i>`).join(''); }
     }
     // the compass points to the objective

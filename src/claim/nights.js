@@ -105,7 +105,7 @@ function planNight(n) {
   if (wx === 'fog') line += ' In the fog the towers won’t see them until they’re close.';
   if (wx === 'storm') line += ' Lightning will strike the claim.';
   if (deep && !boss) line += ' Some will come up the mine shaft.';
-  return { n, deep, bright, boss, waves, counts, title, line, seamBoss, shown: false, hpK: T.hpK };
+  return { n, deep, bright, boss, waves, counts, title, line, seamBoss, shown: false, hpK: T.hpK, drinkK: T.drinkK };
 }
 
 // ----------------------------------------------------------------- dusk: name the night
@@ -134,7 +134,7 @@ function nightBegin() {
   if (!P.shown) showBanner(P);
   if (P.seamBoss) NIGHT.seamWoke = true;
   if (P.boss && P.boss.grudge) NIGHT.grudge = null;
-  WL.night = { n, title: P.title, bright: P.bright, deep: P.deep, hpK: P.hpK || 1, waves: P.waves.map(w => ({ ...w, units: w.units.slice(), next: w.t0, warned: false })),
+  WL.night = { n, title: P.title, bright: P.bright, deep: P.deep, hpK: P.hpK || 1, drinkK: P.drinkK || 1, waves: P.waves.map(w => ({ ...w, units: w.units.slice(), next: w.t0, warned: false })),
     spawned: 0, downed: 0, drained: 0, lamps: 0, relit: 0, walls: 0, breaches: 0, wallHit: [], spent: 0, kinds: {}, dmg: {}, hurt: [], drops: [], mats: {}, dropShards: 0,
     boss: null, bossName: P.boss && P.boss.name, bossKind: P.boss && P.boss.kind, bossKilled: false, bossEscaped: false, shards0: GAME.shards, strikes: 0 };
 }
@@ -262,7 +262,7 @@ function bossPulse(f) {
   let n = 0;
   for (const L of DECOR.lamps) if (L.lit && Math.hypot(L.x - f.pos.x, L.z - f.pos.z) < R) { snuffLamp(L, f); n++; }
   for (const b of byType('yard')) if (Math.hypot(b.L.x - f.pos.x, b.L.z - f.pos.z) < R + 4) {
-    const take = Math.min(GAME.shards, 6); GAME.shards -= take; if (N) N.drained += take; b.drained = (b.drained || 0) + take; b.drainK = 1;
+    const take = Math.min(GAME.shards, 6 * (N && N.drinkK || 1)); GAME.shards -= take; if (N) N.drained += take; b.drained = (b.drained || 0) + take; b.drainK = 1;
     FX.sparks(b.worldPos(0, 1, 0), 12, 0xffc070, 2.5);
   }
   f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.01 * n); bossHurt(f);

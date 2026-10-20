@@ -103,17 +103,18 @@ function paceReward(R) {
 // ---- how hard a night comes (planNight in nights.js): from chapter 8 the nights grow with what the claim has to lose
 // (its stores, its ore and what it has built) and with how many nights it has stood. Before then nothing changes, so
 // the first nights stay gentle. add: more Wildlight; hpK: tougher ones; brightK: how much of a Bright Night's budget is
-// Wildlight besides its boss; bossK: a tougher boss; cap: the most that climb in one night.
+// Wildlight besides its boss; bossK: a tougher boss; cap: the most that climb in one night; drinkK: how deep they drink
+// from the yards and the stores (a rich claim that leaves its lights unguarded loses more).
 function paceWealth() {
   let v = GAME.shards + GAME.ore / 10;
   for (const b of Object.values(TOWN.b)) if (!b.pending && b.level) v += (BUY[b.type] || 80) * b.level * 0.5;
   return v;
 }
 function paceThreat(n) {
-  if (STORY.ch < 8) return { rich: 0, age: 0, add: 0, hpK: 1, brightK: 0.5, bossK: 1, cap: 34 };
+  if (STORY.ch < 8) return { rich: 0, age: 0, add: 0, hpK: 1, brightK: 0.5, bossK: 1, cap: 34, drinkK: 1 };
   const rich = clamp((paceWealth() - 1500) / PACE.richAt, 0, 2), age = clamp((n - 8) / 16, 0, 1.25);
   return { rich, age, add: rich * (2 + n * 0.2) + age * 4, hpK: 1 + 0.12 * rich + 0.2 * age, brightK: 0.5 + 0.15 * Math.min(1, rich + age),
-    bossK: 1 + 0.15 * rich + 0.25 * age, cap: 34 + Math.round(6 * Math.min(1, rich)) };
+    bossK: 1 + 0.15 * rich + 0.25 * age, cap: 34 + Math.round(6 * Math.min(1, rich)), drinkK: 1 + 1.5 * rich };
 }
 
 // ---- the sun beacon, fed raw ore (the Keep at level 3): for a night it burns over the whole plateau, and every

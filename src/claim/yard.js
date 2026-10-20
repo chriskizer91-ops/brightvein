@@ -301,7 +301,10 @@ function yardPick(ui, body, ref) {
 function yardSites() {
   const d = FLEET.data, out = [];
   for (const s of SITES) {
-    if (s.ch && STORY.ch < s.ch && !(d.raids[s.id] && d.raids[s.id].won)) continue;   // act two’s places turn up in their chapters
+    // each place opens in its chapter (docs/story.md): act one's show on the map before then, act two's turn up in theirs
+    const early = s.ch && STORY.ch < s.ch && !(d.raids[s.id] && d.raids[s.id].won);
+    if (early && s.ch >= ACT_TWO) continue;
+    if (early) { out.push({ s, st: d.raids[s.id], locked: true, opens: s.ch, wait: 0 }); continue; }
     const st = d.raids[s.id], after = s.after && SITES.find(x => x.id === s.after), locked = !!after && !d.raids[after.id].won;
     const wait = st.won ? s.regrow - (GAME.day - st.day) : 0;
     out.push({ s, st, locked, after, wait });
@@ -350,7 +353,7 @@ function yardRaidsTab(ui, body) {
     const small = YARD_CLASS[d.flying] < YARD_CLASS[s.ship], icon = L.locked ? '?' : st.won ? '⚑' : '◆';
     const side = L.locked ? '' : L.wait > 0 ? `Manned again in ${L.wait} day${L.wait > 1 ? 's' : ''}` : `${crates} crate${crates > 1 ? 's' : ''} · Raid`;
     const el = document.createElement('button'); el.type = 'button'; el.className = 'li raid' + (YARD.sel === s.id ? ' sel' : '');
-    el.append(ui.h(`<span class="rk">${icon}</span><span><span class="nm">${esc(L.locked ? 'Somewhere out there' : s.name)}</span>${L.locked ? `<span class="jb">${esc(`Take ${L.after.short.replace(/^The /, 'the ')} first.`)}</span>` : `<span class="stars">${yardStars(s.stars)}</span> <span class="jb">${esc(s.goal)}.</span><span class="pay">${esc(s.pays)}${repeat ? ' · taken before: half the haul' : ''}${st.best ? ` · best ${yardTime(st.best)}` : ''}${st.won ? ` · taken ${st.won}×` : ''}${small ? ` · hard in a ${flag.cls}: a ${yardShip(s.ship).cls} or bigger` : ''}</span>`}</span><span class="side">${side}</span>`));
+    el.append(ui.h(`<span class="rk">${icon}</span><span><span class="nm">${esc(L.locked && !L.opens ? 'Somewhere out there' : s.name)}</span>${L.locked ? `<span class="jb">${esc(L.opens ? `Opens in chapter ${L.opens}, ${CHAPTERS[L.opens] ? CHAPTERS[L.opens].title : ''}.` : `Take ${L.after.short.replace(/^The /, 'the ')} first.`)}</span>` : `<span class="stars">${yardStars(s.stars)}</span> <span class="jb">${esc(s.goal)}.</span><span class="pay">${esc(s.pays)}${repeat ? ' · taken before: half the haul' : ''}${st.best ? ` · best ${yardTime(st.best)}` : ''}${st.won ? ` · taken ${st.won}×` : ''}${small ? ` · hard in a ${flag.cls}: a ${yardShip(s.ship).cls} or bigger` : ''}</span>`}</span><span class="side">${side}</span>`));
     el.disabled = L.locked || L.wait > 0 || !!left;
     el.onclick = () => openSky('raid', { site: s.id });
     box.append(el);
@@ -383,7 +386,7 @@ function yardDrawMap(cv, list) {
       const col = L.bounty ? '#ff5a46' : L.locked ? '#8a7a90' : L.wait > 0 ? '#c9a0d8' : L.st.won ? '#e2bd67' : '#ff9a3a';
       g.beginPath(); g.arc(x, y, s * (sel ? 1.3 : 1), 0, Math.PI * 2); g.fillStyle = col; g.fill(); g.lineWidth = 2 * dpr; g.strokeStyle = sel ? '#fff3d0' : '#3a1631'; g.stroke();
       if (L.bounty) { g.fillStyle = '#3a1631'; g.font = `bold ${Math.round(10 * dpr)}px system-ui`; g.fillText('!', x, y + 4 * dpr); }
-      const label = L.locked ? '?' : L.bounty ? 'Wanted' : L.s.short;
+      const label = L.opens ? `${L.s.short} · ch ${L.opens}` : L.locked ? '?' : L.bounty ? 'Wanted' : L.s.short;
       g.font = font; g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(20,8,24,.9)'; g.strokeText(label, x, y - s * 1.6); g.fillStyle = '#f3ead8'; g.fillText(label, x, y - s * 1.6);
       if (!L.locked && !L.bounty) { g.font = `${Math.round(9 * dpr)}px system-ui`; g.fillStyle = '#ffcf85'; g.strokeText(yardStars(L.s.stars).replace(/☆/g, ''), x, y + s * 2.4); g.fillText(yardStars(L.s.stars).replace(/☆/g, ''), x, y + s * 2.4); }
     }

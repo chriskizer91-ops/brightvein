@@ -296,7 +296,7 @@ function huntStep(f, dt) {
     if (near.kind === 'lamp') { if (f.feed > 1.2) { snuffLamp(near.L, f); f.feed = 0; f.feeding = false; WL.flowT = 0; } }
     else {
       // drinking from a yard or the hall: a boss drinks deep and never has its fill
-      const take = Math.min(GAME.shards, (f.boss ? 7 : 4) * dt); GAME.shards -= take; WL.night && (WL.night.drained += take);
+      const take = Math.min(GAME.shards, (f.boss ? 7 : 4) * dt * ((WL.night && WL.night.drinkK) || 1)); GAME.shards -= take;   // a rich claim's nights drink deeper (pace.js) WL.night && (WL.night.drained += take);
       if (near.b) { near.b.drainK = 1; near.b.drained = (near.b.drained || 0) + take; }
       if (f.feed > 3.5 && !f.boss) { f.die(false); }
     }

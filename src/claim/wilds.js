@@ -77,7 +77,9 @@ function updateExpeditions(dt) {
     if (E.state === 'out') {
       E.out += dt; E.zone = Math.min(zoneAt(E.out), E.far ?? 3);
       if (E.turnAt && E.hp < E.maxHp * E.turnAt) { recallExpedition(v, 'Hurt, and turned for home as ordered.'); continue; }
-      if ((E.far ?? 3) < 3 && E.out >= WILDS.zones[E.far].from + HOUR * 24) { recallExpedition(v, 'Went as far as you said, and turned for home.'); continue; }
+      // a day at the farthest place they were sent, then home: the wreck fields too
+      const far = clamp(E.far ?? 3, 0, WILDS.zones.length - 1);
+      if (E.out >= WILDS.zones[far].from + HOUR * 24) { recallExpedition(v, 'Went as far as you said, and turned for home.'); continue; }
       if (E.zone > E.seen) { E.seen = E.zone; const Z = WILDS.zones[E.zone]; logExp(v, `Reached ${Z.name}. ${Z.text}`, 'zone'); if (UI.cur && UI.cur.kind === 'exp' && UI.cur.ref === v) UI.refresh(); }
       E.nextEvt -= dt;
       if (E.nextEvt <= 0) { E.nextEvt = rnd(...WILDS.every); wildsEvent(v, E); }

@@ -240,7 +240,7 @@ const UI = {
     const chips = [];
     if (b.type === 'head') chips.push(digHeadChips(b));
     if (b.type === 'yard') { chips.push(`<span class="chip amber">Up to ${yardRate(b).toFixed(1)} ore charged a minute, in full sun</span>`); if (TOD.sunlight < 0.05 && lv < 3) chips.push(`<span class="chip">Resting: no sun</span>`); }
-    if (b.type === 'shop') chips.push(`<span class="chip amber">+${Math.round(22 * workersOf(b.id).reduce((s, v) => s + v.eff(), 0) * (lv >= 2 ? 1.3 : 1))}% shards from every tray</span>`);
+    if (b.type === 'shop') chips.push(`<span class="chip amber">+${shopCutPct(b)}% shards from every tray</span>`);
     if (b.type === 'garden') { const net = (GAME.rates && GAME.rates.food || 0) * 60; chips.push(`<span class="chip ${net < 0 ? 'warn' : 'good'}">Claim food ${net >= 0 ? '+' : ''}${net.toFixed(1)} a minute</span>`); }
     if (b.type === 'keep') {
       const n = bedsOf(b), used = bedsUsed(), free = n - used, guests = GAME.villagers.length - used;
@@ -635,7 +635,7 @@ const UI = {
     const O = UI.orders, FAR = ['Scree', 'Moors', 'Ruins', 'Wrecks'], TURN = [[0.5, 'Half health'], [0.25, 'A quarter'], [0, 'Never']];
     const ord = this.h(`<h3>Orders</h3><p class="small">Go as far as</p><div class="seg" role="group" aria-label="How far">${FAR.map((n, i) => `<button type="button" data-f="${i}" aria-pressed="${O.far === i}">${n}</button>`).join('')}</div>
       <p class="small" style="margin-top:8px">Turn back when health falls below</p><div class="seg" role="group" aria-label="Turn back at">${TURN.map(([k, n]) => `<button type="button" data-t="${k}" aria-pressed="${O.turnAt === k}">${n}</button>`).join('')}</div>
-      <p class="small" style="margin-top:6px">${esc(WILDS.zones[O.far].name)}: ${esc(WILDS.zones[O.far].text)} They’ll spend about a day there, then come home.${O.far === 3 ? ' (At the wrecks they keep searching until hurt.)' : ''}</p>`);
+      <p class="small" style="margin-top:6px">${esc(WILDS.zones[O.far].name)}: ${esc(WILDS.zones[O.far].text)} They’ll spend about a day there, then come home.</p>`);
     for (const b of ord.querySelectorAll('[data-f]')) b.onclick = () => { O.far = +b.dataset.f; UI.refresh(); };
     for (const b of ord.querySelectorAll('[data-t]')) b.onclick = () => { O.turnAt = +b.dataset.t; UI.refresh(); };
     body.append(ord);

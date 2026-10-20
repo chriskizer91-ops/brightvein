@@ -20,6 +20,12 @@ const MATS = { brass: 'Brass Scrap', glass: 'Cut Glass', heartstone: 'Heartstone
 // a cost in words: ◆ 120 · 2 Brass Scrap · 1 Cut Glass
 export const costText = (c) => [c.shards ? `◆ ${fmt(c.shards)}` : '', ...Object.keys(MATS).filter((k) => c[k]).map((k) => `${c[k]} ${MATS[k]}`)].filter(Boolean).join(' · ') || 'Free';
 const hex = (c) => `#${c.toString(16).padStart(6, '0')}`;
+// where each material comes from, for "what you're short of" under a price
+const WHERE = {
+  brass: 'Brass Scrap comes from the prospect camp, the convoy and Redspire, and from salvage at Odile’s bench',
+  glass: 'Cut Glass comes in the crates at Redspire and the Wickmoor (later the Plumbline), from the old ruins in the wilds, and from lightning glass after a storm',
+  heartstone: 'Heartstone comes from the Wickmoor, the storm front and the Chandlery, from the wreck fields in the wilds, and from a singing shard in the mine',
+};
 
 function makeVoid() {
   const mat = new THREE.ShaderMaterial({
@@ -83,6 +89,13 @@ export function makePort({ renderer, env, progress, claim = {}, shipFor, crewOf,
   const camera = new THREE.PerspectiveCamera(36, 1, 0.5, 9000);
   const crewFx = (id) => crewOf?.(id) ?? crewEffects(id);
   const afford = (c) => (claim.afford ? claim.afford(c) : progress.data.shards >= (c.shards || 0));
+  // what's missing for a price, and where to find it: "Short of 2 Cut Glass. Cut Glass comes in the crates at …"
+  const shortOf = (c) => {
+    const m = claim.mats?.() ?? {}, miss = [], where = [];
+    if ((c.shards || 0) > progress.data.shards) miss.push(`◆ ${fmt(c.shards - progress.data.shards)}`);
+    for (const k of Object.keys(MATS)) { const n = (c[k] || 0) - (m[k] || 0); if (n > 0) { miss.push(`${n} ${k === 'glass' ? 'Cut Glass' : k === 'brass' ? 'Brass Scrap' : 'Heartstone'}`); where.push(WHERE[k]); } }
+    return miss.length ? `Short of ${miss.join(', ')}.${where.length ? ' ' + where.join('. ') + '.' : ' The sunning yards charge shards.'}` : '';
+  };
   const pay = (c) => { if (!afford(c)) return false; if (claim.pay) return claim.pay(c); progress.data.shards -= c.shards || 0; return true; };
   const now = () => claim.now?.() ?? 0;
 
@@ -256,7 +269,7 @@ export function makePort({ renderer, env, progress, claim = {}, shipFor, crewOf,
     if (!owned) {
       const price = SHIPYARD[viewing].price, lock = lockedWhy(viewing, at), b = $('btn-buy');
       b.textContent = lock ? lock : `Buy the ${shipName(viewing)}: ${costText(price)}`; b.disabled = !!lock || !afford(price);
-      $('pp-need').textContent = lock ? 'The yard can’t build her yet.' : afford(price) ? '' : 'Not enough in the stores yet. The yards charge shards, raids bring home materials.';
+      $('pp-need').textContent = lock ? 'The yard can’t build her yet.' : afford(price) ? '' : shortOf(price);
     }
     $('btn-flag').textContent = `Make the ${shipName(viewing)} the flagship`;
     for (const [k, , show] of STAT_ROWS) {
@@ -288,7 +301,7 @@ export function makePort({ renderer, env, progress, claim = {}, shipFor, crewOf,
       const k = row.dataset.part, P = PARTS[k], lv = cfg.refit[k], b = row.querySelector('button'), cost = refitCost(viewing, lv);
       row.querySelector('.pips').textContent = '●'.repeat(lv) + '○'.repeat(MAX - lv);
       row.querySelector('.lv').textContent = P.levels[lv];
-      row.querySelector('.next').textContent = lv >= MAX ? 'Fully refitted.' : `Next: ${P.levels[lv + 1]}. ${P.look[lv + 1]}.`;
+      row.querySelector('.next').textContent = lv >= MAX ? 'Fully refitted.' : `Next: ${P.levels[lv + 1]}. ${P.look[lv + 1]}.${owned && cost && !afford(cost) ? ' ' + shortOf(cost) : ''}`;
       if (!owned) { b.textContent = 'Buy her first'; b.disabled = true; }
       else if (!cost) { b.textContent = 'Done'; b.disabled = true; }
       else { b.textContent = costText(cost); b.disabled = !afford(cost); }

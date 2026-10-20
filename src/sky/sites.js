@@ -15,34 +15,35 @@ export const REPEAT = 0.5;
 // x, z: where on the map (metres; HOME is Brightvein); y: the rock's top. size: its radius. guard: the jumper ships that
 // come out, wave by wave (captain: which ship in the wave leads it, or -1). crates: as the loot table's (RAIDS).
 // kind: how the raid runs (raids.js). stars: how hard, 1 to 5. ship: the smallest ship that should try it.
-// pays: what's in it, for the Dock's raid map. ch: hidden in the Dock's list until that chapter.
+// pays: what's in it, for the Dock's raid map. ch: the chapter it opens in (act one's places show on the raid map before
+// then as "Opens in chapter N"; act two's are hidden until their chapter).
 export const SITES = [
   { id: 'camp', loot: 'camp', kind: 'rock', name: "Tallow’s prospect camp", short: 'Prospect camp', x: HOME.x - 2100, z: HOME.z - 1500, y: 600, size: 34,
     line: 'Tents on a lifted rock, two skiffs on guard and one gun.', goal: 'Silence the gun and the camp strikes its colours',
-    towers: 1, guard: [{ ids: ['skiff'], captain: -1 }, { ids: ['skiff', 'skiff'], captain: -1 }], crates: 2, regrow: 1, after: null, stars: 1, ship: 'skiff', pays: 'Gear and modules, Brass Scrap' },
+    towers: 1, guard: [{ ids: ['skiff'], captain: -1 }, { ids: ['skiff', 'skiff'], captain: -1 }], crates: 2, regrow: 1, after: null, stars: 1, ship: 'skiff', ch: 2, pays: 'Gear and modules, Brass Scrap and a little Cut Glass' },
   { id: 'outpost', loot: 'outpost', kind: 'rock', spire: true, name: 'The Redspire outpost', short: 'Redspire', x: HOME.x - 3700, z: HOME.z + 1700, y: 640, size: 52,
     line: 'A red crag with a palisade, three gun towers, a great gun on its spire and a cutter crew.', goal: 'Silence every gun, the great one on the spire too, and Redspire strikes',
-    towers: 3, guard: [{ ids: ['cutter', 'skiff'], captain: -1 }, { ids: ['cutter', 'cutter'], captain: 0 }], crates: 3, regrow: 2, after: 'camp', stars: 2, ship: 'cutter', pays: 'Better gear, a chance of a Masterwork' },
+    towers: 3, guard: [{ ids: ['cutter', 'skiff'], captain: -1 }, { ids: ['cutter', 'cutter'], captain: 0 }], crates: 3, regrow: 2, after: 'camp', stars: 2, ship: 'cutter', ch: 4, pays: 'Better gear, Brass Scrap and Cut Glass, a chance of a Masterwork' },
   { id: 'galleon', loot: 'airship', kind: 'galleon', name: 'The supply galleon Wickmoor', short: 'The Wickmoor', x: HOME.x - 1300, z: HOME.z + 4200, y: 720, size: 0, moving: true,
     line: 'Tallow’s treasure ship, under escort, with a brig coming to help.', goal: 'Shoot her sails until she strikes. Sink her and her crates go down with her',
-    towers: 0, guard: [{ ids: ['galleon', 'cutter', 'skiff'], captain: -1 }, { ids: ['brig'], captain: -1 }], crates: 3, regrow: 2, after: 'outpost', stars: 2, ship: 'cutter', pays: 'A Lark part likely, Heartstone' },
+    towers: 0, guard: [{ ids: ['galleon', 'cutter', 'skiff'], captain: -1 }, { ids: ['brig'], captain: -1 }], crates: 3, regrow: 2, after: 'outpost', stars: 2, ship: 'cutter', ch: 5, pays: 'Cut Glass and Heartstone, a Lark part likely' },
   { id: 'citadel', loot: 'citadel', kind: 'citadel', name: 'The Chandlery, Baron Tallow’s citadel', short: 'The Chandlery', x: HOME.x + 2200, z: HOME.z + 4300, y: 760, size: 86,
     line: 'A fortress of candle-works on a great lifted rock. Six gun towers, the Baron’s frigate, and his own flagship somewhere under the rock.', goal: 'Silence the Chandlery’s guns and bring down Tallow’s flagship',
-    towers: 6, guard: [{ ids: ['frigate', 'brig'], captain: -1 }, { ids: ['cutter', 'cutter'], captain: -1 }], crates: 5, regrow: 4, after: 'galleon', stars: 4, ship: 'brig', pays: 'Five crates, a Masterwork likely, Heartstone' },
+    towers: 6, guard: [{ ids: ['frigate', 'brig'], captain: -1 }, { ids: ['cutter', 'cutter'], captain: -1 }], crates: 5, regrow: 4, after: 'galleon', stars: 4, ship: 'brig', ch: 8, pays: 'Five crates, a Masterwork likely, Cut Glass and Heartstone' },
   { id: 'survey', loot: 'survey', kind: 'rock', winches: true, name: 'The Plumbline, the Exchange’s survey rig', short: 'The Plumbline', x: HOME.x + 3000, z: HOME.z - 1300, y: 660, size: 46, ch: 11, flag: 'silver', look: 'silver',
     line: 'A survey rig on a lifted rock off Hollowcrest: brass derricks, very long drills, two gun towers and an escort under silver sails.', goal: 'Cut its three drill strings: shoot the winches on top of the derricks',
     towers: 2, guard: [{ ids: ['cutter', 'cutter'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 3, regrow: 3, after: 'citadel', stars: 3, ship: 'brig', pays: 'Lark parts, modules, Cut Glass' },
   { id: 'dredge', loot: 'dredge', kind: 'dredge', name: 'The Grindstone, the Exchange’s dredge', short: 'The Grindstone', x: HOME.x + 500, z: HOME.z + 2700, y: 640, size: 0, moving: true, ch: 14, look: 'silver',
     line: 'A great dredge with a drill on her bow, cutting into the cliff under the claim, with a frigate and a brig to guard her.', goal: 'Knock out her two drill engines before she’s through, then sink her',
-    towers: 0, guard: [{ ids: ['frigate', 'brig'], captain: -1 }, { ids: ['cutter', 'cutter', 'brig'], captain: -1 }], crates: 5, regrow: 6, after: 'survey', stars: 5, ship: 'frigate', pays: 'Five crates, a Lark part, a Masterwork likely',
+    towers: 0, guard: [{ ids: ['frigate', 'brig'], captain: -1 }, { ids: ['cutter', 'cutter', 'brig'], captain: -1 }], crates: 5, regrow: 6, after: 'survey', stars: 5, ship: 'frigate', pays: 'Five crates, a Lark part, a Masterwork likely, Cut Glass and Heartstone',
     // sunk, her wreck draws the Exchange's salvagers: a galleon to make strike, and her guards
     repeatGuard: [{ ids: ['galleon', 'brig', 'cutter'], captain: -1 }, { ids: ['frigate'], captain: -1 }] },
   { id: 'convoy', loot: 'convoy', kind: 'convoy', name: 'The Brass Road convoy', short: 'The convoy', x: HOME.x - 3300, z: HOME.z + 2900, y: 700, size: 0, moving: true, ch: 3,
     line: 'Three of the claim’s ore barges, coming home up the Brass Road with jumpers waiting in the cloud.', goal: 'Bring the ore barges home to Brightvein',
-    towers: 0, guard: [{ ids: ['skiff', 'skiff'], captain: -1 }, { ids: ['cutter', 'skiff', 'skiff'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 2, regrow: 2, after: 'camp', stars: 2, ship: 'cutter', pays: 'More for every barge home, Brass Scrap' },
+    towers: 0, guard: [{ ids: ['skiff', 'skiff'], captain: -1 }, { ids: ['cutter', 'skiff', 'skiff'], captain: -1 }, { ids: ['brig', 'cutter'], captain: 0 }], crates: 2, regrow: 2, after: 'camp', stars: 2, ship: 'cutter', pays: 'More for every barge home, Brass Scrap, a little Cut Glass' },
   { id: 'storm', loot: 'storm', kind: 'storm', name: 'The storm front', short: 'The storm front', x: HOME.x + 3600, z: HOME.z + 900, y: 900, size: 0, moving: true, ch: 7,
     line: 'A wall of Aether storm over the gorge, and a Thinwatch strongbox in a wreck at its eye. Its beacons still burn.', goal: 'Fly through the Thinwatch beacons before the front closes',
-    towers: 0, guard: [{ ids: ['skiff', 'skiff'], captain: -1 }], crates: 3, regrow: 2, after: 'outpost', stars: 3, ship: 'skiff', rings: 8, pays: 'Glass and Heartstone, a chance of a Masterwork' },
+    towers: 0, guard: [{ ids: ['skiff', 'skiff'], captain: -1 }], crates: 3, regrow: 2, after: 'outpost', stars: 3, ship: 'skiff', rings: 8, pays: 'Cut Glass and Heartstone, a chance of a Masterwork' },
 ];
 
 // ---------- wanted: a jumper captain on the map for a big reward ----------

@@ -110,7 +110,7 @@ function yardLight(b, light) {
   return k >= 0.999 ? light : Math.max(light, light / Math.max(0.05, k) * v / 100);
 }
 // ore charged a minute in full sun by a yard's tenders, as its panel shows it (and the tests check)
-function yardRate(b) { const tend = workersOf(b.id).reduce((s, v) => s + (v.working ? v.eff() : jobEff(v) * workBonus(v, b)), 0), mult = b.level >= 3 ? 1.5 : b.level >= 2 ? 1.25 : 1; return tend * RATES.charge * mult * (castPerk('tock') ? 1.2 : 1) * yardBoost(b) * 60; }
+function yardRate(b) { const tend = workersOf(b.id).reduce((s, v) => s + (v.working ? v.eff() : jobEff(v) * workBonus(v, b)), 0), mult = RATES.yardLv[b.level] || 1; return tend * RATES.charge * mult * (castPerk('tock') ? 1.2 : 1) * yardBoost(b) * 60; }
 // the Grow Lamp: greenhouses grow through the night for a few shards
 function nightGrow(b, dt) {
   const v = modV(b, 'nightFood'); if (!v || TOD.night < 0.5) return 0;

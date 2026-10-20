@@ -37,6 +37,11 @@ function moodFactors() {
   const sick = GAME.villagers.filter(v => v.d.sick).length; if (sick) add(-Math.min(6, sick * 3), 'Fever in the Keep');
   if (day) { const w = WEATHER.today; if (w === 'storm') add(-5, 'An Aether storm'); else if (w === 'rain') add(-2, 'Rain'); else if (w === 'fog') add(-1, 'Fog on the rim'); else if (w === 'clear') add(3, 'Sunshine'); }
   if (TOWN.b.keep && TOWN.b.keep.level >= 3) add(4, 'The sun beacon on the Keep');
+  // act two's pressures: the Exchange watching, then raiding, and a crowded Keep once Hollowcrest's people come over
+  const C = CHAPTERS[STORY.ch];
+  if (C && C.ship === 'exchange' && STORY.started) add(-2, 'The Exchange’s ship waits off the rim');
+  else if (exchangeCrews()) add(-3, 'Silver sails circling the rim: the Exchange’s crews');
+  const rolls = GAME.villagers.filter(v => v.d.guest && !v.d.hero).length; if (rolls) add(-Math.min(4, rolls), 'Bedrolls by the hall fire: the Keep is crowded');
   add(Math.min(4, byType('garden').length * 2), 'Flowers in the greenhouse');
   add(Math.min(3, GAME.rooms.filter(r => r.type).length), 'Things to learn in the Keep');
   add(Math.min(6, Object.keys(CAST_CREW).filter(castHere).length), 'Good company: the cast');

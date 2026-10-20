@@ -9,9 +9,6 @@ const LAYOUT = {
   dock: { x: 6, z: 0 },                // the Sky Dock’s bridge, out over the north rim (z: the rim’s edge there)
 };
 { let bd = 1e9; for (const [x, z] of OUTLINE) if (z < 0 && Math.abs(x - LAYOUT.dock.x) < bd) { bd = Math.abs(x - LAYOUT.dock.x); LAYOUT.dock.z = z; } }
-// where things stood before the grid: used to bring an old save across
-const OLD_LAYOUT = { hall: [0, -3], yardA: [-15, 19], yardB: [9.5, 22.5], shop: [19.5, 5], garden: [-21, -15], lens1: [-36, 5], lens2: [31, -18], mast: [-31, -26.5], plotN: [-3, -25], plotE: [33, 15.5] };
-const PATHS = [];
 
 // ----------------------------------------------------------------- the build grid: 2 m tiles, Clash-style
 // A tile is buildable when it sits well inside the rim wall and clear of the headframe.

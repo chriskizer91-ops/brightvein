@@ -29,7 +29,6 @@ for (const m of Object.values(MOODS)) for (const p of [m.day, m.night]) for (con
 const WX_KEYS = ['overcast', 'rain', 'fog', 'storm'];
 
 // ----------------------------------------------------------------- what the weather does to the claim
-const wxM = () => WEATHER.mix;
 const wxCover = () => { const M = WEATHER.mix; return clamp(M.overcast + M.rain + M.storm + M.fog * 0.45, 0, 1); };
 // sun on the yards (and a scorched building works slower until it's patched)
 // (Nib's mirrors, once her story is done, halve what cloud and rain take: quests.js)

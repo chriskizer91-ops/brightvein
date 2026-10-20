@@ -155,7 +155,7 @@ function buildDigLook() {
   digMats();
   if (!DLOOK.hitGroup) digLookOnce();
   if (DLOOK.static) { scene.remove(DLOOK.static); DLOOK.static.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
-  for (const d of DLOOK.dyn) d.obj.parent && d.obj.parent.remove(d.obj);
+  for (const d of DLOOK.dyn) { d.obj.parent && d.obj.parent.remove(d.obj); d.obj.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }   // their own geometry; the materials are the dig's (DM)
   DLOOK.dyn = []; DLOOK.lights = []; DLOOK.lanterns = [];
   const g = new THREE.Group(); g.name = 'dig'; DL = g;
   for (const R of DIG.rooms) digRoomLook(R);
@@ -593,7 +593,7 @@ function digOutlines() {
 }
 // dust hanging in the lamplight, a handful in every room (fewer on the Light setting)
 function digDust() {
-  if (DLOOK.dust) { scene.remove(DLOOK.dust); DLOOK.dust.geometry.dispose(); }
+  if (DLOOK.dust) { scene.remove(DLOOK.dust); DLOOK.dust.geometry.dispose(); DLOOK.dust.material.dispose(); }
   const per = QUALITY.level === 'light' ? 3 : 7, pts = [], R = mulberry(4242);
   for (const Rm of DIG.rooms) for (let i = 0; i < Rm.w * per; i++) pts.push(cellX0(Rm.c0) + R() * (cellX1(Rm.c0 + Rm.w - 1) - cellX0(Rm.c0)), rowY0(Rm.r) + 0.4 + R() * 3.2, WORLD.faceZ - 0.6 - R() * 3.6);
   const geo = new THREE.BufferGeometry(), seed = new Float32Array(pts.length / 3).map(() => R() * 100);
@@ -716,7 +716,7 @@ function digFx(kind, a, b) {
     if (kind !== 'done') FX.sparks(new THREE.Vector3((x0 + x1) / 2, y0 + 2, FZ - 1), 30, kind === 'seam' ? 0xffd28a : 0xffc070, 3);
   }
   if (kind === 'incident') {
-    const R = a, old = DLOOK.inc.get(R); if (old) scene.remove(old.grp);
+    const R = a, old = DLOOK.inc.get(R); if (old) { scene.remove(old.grp); old.grp.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
     DLOOK.inc.set(R, incLook(R));
     if (R.inc.kind === 'cave') { const x0 = cellX0(R.c0), x1 = cellX1(R.c0 + R.w - 1), y0 = rowY0(R.r); for (let i = 0; i < 16; i++) FX.puff(new THREE.Vector3(lerp(x0, x1, Math.random()), y0 + Math.random() * 3.5, FZ - 0.4 - Math.random() * 3), 3, 0xb8a888, 1.2); debris(new THREE.Vector3((x0 + x1) / 2, y0 + 3.5, FZ - 1.5), 16, 0, y0 + 0.05); if (VIEW.mode === 'mine') DIGCAM.shake = 0.6; }
     if (R.inc.kind === 'wild') for (const f of R.inc.list) FX.sparks(f.pos.clone().setY(f.pos.y + 0.8), 20, 0xffd090, 3);

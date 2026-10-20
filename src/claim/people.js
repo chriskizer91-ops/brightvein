@@ -345,7 +345,6 @@ function think(v) {
   const s = spots[Math.random() * spots.length | 0], a = Math.random() * TAU, r = 1.5 + Math.random() * s[2];
   v.plan = [...exitSteps(v), walkTo(v, new THREE.Vector3(s[0] + Math.cos(a) * r, 0, s[1] + Math.sin(a) * r)), { type: 'wait', t: 4 + Math.random() * 8 }];
 }
-const _d2 = new THREE.Vector2();
 function moveToward(v, to, speed, dt, flat = true) {
   const dx = to.x - v.pos.x, dy = to.y - v.pos.y, dz = to.z - v.pos.z, L = Math.hypot(dx, flat ? 0 : dy, dz);
   if (L < 0.05) { v.pos.copy(to); return true; }

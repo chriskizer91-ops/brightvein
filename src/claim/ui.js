@@ -407,7 +407,7 @@ const UI = {
     const people = GAME.villagers.filter(v => !v.d.exp && !(v.d.study && v.d.study.room === i)).sort((a, b) => (ok(b) - ok(a)) || (role === 'tutor' ? statOf(b, k) - statOf(a, k) : b.d.stats[k] - a.d.stats[k]));
     for (const v of people) {
       const can = ok(v), s = v.d.stats[k], el = document.createElement('button'); el.type = 'button'; el.className = 'li' + (can ? '' : ' off'); if (!can) el.disabled = true;
-      const now = v.d.study ? `${v.d.study.role === 'tutor' ? 'Teaching' : 'Studying'} · ${STUDY[GAME.rooms[v.d.study.room].type].name}` : v.jobB ? v.jobB.def.job.title + ', ' + (v.jobB.name || v.jobB.def.name) : 'No job';
+      const now = v.d.study ? `${v.d.study.role === 'tutor' ? 'Teaching' : 'Studying'} · ${safeStudyName(v.d.study.room)}` : v.jobB ? v.jobB.def.job.title + ', ' + (v.jobB.name || v.jobB.def.name) : 'No job';
       const why = can ? '' : role === 'tutor' ? (roomTutor(i) ? 'There’s a tutor already' : `Needs ${STAT_NAMES[k]} 7 to teach`) : s >= STAT_MAX ? 'Mastered already' : 'The room is full';
       const side = role === 'tutor' ? `${stars(statOf(v, k))} <em>${STAT_NAMES[k]} ${statOf(v, k)}</em>` : s >= STAT_MAX ? '<em>Mastered</em>' : `<em>${s}→${s + 1} · ${fmtReal(pointTime(s) / studyRate(i))}</em>`;
       el.append(faceOf(v));
@@ -598,7 +598,7 @@ const UI = {
         const b = v.jobB, top = Object.entries(v.d.stats).sort((x, y) => statOf(v, y[0]) - statOf(v, x[0]))[0][0];
         const el = document.createElement('button'); el.type = 'button'; el.className = 'li';
         el.append(faceOf(v));
-        const st = v.d.study ? `${v.d.study.role === 'tutor' ? 'Teaching' : 'Studying'} · ${STUDY[GAME.rooms[v.d.study.room].type].name}` : null;
+        const st = v.d.study ? `${v.d.study.role === 'tutor' ? 'Teaching' : 'Studying'} · ${safeStudyName(v.d.study.room)}` : null;
         el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${v.d.exp ? 'In the wilds' : st ? esc(st) : b ? esc(b.def.job.title + ' · ' + (b.name || b.def.name)) : 'No job'}</span></span><span class="fit"><em>${STAT_NAMES[top]}</em> ${statOf(v, top)}</span>`));
         el.onclick = () => { SEL.villager = v; FOLLOW.v = null; UI.open('villager', v); if (!v.hidden) focusOn(v.pos); };
         list.append(el);
@@ -680,7 +680,7 @@ document.addEventListener('click', e => {
 });
 function upgrade(b) {
   const lv = b.level, cost = b.def.cost[lv + 1];
-  if (GAME.shards < cost || b.building) return;
+  if (!(cost >= 0) || GAME.shards < cost || b.building) return;   // (no next level: shards minus nothing was NaN, and saved as none)
   GAME.shards -= cost;
   if (b === WALLB) {
     TOWN.wallLevel = lv + 1; wallSetLevel(TOWN.wallLevel, true);

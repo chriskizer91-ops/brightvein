@@ -71,7 +71,7 @@ function loadTexture(url, renderer) {
 
 export async function makeWorld(renderer) {
   const group = new THREE.Group();
-  const time = { value: 0 };
+  const time = { value: 0 }, dim = { value: 1 };   // dim: the cloud in a storm front's shadow (voyage.js)
   group.add(makeSky());
 
   // the map: nine tiles, each 7.68 x 5.12 km, painted colours kept as Chris painted them, with cloud shadows passing over
@@ -102,9 +102,9 @@ export async function makeWorld(renderer) {
   // the deck of cloud: white and gold-edged from above, grey from beneath, gaps where the ground shows through
   const deck = new THREE.Mesh(new THREE.PlaneGeometry(160000, 160000).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
-    uniforms: { uTime: time, uSun: { value: SUN } },
+    uniforms: { uTime: time, uSun: { value: SUN }, uDim: dim },
     vertexShader: 'varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
-    fragmentShader: `varying vec3 vW; uniform float uTime; uniform vec3 uSun; ${SKY_GLSL} ${CLOUD_GLSL}
+    fragmentShader: `varying vec3 vW; uniform float uTime, uDim; uniform vec3 uSun; ${SKY_GLSL} ${CLOUD_GLSL}
       void main() {
         float c = cover(vW.xz, uTime);
         float lit = cover(vW.xz + uSun.xz * 160.0, uTime);
@@ -114,7 +114,7 @@ export async function makeWorld(renderer) {
         vec3 toCam = vW - cameraPosition; float d = length(toCam);
         vec3 haze = skyColor(normalize(vec3(toCam.x, 0.0, toCam.z)), uSun);
         float fade = smoothstep(9000.0, 38000.0, d);
-        col = mix(col, haze, fade);
+        col = mix(col, haze, fade) * uDim;
         gl_FragColor = vec4(col, c * 0.94 * (1.0 - fade * 0.25));
         #include <colorspace_fragment>
       }`,
@@ -122,10 +122,10 @@ export async function makeWorld(renderer) {
   deck.position.y = CLOUD_Y; deck.renderOrder = 1; group.add(deck);
 
   // big drifting clouds at the ship's height, kept round the ship as it flies
-  const puffs = makePuffs();
+  const puffs = makePuffs(dim);
   group.add(puffs.mesh);
 
-  return { group, time, puffs, deck };
+  return { group, time, puffs, deck, dim };
 }
 
 // A soft cumulus picture drawn once, and instanced billboards of it
@@ -143,7 +143,7 @@ function cloudTexture() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-function makePuffs() {
+function makePuffs(dim) {
   const N = 110, SPAN = 14000;
   const geo = new THREE.PlaneGeometry(1, 1);
   const offs = new Float32Array(N * 3), sizes = new Float32Array(N);
@@ -154,7 +154,7 @@ function makePuffs() {
   const ig = new THREE.InstancedBufferGeometry().copy(geo); ig.instanceCount = N;
   const mat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, fog: false,
-    uniforms: { uMap: { value: cloudTexture() }, uCenter: { value: new THREE.Vector3() }, uSpan: { value: SPAN }, uSun: { value: SUN } },
+    uniforms: { uMap: { value: cloudTexture() }, uCenter: { value: new THREE.Vector3() }, uSpan: { value: SPAN }, uSun: { value: SUN }, uDim: dim },
     vertexShader: `attribute vec3 offset; attribute float size; uniform vec3 uCenter; uniform float uSpan; varying vec2 vUv; varying float vFade;
       void main() {
         vec3 p = offset; p.xz = uCenter.xz + mod(offset.xz - uCenter.xz + uSpan * 0.5, uSpan) - uSpan * 0.5;
@@ -165,8 +165,8 @@ function makePuffs() {
         vFade *= smoothstep(60.0, 260.0, -mv.z);
         vUv = uv; gl_Position = projectionMatrix * mv;
       }`,
-    fragmentShader: `uniform sampler2D uMap; varying vec2 vUv; varying float vFade;
-      void main() { vec4 c = texture2D(uMap, vUv); c.rgb *= mix(0.82, 1.06, vUv.y); c.a *= vFade * 0.9; if (c.a < 0.01) discard; gl_FragColor = c;
+    fragmentShader: `uniform sampler2D uMap; uniform float uDim; varying vec2 vUv; varying float vFade;
+      void main() { vec4 c = texture2D(uMap, vUv); c.rgb *= mix(0.82, 1.06, vUv.y) * uDim; c.a *= vFade * 0.9; if (c.a < 0.01) discard; gl_FragColor = c;
         #include <colorspace_fragment>
       }`,
   });

@@ -364,23 +364,64 @@ function wallProps() {
     inst(P.box, MAT.oak, stocks); inst(P.box, MAT.iron, bows);
   }
 }
-// the Lark's parts, on her hull (she was merged into one mesh when she was built, so these are a group of their own)
+// the Lark's parts, on her hull (she was merged into one mesh when she was built, so these are a group of their own).
+// They're drawn half again as big as life, so they read from the lawn: each with an accent lit in its rarity's colour,
+// and a pennant of that colour flown from her top yard for every part fitted. Merged into a draw per material.
+const LARK_ACCENT = {};
+function larkAccent(col, k = 0.9) {
+  const key = col + ':' + k;
+  return LARK_ACCENT[key] || (LARK_ACCENT[key] = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: k, roughness: 0.45, metalness: 0.2, side: THREE.DoubleSide }));
+}
+function larkPennantGeo() {
+  // a long tapering pennant, streaming aft from its hoist and drooping a little
+  const g = new THREE.BufferGeometry(), L = 2.2, W = 0.42, n = 8, pos = [], idx = [];
+  for (let i = 0; i <= n; i++) { const u = i / n, w = W * (1 - u * 0.92) / 2, y = -u * u * 0.35, z = Math.sin(u * 5) * 0.12 * u; pos.push(-u * L, y + w, z, -u * L, y - w, z); }
+  for (let i = 0; i < n; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3 * 2), 2));
+  return g;
+}
 function larkProps() {
   const S = TOWN.ship; if (!S) return;
-  if (S.parts) { S.hullG.remove(S.parts); S.parts = null; }   // (its shapes are shared: nothing to dispose)
+  if (S.parts) { S.hullG.remove(S.parts); S.parts.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); S.parts = null; }   // (the merged copies; the shapes they came from are shared)
   const L = (GAME.sockets.lark || []).filter(Boolean); if (!L.length) return;
   const P = propGeo(), g = new THREE.Group(); S.hullG.add(g); S.parts = g;
-  const meshes = [], add = (geo, mat, x, y, z, s, r = [0, 0, 0]) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(...s); m.rotation.set(...r); m.castShadow = true; m.userData.ship = true; g.add(m); meshes.push(m); };
-  for (const it of L) {
-    const k = it.kind;
-    if (k === 'battery') { add(P.box, MAT.brass, 4.3, 0.35, 0, [1.0, 0.5, 0.9]); for (let i = 0; i < 4; i++) add(P.cyl, MAT.iron, 4.0 + (i % 2) * 0.55, 0.75, (i < 2 ? -0.22 : 0.22), [0.12, 0.5, 0.12], [0, 0, -0.5]); }
-    else if (k === 'sail') { add(P.box, MAT.crystal, 0.75, 4.2, 0.0, [0.06, 2.6, 1.6]); add(P.box, MAT.brass, 0.75, 5.55, 0, [0.08, 0.1, 1.8]); }
-    else if (k === 'plates') { for (const z of [-1, 1]) for (let i = 0; i < 4; i++) add(P.box, MAT.iron, -3 + i * 2.1, -0.35, z * 2.12, [1.9, 0.8, 0.08], [0, 0, 0]); }
-    else if (k === 'gyro') { add(P.ring, MAT.brass, -4.6, 2.4, 0, [0.55, 0.55, 0.55]); add(P.ring, MAT.copper, -4.6, 2.4, 0, [0.45, 0.45, 0.45], [Math.PI / 2, 0, 0]); add(P.cyl, MAT.brass, -4.6, 2.0, 0, [0.06, 0.4, 0.06]); }
-    else if (k === 'winch') { add(P.cyl, MAT.oak, 5.8, 0.55, 0, [0.35, 0.9, 0.35], [Math.PI / 2, 0, 0]); add(P.ring, MAT.iron, 5.8, 0.55, 0.3, [0.36, 0.36, 0.36]); add(P.cone, MAT.iron, 7.3, 1.25, 0, [0.12, 0.4, 0.12], [0, 0, -1.2]); }
-    else if (k === 'figurehead') { add(P.sph, MAT.brass, 7.75, 1.0, 0, [0.4, 0.28, 0.22]); add(P.cone, MAT.brass, 8.15, 1.05, 0, [0.1, 0.35, 0.1], [0, 0, -Math.PI / 2]); add(P.box, MAT.brass, 7.6, 1.2, 0.35, [0.5, 0.06, 0.5], [0.6, 0, 0.3]); add(P.box, MAT.brass, 7.6, 1.2, -0.35, [0.5, 0.06, 0.5], [-0.6, 0, 0.3]); }
-  }
-  void meshes;
+  const PEN = PG.pennant || (PG.pennant = larkPennantGeo());
+  const meshes = [];
+  L.forEach((it, n) => {
+    const k = it.kind, acc = larkAccent(rarityOf(it).color), part = new THREE.Group();
+    // each part grows from where it's fixed: that point on her deck or hull
+    const at = { battery: [4.3, 0.1, 0], sail: [0.75, 4.2, 0], plates: [0, -0.35, 0], gyro: [-4.6, 1.85, 0], winch: [5.8, 0.15, 0], figurehead: [7.6, 1.0, 0] }[k] || [0, 0, 0];
+    part.position.set(...at); part.scale.setScalar(k === 'plates' ? 1 : 1.6); g.add(part);
+    const add = (geo, mat, x, y, z, sc, r = [0, 0, 0]) => { const m = new THREE.Mesh(geo, mat); m.position.set(x - at[0], y - at[1], z - at[2]); m.scale.set(...sc); m.rotation.set(...r); m.castShadow = mat !== acc; part.add(m); meshes.push(m); };
+    if (k === 'battery') {
+      add(P.box, MAT.brass, 4.3, 0.35, 0, [1.0, 0.5, 0.9]); add(P.box, acc, 4.3, 0.35, 0, [1.04, 0.12, 0.94]);
+      for (let i = 0; i < 4; i++) { const x = 4.0 + (i % 2) * 0.55, z = i < 2 ? -0.22 : 0.22; add(P.cyl, MAT.iron, x, 0.75, z, [0.12, 0.5, 0.12], [0, 0, -0.5]); add(P.sph, acc, x + 0.13, 0.98, z, [0.09, 0.09, 0.09]); }
+    } else if (k === 'sail') {
+      add(P.box, MAT.crystal, 0.75, 4.2, 0.0, [0.06, 2.6, 1.6]); add(P.box, MAT.brass, 0.75, 5.55, 0, [0.08, 0.1, 1.8]);
+      for (const z of [-0.82, 0.82]) add(P.box, acc, 0.75, 4.2, z, [0.09, 2.6, 0.06]);
+      add(P.box, acc, 0.75, 2.88, 0, [0.09, 0.06, 1.7]);
+    } else if (k === 'plates') {
+      for (const z of [-1, 1]) { for (let i = 0; i < 4; i++) add(P.box, MAT.iron, -3 + i * 2.1, -0.35, z * 2.14, [1.9, 0.9, 0.12]); add(P.box, acc, 0.15, 0.05, z * 2.21, [8.2, 0.1, 0.05]); }
+    } else if (k === 'gyro') {
+      add(P.ring, MAT.brass, -4.6, 2.4, 0, [0.55, 0.55, 0.55]); add(P.ring, MAT.copper, -4.6, 2.4, 0, [0.45, 0.45, 0.45], [Math.PI / 2, 0, 0]);
+      add(P.cyl, MAT.brass, -4.6, 2.0, 0, [0.06, 0.4, 0.06]); add(P.sph, acc, -4.6, 2.4, 0, [0.16, 0.16, 0.16]);
+    } else if (k === 'winch') {
+      add(P.cyl, MAT.oak, 5.8, 0.55, 0, [0.35, 0.9, 0.35], [Math.PI / 2, 0, 0]); add(P.ring, MAT.iron, 5.8, 0.55, 0.3, [0.36, 0.36, 0.36]);
+      add(P.cone, MAT.iron, 7.3, 1.25, 0, [0.12, 0.4, 0.12], [0, 0, -1.2]); add(P.ring, acc, 5.8, 0.55, -0.3, [0.37, 0.37, 0.37]);
+    } else if (k === 'figurehead') {
+      add(P.sph, MAT.brass, 7.75, 1.0, 0, [0.4, 0.28, 0.22]); add(P.cone, MAT.brass, 8.15, 1.05, 0, [0.1, 0.35, 0.1], [0, 0, -Math.PI / 2]);
+      add(P.box, MAT.brass, 7.6, 1.2, 0.35, [0.5, 0.06, 0.5], [0.6, 0, 0.3]); add(P.box, MAT.brass, 7.6, 1.2, -0.35, [0.5, 0.06, 0.5], [-0.6, 0, 0.3]);
+      add(P.sph, acc, 7.95, 1.08, 0, [0.09, 0.09, 0.09]);
+    }
+    // its pennant, from the top yard: the middle first, then each end
+    const pen = new THREE.Mesh(PEN, larkAccent(rarityOf(it).color, 0.25));
+    pen.position.set(0.5, 7.55, [0, -1.7, 1.7][n % 3]); pen.castShadow = true; g.add(pen); meshes.push(pen);
+  });
+  // one draw per material for all of it
+  const merged = mergeMeshes(g, meshes);
+  for (const m of meshes) m.removeFromParent();
+  for (const m of merged) m.userData.ship = true;
 }
 function allProps() { for (const b of Object.values(TOWN.b)) moduleProps(b); wallProps(); larkProps(); }
 // the steam vents puff now and then while Wildlight are about

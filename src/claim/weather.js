@@ -16,7 +16,7 @@ const WEATHER = { today: 'clear', next: 'clear', mix: { overcast: 0, rain: 0, fo
 // the mood of each weather, by day and by night: sky (zenith, horizon), fog, clouds (lit, shade), and how much sun,
 // sky light and exposure are left
 const MOODS = {
-  overcast: { day: { top: '#7f8997', hor: '#b6bcc2', fog: '#a7aeb5', lit: '#d4d7da', shade: '#7c828b', sun: 0.12, hemi: 1.3, exp: 0.94 },
+  overcast: { day: { top: '#7f8997', hor: '#b6bcc2', fog: '#a2a9b0', lit: '#c4c8cc', shade: '#737a83', sun: 0.12, hemi: 1.3, exp: 0.94 },
     night: { top: '#0e1219', hor: '#1b202b', fog: '#161b25', lit: '#3c4252', shade: '#151922', sun: 0.4, hemi: 0.9, exp: 1 } },
   rain: { day: { top: '#5f6975', hor: '#8b939c', fog: '#7f8891', lit: '#a6acb3', shade: '#575d66', sun: 0.07, hemi: 1.1, exp: 0.86 },
     night: { top: '#080b12', hor: '#131824', fog: '#0f131c', lit: '#2a3040', shade: '#0d1017', sun: 0.3, hemi: 0.8, exp: 0.98 } },
@@ -250,12 +250,16 @@ function weatherMood(t, time) {
   // clouds over the sun and stars
   skyU.uSunCol.value.multiplyScalar(1 - cover * 0.88);
   skyU.uNight.value *= 1 - cover * 0.93;
-  if (worldMats.cloudFloor) worldMats.cloudFloor.color.lerp(_wf.copy(scene.fog.color).multiplyScalar(0.85), cover * 0.6);
-  if (worldMats.puff) worldMats.puff.color.lerp(_wf.copy(scene.fog.color), M.fog * 0.7 + cover * 0.3);
-  // fog closes in; rain greys out the far peaks
-  const rainy = clamp(M.rain + M.storm, 0, 1);
-  scene.fog.near = lerp(lerp(220, 120, rainy * 0.6 + M.overcast * 0.2), 18, M.fog);
-  scene.fog.far = lerp(lerp(1250, 620, rainy * 0.7 + M.overcast * 0.25), 210, M.fog);
+  if (worldMats.cloudFloor) worldMats.cloudFloor.color.lerp(_wf.copy(scene.fog.color).multiplyScalar(0.85), cover * 0.8);
+  if (worldMats.puff) worldMats.puff.color.lerp(_wf.copy(scene.fog.color), M.fog * 0.7 + cover * 0.5);   // a grey day's cloud sea is grey
+  // cloud shadows drifting over the lawn, and a little less colour in the grade (world.js, main.js)
+  LOOK_CLOUDS.uK.value = (0.3 * M.overcast + 0.16 * M.rain + 0.12 * M.storm) * (1 - nk); LOOK_CLOUDS.uT.value = time;
+  WEATHER.desat = clamp(0.3 * M.overcast + 0.22 * M.rain + 0.18 * M.storm + 0.25 * M.fog, 0, 0.35);
+  // fog closes in; rain greys out the far peaks. A fog bank is measured from the claim rather than the camera, so
+  // the claim stays readable however far out you look from, and the rim and the cliffs fade into it
+  const rainy = clamp(M.rain + M.storm, 0, 1), cd = camera.position.distanceTo(controls.target);
+  scene.fog.near = lerp(lerp(220, 120, rainy * 0.6 + M.overcast * 0.2), Math.max(18, cd - 15), M.fog);
+  scene.fog.far = lerp(lerp(1250, 620, rainy * 0.7 + M.overcast * 0.25), cd + 140, M.fog);
   // a lightning flash lights everything for a moment
   const F = WEATHER.flash;
   if (F > 0.01) {
@@ -391,8 +395,7 @@ function weatherDraw(rdt) {
     s.material.color.copy(scene.fog.color).multiplyScalar(lerp(1.05, 1.4, nk));
     s.material.opacity = fk * lerp(0.5, 0.42, nk);
   }
-  // the cloud puffs round the cliffs rise toward the rim in fog
-  if (worldMats.puff) for (const s of scene.children) if (s.isSprite && s.userData.r && s.material === worldMats.puff) { if (s.userData.y0 == null) s.userData.y0 = s.position.y; s.position.y = s.userData.y0 + fk * 26; }
+  // (the cloud puffs round the cliffs rise toward the rim in fog: their lift is set with their drift, in main.js)
   // wet ground: darker and glossier, with puddles
   const wet = WEATHER.wet;
   if (worldMats.ground) { worldMats.ground.roughness = lerp(0.96, 0.6, wet); worldMats.ground.color.setScalar(lerp(1, 0.8, wet)); }

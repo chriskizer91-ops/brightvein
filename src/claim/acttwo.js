@@ -215,7 +215,7 @@ function storyNight(n) {
   const C = CHAPTERS[STORY.ch];
   if (!C || !C.longNight || !STORY.started || ACT.wardenDown) return null;
   const sunk = raided('dredge');
-  return { title: 'The Long Bright Night', kind: 'brightmaw', name: WARDEN.name, sub: WARDEN.sub, hpK: sunk ? 1.5 : 2.2, scale: 3.7, width: 3.1, from: 'seam', budgetK: 0.9,
+  return { title: 'The Long Bright Night', kind: 'brightmaw', name: WARDEN.name, sub: WARDEN.sub, hpK: sunk ? 1.5 : 2.2, scale: 6.2, width: 3.9, from: 'seam', budgetK: 0.9,
     line: sunk ? 'The Grindstone is sunk, but the heart is awake. The Warden is climbing the mine shaft, and every Wildlight in the Ironspire is climbing with it. Hold the mine, and ring the note.'
       : 'The Grindstone is still drilling, and the heart is awake. The Warden is climbing the mine shaft, stronger every night the drill turns, with every Wildlight in the Ironspire behind it.' };
 }

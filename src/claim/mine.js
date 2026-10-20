@@ -458,7 +458,7 @@ function digIncident(R, kind) {
       const x = lerp(cellX0(R.c0) + 0.6, cellX1(R.c0 + R.w - 1) - 0.6, (i + 0.5) / n + (Math.random() - 0.5) * 0.15);
       const f = new Wildlight([new THREE.Vector3(x, y, WORLD.faceZ - MINE.depth + 0.5)]);
       f.mode = 'mine'; f.mine = R; f.from = 'mine'; f.hp *= 0.8; f.prowl = 0; f.seed = Math.random() * 6.28; WL.list.push(f); R.inc.list.push(f);
-      f.uni.uAlpha.value = 0.5; f.uni.uWidth.value = 0.9; f.glow.scale.set(1.4, 1.0, 1);
+      f.alpha0 = f.uni.uAlpha.value = 0.5; f.uni.uWidth.value = 0.9; f.glow.scale.set(1.4, 1.0, 1);
     }
     AUDIO.play('zap');
   }

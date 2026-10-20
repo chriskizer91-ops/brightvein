@@ -127,7 +127,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
         say: { banner: (t, l) => banner(t, l), toast: (t) => toast(t) }, shake: (s) => { cam.shake = Math.max(cam.shake, s); }, player: () => player, camera: () => camera });
       const port = makePort({ renderer, env: scene.environment, progress, claim, shipFor: shipNow, crewOf, onSail: (id) => sail(id), onMode: (m) => enter(m), onHome: () => close() });
       port.mode = 'off';
-      S = { scene, world, art: A, sun, skies, bolts, smoke, pickups, raiders, sites, port, debris, flash, zones: new WeakMap() };
+      S = { scene, world, art: A, sun, hemi, skies, bolts, smoke, pickups, raiders, sites, port, debris, flash, zones: new WeakMap() };
       resize();
       return S;
     })();
@@ -678,7 +678,11 @@ export function makeSky({ renderer, canvas, progress, onLeave, sound, claim = {}
   function frame(dt) {
     dt = Math.min(0.05, dt);
     if (!S || mode === 'loading') return false;
-    renderer.toneMappingExposure = mode === 'voyage' && S.sites.cur?.kind === 'storm' ? 0.72 : 1.0;   // a storm front is dark
+    // a storm front is dark: the sun goes in, the sky light greys, and the deck and the clouds are in its shadow
+    const storm = mode === 'voyage' && S.sites.cur?.kind === 'storm';
+    renderer.toneMappingExposure = storm ? 0.72 : 1.0;
+    S.sun.intensity = storm ? 0.7 : 2.6; S.sun.color.set(storm ? 0xbfc8dc : 0xfff0d6); S.hemi.intensity = storm ? 0.45 : 0.75;
+    S.world.dim.value = storm ? 0.4 : 1; S.scene.environmentIntensity = storm ? 0.45 : 0.9;
     ART.M.canvas.emissiveIntensity = LOOK.canvas;
     for (const b of built.values()) b.art.M.canvas.emissiveIntensity = b.art.glowSails ? LOOK.canvas * 2.2 : LOOK.canvas;
     if (mode === 'voyage') { if (!paused && !W.sunk) tick(dt); if (mode === 'voyage') renderer.render(S.scene, camera); }

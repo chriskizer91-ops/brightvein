@@ -108,7 +108,7 @@ function modelKeep(b) {
   // the gate: a dressed arch, an oak door, a brass boss and banners
   b.add(G.box(3.1, 3.9, 0.32), MAT.dressed, 0, 0.6 + 1.95, FZ + 0.05);
   b.add(G.gable(3.5, 1.0, 0.4), MAT.dressed, 0, 4.45, FZ + 0.08);
-  doorAt(b, 0, 0.6, FZ + 0.22, 1.9, 3.0);
+  doorAt(b, 0, 0.6, FZ + 0.22, 1.9, 2.8);   // the gate: people are about 1.7 m
   b.add(new THREE.CircleGeometry(0.4, 20), MAT.brass, 0, 5.0, FZ + 0.29, { cast: false });
   for (const x of [-2.7, 2.7]) { b.add(new THREE.PlaneGeometry(1.0, 2.6), MAT.wool, x, 2.9, FZ + 0.06, { cast: false }); b.add(G.box(1.25, 0.08, 0.08, 1), MAT.brass, x, 4.25, FZ + 0.1, { cast: false }); b.add(new THREE.CircleGeometry(0.28, 6), MAT.brass, x, 2.7, FZ + 0.08, { cast: false }); }
   // windows: glazed above, arrow slits below
@@ -153,7 +153,8 @@ function modelKeep(b) {
   b.add(new THREE.TorusGeometry(2.2, 0.04, 4, 40), MAT.brass, 0, 0, 0, { parent: orr, lvl: 3, rx: 1.9, ry: 0.6, cast: false });
   b.add(new THREE.SphereGeometry(0.16, 10, 8), MAT.brass, 1.85, 0, 0, { parent: orr, lvl: 3, cast: false });
   b.spin.push({ obj: orr, axis: 'y', speed: 0.25 });
-  const L = new THREE.PointLight(0xffb25a, 0, 70, 1.4); L.position.set(0, by + 1.9, Z); b.group.add(L); b.lights.push({ light: L, lvl: 3, power: 260 });
+  // its light hangs well above the roof, so it lights the claim round the Keep rather than the Keep's own roof
+  const L = new THREE.PointLight(0xffb25a, 0, 70, 1.4); L.position.set(0, by + 8, Z); b.group.add(L); b.lights.push({ light: L, lvl: 3, power: 130 });
   const L1 = new THREE.PointLight(0xffb870, 0, 26, 1.6); L1.position.set(0, 3.6, FZ + 2.4); b.group.add(L1); b.lights.push({ light: L1, lvl: 1, power: 40 });
 }
 
@@ -186,7 +187,7 @@ function modelHead(b) {
   // winch house
   b.add(G.box(3.2, 2.5, 2.6), MAT.plaster, -2.2, 1.25, -2.0); timberFrame(b, -2.2, 0, -2.0, 3.2, 2.5, 2.6, 1, ['b', 'l']);
   roofGable(b, 3.2, 2.6, 1.4, 2.5, 1, { x: -2.2, z: -2.0, over: 0.35 });
-  doorAt(b, -2.6, 0, -3.31, 0.9, 1.9, Math.PI);
+  doorAt(b, -2.6, 0, -3.31, 0.9, 2.1, Math.PI);
   // ore bin and heap
   b.add(G.box(2.3, 1.1, 1.9), MAT.oak, 2.3, 0.55, -1.9);
   for (let i = 0; i < 4; i++) b.add(G.box(0.12, 1.2, 0.12, 1), MAT.oakDark, 2.3 + (i % 2 ? 1.1 : -1.1), 0.6, -1.9 + (i < 2 ? 0.9 : -0.9));
@@ -247,7 +248,7 @@ function modelYard(b) {
   // level 2: sun mirrors along the back
   for (const x of [-4, -1.3, 1.3, 4]) {
     b.add(G.box(0.12, 2.4, 0.12, 1), MAT.oakDark, x, 1.2, -d / 2 - 0.7, { lvl: 2 });
-    b.add(G.box(2.2, 1.3, 0.08, 1), MAT.brass, x, 2.3, -d / 2 - 0.62, { lvl: 2, rx: -0.5 });
+    b.add(G.box(2.2, 1.3, 0.08, 1), MAT.mirror, x, 2.3, -d / 2 - 0.62, { lvl: 2, rx: -0.5 });
   }
   // level 3: a burning lens on a tall frame
   b.add(G.box(0.22, 4.4, 0.22, 1), MAT.oak, w / 2 - 1, 2.2, -d / 2 + 0.6, { lvl: 3 });
@@ -303,7 +304,7 @@ function modelGarden(b) {
   for (let x = -5; x <= 5.01; x += 1.25) b.add(new THREE.TorusGeometry(2.32, 0.06, 5, 18, Math.PI), MAT.copper, x, 0.6, -2.6, { ry: Math.PI / 2 });
   b.add(G.box(10.1, 0.1, 0.1, 1), MAT.copper, 0, 2.92, -2.6);
   for (const x of [-5.02, 5.02]) b.add(new THREE.CircleGeometry(2.3, 18, 0, Math.PI), MAT.glass, x, 0.6, -2.6, { ry: Math.PI / 2, cast: false });
-  doorAt(b, 5.04, 0.6, -2.6, 0.9, 1.6, Math.PI / 2, 1, MAT.copper);
+  doorAt(b, 5.04, 0.6, -2.6, 0.9, 1.95, Math.PI / 2, 1, MAT.copper);   // (as tall as the glass end allows)
   const R = mulberry(12);
   const plant = (x, y, z, s, lvl = 1) => b.add(new THREE.IcosahedronGeometry(s, 0), MAT.leaf, x, y + s * 0.6, z, { lvl, sy: 0.75, ry: R() * 3 });
   for (let i = 0; i < 18; i++) plant(-4.4 + (i % 9) * 1.1, 0.6, -3.6 + Math.floor(i / 9) * 1.6, 0.35 + R() * 0.2);
@@ -329,7 +330,7 @@ function modelLens(b) {
   b.add(G.cyl(1.7, 2.0, 6.2, 16), MAT.stone, 0, 0.6 + 3.1, 0);
   b.add(G.cyl(2.15, 2.15, 0.3, 16), MAT.dressed, 0, 6.85, 0);
   for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; b.add(G.box(0.7, 0.7, 0.4), MAT.stone, Math.cos(a) * 1.95, 7.35, Math.sin(a) * 1.95, { ry: -a + Math.PI / 2 }); }
-  doorAt(b, 0, 0.6, 1.93, 0.9, 1.8);
+  doorAt(b, 0, 0.6, 1.93, 0.9, 2.1);
   windowAt(b, 0, 4.2, 1.82, 0.4, 0.9, 0, 1, { noMullion: true });
   // the head: brass yoke, lens, crystal core. it turns toward its target.
   const head = new THREE.Group(); head.userData.dynamic = head.userData.rigid = true; head.position.set(0, 7.0, 0); b.group.add(head); b.head = head;
@@ -630,7 +631,8 @@ function buildDecor() {
   const pines = pts.filter(p => p.pine), broads = pts.filter(p => !p.pine);
   const mkI = (geo, mat, list, colFn) => { const m = new THREE.InstancedMesh(geo, mat, Math.max(1, list.length)); list.forEach((p, i) => { _wm.compose(_wp.set(p.x, 0, p.z), _wq.setFromEuler(_we.set(0, p.r, 0)), _ws.set(p.s, p.s * (0.9 + (p.s % 0.2)), p.s)); m.setMatrixAt(i, _wm); if (colFn) m.setColorAt(i, colFn(p)); }); m.count = list.length; m.castShadow = true; m.receiveShadow = true; scene.add(m); return m; };
   const barkMat = trackEnv(new THREE.MeshStandardMaterial({ map: tex('oak'), color: 0x6a5040, roughness: 1 }), 0.1);
-  const needleMat = windSway(trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.92 }), 0.1), 0.022, 1.2, 'pine');
+  const needleMat = windSway(trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.92, emissive: 0x0c1820, emissiveIntensity: 0 }), 0.1), 0.022, 1.2, 'pine');
+  worldMats.needles = needleMat;
   const leafMat = windSway(trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.88 }), 0.1), 0.03, 1.8, 'leaf');
   const pc = new THREE.Color();
   mkI(trunkG, barkMat, pines); mkI(pineG, needleMat, pines, p => pc.setHSL(0.37 + (p.r % 0.05), 0.42, 0.085 + (p.s % 0.05)).clone());

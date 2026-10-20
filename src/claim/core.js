@@ -11,6 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 // the skies (src/sky/): voyages, the shipyard and the fleet's save, from the airship game
 import { makeSky, SKIES, SHIPS, SITES, buildShipFar, buildShipAt } from './sky/voyage.js';
 import { makeProgress } from './sky/progress.js';
+import { silverArt as lookSilverArt, silverGlows as lookSilverGlows } from './ship/materials.js';   // the Exchange's ships (jumpers.js)
 
 const $ = s => document.querySelector(s);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -64,21 +65,35 @@ const LENS_SHADER = {
     }`,
 };
 const GRADE_SHADER = {
-  uniforms: { tDiffuse: { value: null }, uVignette: { value: 0.32 }, uNight: { value: 0 } },
+  uniforms: { tDiffuse: { value: null }, uVignette: { value: 0.32 }, uNight: { value: 0 }, uDesat: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float uVignette, uNight; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uVignette, uNight, uDesat; varying vec2 vUv;
     void main() {
       vec4 c = texture2D(tDiffuse, vUv);
       float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
       vec3 shade = vec3(0.075, 0.03, 0.09), light = vec3(1.0, 0.95, 0.84);
       c.rgb = mix(c.rgb, c.rgb * mix(vec3(0.94, 0.9, 1.04), light, smoothstep(0.25, 0.9, l)), 0.5);
       c.rgb += shade * (1.0 - smoothstep(0.0, 0.35, l)) * 0.35;
-      c.rgb = mix(vec3(l), c.rgb, 1.06 - uNight * 0.12);
+      c.rgb = mix(vec3(l), c.rgb, 1.06 - uNight * 0.12 - uDesat);
       vec2 q = vUv - 0.5; q.x *= 0.85;
       c.rgb *= 1.0 - uVignette * smoothstep(0.32, 0.78, length(q));
       gl_FragColor = c;
     }`,
 };
+// On Light there are no passes after the picture is drawn, so the grade is folded into the tone mapping instead: ACES,
+// then the grade's colour moves (the plum shadows, the cream lights, a touch more colour), made on the screen's values
+// as the pass makes them. The vignette and the soft top and bottom edges are drawn by the page over the canvas
+// (#lookfx in style.css), which costs the picture nothing.
+const LOOK_TONE = 'vec3 CustomToneMapping( vec3 color ) { return color; }';
+if (THREE.ShaderChunk.tonemapping_pars_fragment.includes(LOOK_TONE)) THREE.ShaderChunk.tonemapping_pars_fragment = THREE.ShaderChunk.tonemapping_pars_fragment.replace(LOOK_TONE, `vec3 CustomToneMapping( vec3 color ) {
+    vec3 d = pow( max( ACESFilmicToneMapping( color ), 0.0 ), vec3( 1.0 / 2.2 ) );
+    float l = dot( d, vec3( 0.299, 0.587, 0.114 ) );
+    d = mix( d, d * mix( vec3( 0.94, 0.9, 1.04 ), vec3( 1.0, 0.95, 0.84 ), smoothstep( 0.25, 0.9, l ) ), 0.5 );
+    d += vec3( 0.075, 0.03, 0.09 ) * ( 1.0 - smoothstep( 0.0, 0.35, l ) ) * 0.35;
+    d = mix( vec3( l ), d, 1.06 );
+    return pow( max( d, 0.0 ), vec3( 2.2 ) );
+  }`);
+const lookTone = () => QUALITY.level === 'light' ? THREE.CustomToneMapping : THREE.ACESFilmicToneMapping;
 // the Keep's interior is its own little diorama with its own camera
 const KSCENE = new THREE.Scene();
 const kcam = new THREE.PerspectiveCamera(36, 1, 0.5, 400);
@@ -98,6 +113,7 @@ function applyQuality() {
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, QUALITY.level === 'high' ? 2 : QUALITY.level === 'balanced' ? 1.5 : 1));
   const ms = QUALITY.level === 'high' ? 2048 : QUALITY.level === 'balanced' ? 2048 : 1024;
   if (typeof sun !== 'undefined' && sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  renderer.toneMapping = lookTone();
   setupComposer(); resize();
   if (typeof lightCasts === 'function') lightCasts();   // (kit.js)
 }

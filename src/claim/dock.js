@@ -133,11 +133,16 @@ function dockUpdate(dt) {
   const s = DOCK.ship, A = SKY && SKY.shipArt;
   if (s && A && s.root.parent === scene) {
     s.update(dt, { calm: true });
-    // the claim's light is brighter than the skies', and it blooms: her sails and crystals are dimmed a little here
-    s.glow.material.uniforms.uScale.value = 0.6 * renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
-    (s.M || A.M).canvas.emissiveIntensity = 0.02 + TOD.night * 0.1 + (s.paint && s.paint.glowSails ? 0.08 : 0);
+    // the claim's light is brighter than the skies', and it blooms: her sails, rail lights, crystals and glows are
+    // dimmed here by day and come up at night (openSky puts them back as the skies light them)
+    const n = TOD.night;
+    if (!DOCK.lookBase) DOCK.lookBase = { parts: A.M.parts.emissiveIntensity, crystal: A.M.crystal.emissiveIntensity };
+    s.glow.material.uniforms.uScale.value = 0.6 * (0.3 + 0.7 * n) * renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+    (s.M || A.M).canvas.emissiveIntensity = 0.02 + n * 0.1 + (s.paint && s.paint.glowSails ? 0.08 : 0);
     A.M.canvas.userData.time.value += dt;
-    A.M.gem.emissiveIntensity = 0.45 + TOD.night * 0.3 + Math.sin(DOCK.t * 2.4) * 0.08;
+    A.M.gem.emissiveIntensity = 0.45 + n * 0.3 + Math.sin(DOCK.t * 2.4) * 0.08;
+    A.M.parts.emissiveIntensity = 0.3 + n * 1.0;
+    A.M.crystal.emissiveIntensity = 0.25 + n * 0.7;
   }
   yardTick(dt);
 }
@@ -172,6 +177,7 @@ function openSky(mode, opts) {
   if (BUILD.on) return;
   if (mode === 'voyage' || mode === 'raid') yardSailing();
   if (DOCK.ship) DOCK.ship.root.scale.setScalar(1);       // full size again for the skies and the shipyard
+  const A = SKY.shipArt; if (A && DOCK.lookBase) { A.M.parts.emissiveIntensity = DOCK.lookBase.parts; A.M.crystal.emissiveIntensity = DOCK.lookBase.crystal; }   // and lit as the skies light her
   UI.close(); FOLLOW.v = null; VIEW.tween = null;
   controls.enabled = false; kcontrols.enabled = false;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();

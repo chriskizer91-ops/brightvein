@@ -115,6 +115,7 @@ function enterBuild(sel = null, setup = false) {
   BUILD.on = true; BUILD.sel = null; UI.close(); FOLLOW.v = null;
   $('.bottombar').hidden = true; $('#buildbar').hidden = false;
   gridOverlay.visible = true;
+  repaintGround();   // the lawn mown in checks, for the grid (world.js)
   for (const b of Object.values(TOWN.b)) if (b.pad) { b.pad.visible = true; padColor(b, 'idle'); }
   if (sel && sel.tile) selectInBuild(sel);
   $('#bb-title').textContent = setup ? 'Lay out your claim' : 'Build';
@@ -352,6 +353,7 @@ const _tint = new THREE.Color();
 function frame() {
   const rdt = Math.min(clock.getDelta(), 0.1);
   // out in the skies: they draw instead, and the claim's time stands still until the ship is home
+  lookFinish();   // Light's finish over the canvas, and the tone mapping (the skies keep their own)
   if (SKY && SKY.on) { renderer.shadowMap.autoUpdate = true; AUDIO.ambience(0.7, true); if (SKY.frame(rdt)) return; }   // the skies draw their own shadows every frame
   elapsed += rdt;
   const gdt = started && !GAME.paused && !BUILD.on && !GAME.talk && !(SKY && SKY.on) && !frontOpen() ? rdt * GAME.speed : 0;   // the settings and their sheets pause the claim
@@ -402,11 +404,21 @@ function frame() {
     const dist = camera.position.distanceTo(controls.target), side = inK || VIEW.mode === 'mine';
     lensPass.uniforms.uAmount.value = VIEW.mode === 'mine' && !inK ? 0.12 : side ? 0.35 : clamp(1.25 - (dist - 25) / 110, 0.35, 1.2) * (BUILD.on ? 0.4 : 1);
     lensPass.uniforms.uFocus.value = side ? 0.5 : 0.47;
-    gradePass.uniforms.uNight.value = TOD.night;
+    gradePass.uniforms.uNight.value = TOD.night; gradePass.uniforms.uDesat.value = WEATHER.desat || 0;   // grey days are a little less colourful (weather.js)
   }
   if (!inK && !TITLE.on) shakeCamera(rdt);
   composer ? composer.render() : renderer.render(S, C);
   if (!inK) unshakeCamera();
+}
+// Light's finish: the page's vignette over the claim (and its soft edges in the town view), and the grade folded into
+// the tone mapping (core.js). The skies keep ACES and no finish, as on every detail level.
+let lookKey = '';
+function lookFinish() {
+  const sky = !!(SKY && SKY.on), light = QUALITY.level === 'light' && !sky;
+  renderer.toneMapping = sky ? THREE.ACESFilmicToneMapping : lookTone();
+  const key = (light ? 'L' : '') + (light && VIEW.mode === 'town' && !BUILD.on && !TITLE.on ? 'T' : '');
+  if (key === lookKey) return; lookKey = key;
+  const app = $('#app'); app.classList.toggle('look-light', light); app.classList.toggle('look-tilt', key === 'LT');
 }
 // running slowly (under about 22 frames a second for half a minute) on Balanced or High: once, suggest Light
 const SLOW = { t: 0, n: 0, said: (() => { try { return !!localStorage.getItem('bv-slow-tip'); } catch (e) { return true; } })() };
@@ -434,7 +446,7 @@ function dressScene(rdt, gdt) {
   MAT.window.emissiveIntensity = night * 1.7 * pw + 0.05;
   for (const b of BUILDINGS) for (const L of b.lights) L.light.intensity = b.level >= L.lvl ? L.power * night * pw * (L.yard ? 0.4 + (b.chargeK || 0) : 1) : 0;
   for (const b of BUILDINGS) if (b.type === 'yard') for (const L of b.lights) if (L.yard) L.light.intensity *= yardLightK(b);
-  const keep = TOWN.b.keep; if (keep && keep.beaconMat) keep.beaconMat.emissiveIntensity = 1.4 + night * 3 * pw + Math.sin(elapsed * 1.5) * 0.3;
+  const keep = TOWN.b.keep; if (keep && keep.beaconMat) keep.beaconMat.emissiveIntensity = 1.0 + night * 1.5 * pw + Math.sin(elapsed * 1.5) * 0.2;   // warm, not white: the night's bloom does the rest
   MAT.crystal.emissiveIntensity = 0.9 + night * 1.2 * pw;
   for (const b of BUILDINGS) if (b.type === 'yard' && b.crystalMat) {
     b.drainK = Math.max(0, (b.drainK || 0) - rdt);
@@ -448,6 +460,7 @@ function dressScene(rdt, gdt) {
   worldMats.mineCrystal.emissiveIntensity = 1.3 + Math.sin(elapsed * 1.3) * 0.25;
   if (worldMats.faceCrystal) worldMats.faceCrystal.emissiveIntensity = 0.9 + night * 1.1 + Math.sin(elapsed * 1.1 + 2) * 0.2;
   faceMat.emissiveIntensity = 0.22 + night * 0.5;
+  faceMat.color.setScalar(1 + night * 1.2);   // the face's beds stay faintly readable by night
   // chimney smoke
   smokeT -= rdt;
   if (smokeT <= 0) { smokeT = 0.28; for (const b of BUILDINGS) { for (const p of b.smoke) if (Math.random() < 0.7) FX.smoke(p); if (b.smoke2 && b.level >= 2 && b.busy) FX.smoke(b.smoke2, 0x8a8a8a); } }
@@ -464,7 +477,12 @@ function dressScene(rdt, gdt) {
     v.mat.color.setRGB(Math.min(1, r), Math.min(1, g), Math.min(1, bl));
   }
   // cloud puffs drift
-  if (worldMats.puff) worldMats.puff.uniforms.uDrift.value += rdt * 0.004;   // one mesh, drifting in its shader (world.js)
+  if (worldMats.puff) {
+    const U = worldMats.puff.uniforms; U.uDrift.value += rdt * 0.004;   // one mesh, drifting in its shader (world.js)
+    // in the Mine view they sink below the deepest row, so the dig stands clear of the cloud; in fog they rise up the cliffs
+    const lift = VIEW.mode === 'mine' ? -18 : WEATHER.mix.fog * 14;
+    U.uLift.value += (lift - U.uLift.value) * Math.min(1, rdt * 3);
+  }
   if (DECOR.sundial) DECOR.sundial.children[DECOR.sundial.children.length - 1].rotation.y += rdt * 0.6;
 }
 
@@ -595,7 +613,7 @@ window.__bv = { DIG, CAGE, ROOMK, digQuick, digSetHead, digTick, recruit: recrui
   JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies,
   KCAM, KLIFE, KGLOW, KSCENE, keepTick, frame, keepLookUpdate, keepCamUpdate, frameKeep, pickKeep, keepAssign, kpath, keepDrawCalls, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin,
   NIGHT, WEATHER, WEATHERS, WL_KINDS, WALL, KEEP_LIMITS, BUY, DEFS, byType, autoAssign, findSpot, layoutChanged, planNight, forceWeather, lightningStrike, wallHit, nightReport, showDawn, skipTo, phaseChange, camShake, OUTLINE, cliffAt,
-  showBanner, bossBar, nightLookout, BOLT, wallSetLevel, wallMatrices, snuffLamp, FX };
+  showBanner, bossBar, nightLookout, BOLT, wallSetLevel, wallMatrices, snuffLamp, FX, BOSSES };
 // the bench and the fittings, for tests (bench.js, fittings.js, finds.js)
 Object.assign(window.__bv, { BENCH_T: { benchSalvage, benchOverhaul, benchRetune, benchChoose, benchCell, benchUncell, benchAttune, benchCraft, benchAssay, benchSkill, overhaulCost, retuneCost, salvageYield, findItem, allItems, fitModule, unfitModule, socketCount, socketsAt, modV, larkV, yardRate, yardBoost, itemNumbers, itemStats, dpsOf, fittedAll, workshopSave, lootMoment, courierToday, suggestFor, WALLB } });
 // the front door, saves, settings, tips and toasts, for tests (title.js, saves.js, settings.js, hints.js, ui.js)

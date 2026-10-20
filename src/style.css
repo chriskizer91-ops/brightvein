@@ -13,6 +13,16 @@ html, body { height: 100%; overflow: hidden; background: #0d0b14; }
 body { font-family: var(--f-body); color: var(--cream); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; touch-action: none; }
 #app { position: fixed; inset: 0; }
 #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+/* Light detail draws no passes after the picture (core.js), so the page lays the HD-2D finish over it: the grade's
+   vignette, and a soft blur along the top and bottom edges in the town view for the model-on-a-table look. It never
+   takes a touch, and everything with words sits above it. */
+#lookfx { position: absolute; inset: 0; pointer-events: none; display: none;
+  background: radial-gradient(92% 78% at 50% 50%, rgba(18,6,22,0) 41%, rgba(18,6,22,.05) 55%, rgba(18,6,22,.16) 70%, rgba(18,6,22,.26) 85%, rgba(18,6,22,.32) 100%); }
+#app.look-light #lookfx { display: block; }
+#lookfx i { position: absolute; left: 0; right: 0; display: none; backdrop-filter: blur(1.4px); -webkit-backdrop-filter: blur(1.4px); }
+#app.look-tilt #lookfx i { display: block; }
+#lookfx .lf-top { top: 0; height: 24%; -webkit-mask-image: linear-gradient(#000 20%, transparent); mask-image: linear-gradient(#000 20%, transparent); }
+#lookfx .lf-bot { bottom: 0; height: 14%; -webkit-mask-image: linear-gradient(transparent, #000 80%); mask-image: linear-gradient(transparent, #000 80%); }
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--amber-2); outline-offset: 2px; }
 

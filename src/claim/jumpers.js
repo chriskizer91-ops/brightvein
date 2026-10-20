@@ -12,9 +12,9 @@ const JUMP_HP = { skiff: 260, cutter: 420 };
 function jumperArt(silver = false) {
   const key = silver ? 'silverArt' : 'art';
   if (JUMP[key] || !SKY || !SKY.shipArt) return JUMP[key];
-  const A = SKY.shipArt, M = { ...A.M, hull: A.M.hull.clone(), canvas: A.M.canvas.clone() };
+  const A = silver ? lookSilverArt(SKY.shipArt, 0x9aa0a8) : SKY.shipArt, M = { ...A.M, hull: A.M.hull.clone(), canvas: A.M.canvas.clone() };   // the Exchange's: steel, blue crystal, grey planks
   M.canvas.onBeforeCompile = A.M.canvas.onBeforeCompile; M.canvas.customProgramCacheKey = A.M.canvas.customProgramCacheKey;
-  if (silver) { M.hull.color.set(0x5c626c); M.canvas.color.set(0xaab6c6); M.canvas.emissive.set(0x1c2a3a); }
+  if (silver) { M.canvas.color.set(0xaab6c6); M.canvas.emissive.set(0x1c2a3a); M.crystal.emissiveIntensity = 0.4; M.gem.emissiveIntensity = 0.4; }   // (lit as the claim's daylight lights the docked ship's)
   else { M.hull.color.set(0x9a8781); M.canvas.color.set(0xc8735c); M.canvas.emissive.set(0x7a3020); }
   return (JUMP[key] = { ...A, M });
 }
@@ -23,6 +23,7 @@ class Jumper {
     this.air = true; this.kind = kind; this.dead = false; this.hp = this.max = JUMP_HP[kind] * (1 + Math.max(0, STORY.ch - 2) * 0.12);
     const R = SHIPS.find(s => s.id === kind);
     this.silver = exchangeCrews(); this.ship = buildShipAt(R, 'middle', jumperArt(this.silver)); this.root = this.ship.root; this.root.userData.jumper = this;
+    if (this.silver) lookSilverGlows(this.ship);
     scene.add(this.root);
     this.ang = Math.random() * TAU + k * (TAU / n); this.r = 36 + k * 4; this.h = 15 + k * 3;
     this.phase = 'in'; this.t = 0; this.cool = 3 + k * 1.5; this.stolen = 0; this.pos = new THREE.Vector3(); this.smokeT = 0;

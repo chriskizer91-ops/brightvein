@@ -80,16 +80,17 @@ function softRect(g, toPx, PPM, x, z, w, d, fill, r = 1.2, widths = [[1.2, 0.18]
   for (const [e, a] of widths) { g.globalAlpha = a; const [px, py] = toPx(x - e, z - e); g.beginPath(); g.roundRect(px, py, (w + 2 * e) * PPM, (d + 2 * e) * PPM, (r + e) * PPM); g.fill(); }
   g.globalAlpha = 1;
 }
-// Redraw the lawn and the pads under every building. Called whenever the layout changes.
-// The lawn inside the wall is mown in alternating 2 m squares, so the build grid reads at a glance.
+// Redraw the lawn and the pads under every building. Called whenever the layout changes, and going in and out of
+// build mode. The lawn inside the wall is mown in stripes, 2 m wide, east to west; in build mode it's mown in
+// alternating 2 m squares, so the build grid reads at a glance.
 function repaintGround() {
   if (!GROUND) return;
-  const { PPM, toPx, earth, cobble, loam, ctx: g } = GROUND, T = GRID.T;
+  const { PPM, toPx, earth, cobble, loam, ctx: g } = GROUND, T = GRID.T, checks = BUILD.on;
   g.globalAlpha = 1; g.drawImage(groundBase, 0, 0);
   for (let j = 0; j < GRID.NZ; j++) for (let i = 0; i < GRID.NX; i++) {
     if (!GRID.ok[j * GRID.NX + i]) continue;
     const [px, py] = toPx(GRID.X0 + i * T, GRID.Z0 + j * T);
-    g.fillStyle = (i + j) % 2 ? 'rgba(255,248,200,0.035)' : 'rgba(18,40,8,0.03)';
+    g.fillStyle = checks ? ((i + j) % 2 ? 'rgba(255,248,200,0.035)' : 'rgba(18,40,8,0.03)') : (j % 2 ? 'rgba(255,248,200,0.028)' : 'rgba(18,40,8,0.022)');
     g.fillRect(px, py, T * PPM + 0.5, T * PPM + 0.5);
   }
   // worn paths: from every building's door to the Keep's, and out to the headframe, the Sky Dock's stair, the mast and
@@ -138,6 +139,7 @@ function buildPlateau() {
   const p = top.attributes.position, uv = top.attributes.uv;
   for (let i = 0; i < p.count; i++) { uv.setXY(i, (p.getX(i) - WORLD.X0) / WORLD.WX, 1 - (p.getZ(i) - WORLD.Z0) / WORLD.WZ); }
   worldMats.ground = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.96, metalness: 0, envMapIntensity: 0.25 });
+  lookCloudShadows(worldMats.ground);
   const topMesh = new THREE.Mesh(top, worldMats.ground); topMesh.receiveShadow = true; topMesh.name = 'ground';
   scene.add(topMesh);
 
@@ -182,6 +184,27 @@ function buildPlateau() {
   buildFace();
   buildMineInterior();
   return { topMesh, cliff };
+}
+
+// Cloud shadows drifting over the lawn on grey days: soft dark patches, moved by the wind (uK is how dark, from the
+// weather: weatherMood). Nothing is worked out on a clear day.
+const LOOK_CLOUDS = { uK: { value: 0 }, uT: { value: 0 } };
+function lookCloudShadows(mat) {
+  mat.onBeforeCompile = sh => {
+    sh.uniforms.uCloudK = LOOK_CLOUDS.uK; sh.uniforms.uCloudT = LOOK_CLOUDS.uT;
+    sh.vertexShader = 'varying vec2 vCloudW;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvCloudW = (modelMatrix * vec4(transformed, 1.0)).xz;');
+    sh.fragmentShader = 'varying vec2 vCloudW;\nuniform float uCloudK, uCloudT;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      if (uCloudK > 0.001) {
+        vec2 cp = vCloudW / 46.0 + vec2(uCloudT * 0.018, uCloudT * 0.007);
+        vec2 ci = floor(cp), cf = fract(cp); cf = cf * cf * (3.0 - 2.0 * cf);
+        #define CH(o) fract(sin(dot(ci + o, vec2(127.1, 311.7))) * 43758.5453)
+        float cn = mix(mix(CH(vec2(0.0)), CH(vec2(1.0, 0.0)), cf.x), mix(CH(vec2(0.0, 1.0)), CH(vec2(1.0)), cf.x), cf.y);
+        vec2 cq = cp * 2.3 + 5.1; ci = floor(cq); cf = fract(cq); cf = cf * cf * (3.0 - 2.0 * cf);
+        cn = cn * 0.68 + 0.32 * mix(mix(CH(vec2(0.0)), CH(vec2(1.0, 0.0)), cf.x), mix(CH(vec2(0.0, 1.0)), CH(vec2(1.0)), cf.x), cf.y);
+        diffuseColor.rgb *= 1.0 - uCloudK * smoothstep(0.42, 0.68, cn);
+      }`);
+  };
+  mat.customProgramCacheKey = () => 'cloudshadow';
 }
 
 // the cut face: painted strata, glowing veins, holes for the mine
@@ -421,13 +444,13 @@ function buildClouds() {
   }
   pg.setAttribute('iPuff', new THREE.InstancedBufferAttribute(P, 4)); pg.setAttribute('iSize', new THREE.InstancedBufferAttribute(S, 2)); pg.instanceCount = N;
   const pm = new THREE.ShaderMaterial({
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: null }, uColor: { value: new THREE.Color(0xffffff) }, uDrift: { value: 0 } }]),
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: null }, uColor: { value: new THREE.Color(0xffffff) }, uDrift: { value: 0 }, uLift: { value: 0 } }]),
     transparent: true, depthWrite: false, fog: true,
-    vertexShader: `attribute vec4 iPuff; attribute vec2 iSize; uniform float uDrift; varying vec2 vUv;
+    vertexShader: `attribute vec4 iPuff; attribute vec2 iSize; uniform float uDrift, uLift; varying vec2 vUv;
       #include <common>
       #include <fog_pars_vertex>
       void main() { vUv = uv; float a = iPuff.x + uDrift;
-        vec4 mvPosition = modelViewMatrix * vec4(cos(a) * iPuff.y, iPuff.z, sin(a) * iPuff.y * 0.85 + 2.0, 1.0);
+        vec4 mvPosition = modelViewMatrix * vec4(cos(a) * iPuff.y, iPuff.z + uLift, sin(a) * iPuff.y * 0.85 + 2.0, 1.0);
         mvPosition.xy += position.xy * iSize; gl_Position = projectionMatrix * mvPosition;
         #include <fog_vertex>
       }`,
@@ -507,14 +530,14 @@ scene.fog = new THREE.Fog(0xcfd8e0, 220, 1250);
 const SKY_KEYS = [
   // t,    zenith,    horizon,   sun colour, sunI, hemiSky,  hemiGnd,  hemiI, fog,       exposure, cloudLit, cloudShade
   [0.00, '#2a3456', '#c48a7a', '#ff9a66', 0.0, '#4a5680', '#2a2430', 0.25, '#8a7a8a', 0.95, '#f2b7a0', '#5a5a7a'],
-  [0.05, '#4d6fa0', '#ffbd8a', '#ffb070', 1.6, '#9ab0d8', '#5a4a3a', 0.45, '#e7b8a0', 1.0, '#ffd2b0', '#8a8aa8'],
-  [0.15, '#4f86c6', '#cfe2f0', '#fff0d8', 3.0, '#bfd6ff', '#6a5a40', 0.6, '#c8d8e6', 1.0, '#ffffff', '#8e9ab4'],
-  [0.35, '#3f7cc4', '#d8e8f4', '#fffaf0', 3.4, '#c6dcff', '#6e5e44', 0.65, '#d0dde8', 1.0, '#ffffff', '#93a0b8'],
-  [0.55, '#4a80c0', '#f0dcc0', '#ffe2b8', 2.9, '#c0d0f0', '#6a5640', 0.6, '#e0d4c4', 1.0, '#fff4e4', '#9a98ac'],
-  [0.63, '#3b4f86', '#ff9e6a', '#ff8a4a', 1.4, '#8a90c0', '#5a4038', 0.45, '#e09a7a', 1.02, '#ffb88a', '#7a6a8a'],
+  [0.05, '#4a6ca4', '#f4c0aa', '#ffc4a0', 1.6, '#a4b6e0', '#4e4a48', 0.45, '#d8bfc0', 1.0, '#ffd8cc', '#8890b4'],   // dawn: cooler and rosier than dusk
+  [0.15, '#4f86c6', '#cfe2f0', '#fff0d8', 3.0, '#bfd6ff', '#6a5a40', 0.6, '#c8d8e6', 1.0, '#ffffff', '#7f92b8'],
+  [0.35, '#3f7cc4', '#d8e8f4', '#fffaf0', 3.4, '#c6dcff', '#6e5e44', 0.65, '#d0dde8', 1.0, '#ffffff', '#8497bc'],
+  [0.55, '#4a80c0', '#f0dcc0', '#ffe2b8', 3.3, '#c0d0f0', '#6a5640', 0.42, '#e0d4c4', 1.0, '#fff4e4', '#9a98ac'],
+  [0.63, '#3b4f86', '#ff9e6a', '#ff8a4a', 2.0, '#8a90c0', '#5a4038', 0.3, '#e09a7a', 1.02, '#ffb88a', '#7a6a8a'],
   [0.69, '#1c2244', '#6a4a6e', '#ff6a4a', 0.0, '#3a4270', '#2a2030', 0.3, '#3a3450', 1.05, '#8a6a8a', '#2a2a46'],
-  [0.78, '#0b1028', '#26304e', '#9ab0ff', 0.55, '#2a3868', '#141420', 0.24, '#1c2238', 1.1, '#4a5a80', '#141a30'],
-  [0.92, '#0c122c', '#2a3352', '#9ab0ff', 0.5, '#2a3868', '#141420', 0.24, '#1e2440', 1.1, '#4a5a80', '#141a30'],
+  [0.78, '#0b1028', '#26304e', '#9ab0ff', 0.55, '#2a3868', '#262a3c', 0.24, '#1c2238', 1.1, '#4a5a80', '#141a30'],
+  [0.92, '#0c122c', '#2a3352', '#9ab0ff', 0.5, '#2a3868', '#262a3c', 0.24, '#1e2440', 1.1, '#4a5a80', '#141a30'],
   [1.00, '#2a3456', '#c48a7a', '#ff9a66', 0.0, '#4a5680', '#2a2430', 0.25, '#8a7a8a', 0.95, '#f2b7a0', '#5a5a7a'],
 ];
 const _c1 = new THREE.Color(), _c2 = new THREE.Color();
@@ -539,7 +562,9 @@ function applyTimeOfDay(t, time) {
   TOD.sunlight = clamp(Math.sin(sunAng) * 1.6, 0, 1) * (t < 0.66 ? 1 : 0);
   TOD.phase = dayPhase(t);
   const useMoon = TOD.night > 0.5;
-  const ld = useMoon ? moonDir : sunDir;
+  // the light itself never drops below a raking angle, so the shadows at golden hour fall long but stay on the claim
+  // (the sun's disc in the sky still sets)
+  const ld = useMoon ? moonDir : new THREE.Vector3(sunDir.x, Math.max(sunDir.y, 0.32), sunDir.z).normalize();
   sun.position.copy(ld).multiplyScalar(160); sun.target.position.set(0, 0, 0);
   sun.color.copy(keyLerp(t, 3)); sun.intensity = keyLerp(t, 4);
   hemi.color.copy(keyLerp(t, 5)); hemi.groundColor.copy(keyLerp(t, 6)); hemi.intensity = keyLerp(t, 7);
@@ -552,7 +577,8 @@ function applyTimeOfDay(t, time) {
   if (worldMats.cloudFloor) worldMats.cloudFloor.color.copy(keyLerp(t, 11)).multiplyScalar(0.82);
   if (worldMats.puff) worldMats.puff.color.copy(keyLerp(t, 11)).lerp(keyLerp(t, 10), 0.5);
   if (worldMats.clumps) for (const m of worldMats.clumps) m.emissiveIntensity = 0.06 + TOD.night * 0.3;
-  const envK = lerp(1, 0.18, TOD.night);
+  if (worldMats.needles) worldMats.needles.emissiveIntensity = TOD.night * 0.5;   // the pines keep a faint blue-green at night
+  const envK = lerp(1, 0.18, TOD.night) * (1 - 0.55 * wxCover());   // metal and glass shine less under cloud (weather.js)
   for (const m of ENV_MATS) m.envMapIntensity = m.userData.env * envK;
   if (bloom) { bloom.strength = lerp(0.42, 0.95, TOD.night); bloom.threshold = lerp(0.88, 0.62, TOD.night); }
   weatherMood(t, time);   // cloud, rain, fog and storm over the hour’s light (weather.js)

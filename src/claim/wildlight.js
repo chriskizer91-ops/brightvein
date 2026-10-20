@@ -28,7 +28,9 @@ const STROKE_FS = `
   void main(){
     float edge = 1.0 - abs(vSide); edge = smoothstep(0.0, 0.9, edge);
     float cut = step(fract(vSeed*7.31), 1.0 - uDissolve);
-    gl_FragColor = vec4(uCol * (0.7 + 0.6*edge), edge * uAlpha * cut);
+    // screened, not added: where strokes cross they brighten toward the creature's own amber, not to white
+    float a = edge * uAlpha * cut;
+    gl_FragColor = vec4(min(uCol * (0.55 + 0.45*edge), vec3(1.0)) * a, a);
   }`;
 // fox anatomy: capsules [bone, a, b, ra, rb]; nose toward +x, ground at y = 0
 const FOX_PARTS = [
@@ -89,6 +91,36 @@ function buildFoxGeometry() {
   }
 }
 const wlGlowTex = radialTex('rgba(255,200,120,0.9)', 'rgba(255,140,40,0)', 64);
+// the ground a boss walks on goes dark under it: a soft, ragged scorch
+const wlScorchTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), R = mulberry(616);
+  for (let i = 0; i < 18; i++) {
+    const x = 64 + (R() - 0.5) * 52, y = 64 + (R() - 0.5) * 30, r = 16 + R() * 26, gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(26,16,12,0.34)'); gr.addColorStop(1, 'rgba(26,16,12,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  }
+  return canvasTex(c);
+})();
+// a boss's pool of light and its scorch in one draw: the scorch darkens what's under it, and the glow adds over it
+function wlBossPool(col) {
+  const u = { map: { value: wlGlowTex }, scorch: { value: wlScorchTex }, uCol: { value: new THREE.Color(col) }, uOp: { value: 0.35 }, uDark: { value: 1 } };
+  const m = new THREE.ShaderMaterial({
+    uniforms: u, transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform sampler2D map, scorch; uniform vec3 uCol; uniform float uOp, uDark; varying vec2 vUv;
+      void main() {
+        vec4 g = texture2D(map, vUv);
+        vec2 su = (vUv - 0.5) * vec2(3.2 / 2.6, 3.2 / 1.5) + 0.5;
+        float d = su.x > 0.0 && su.y > 0.0 && su.x < 1.0 && su.y < 1.0 ? texture2D(scorch, su).a * uDark : 0.0;
+        gl_FragColor = vec4(g.rgb * uCol * g.a * uOp, d);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  Object.defineProperty(m, 'opacity', { get: () => u.uOp.value, set: v => { u.uOp.value = v; } });   // set like the others' pools
+  m.userData.u = u;
+  return m;
+}
 const wlCoreTex = radialTex('rgba(255,255,255,1)', 'rgba(200,225,255,0)', 64);
 // The kinds, smallest to greatest (their loot tiers are FOES in loot.js). Glimmers are quick sparks that come in packs;
 // Flarehounds are full-grown and chew through walls; a Lodestar has something swallowed glowing in its chest; a
@@ -97,7 +129,7 @@ const WL_KINDS = {
   glimmer:    { name: 'Glimmer', plural: 'Glimmers', scale: 0.68, col: [1.22, 0.74, 0.3], glow: 0xffc870, hp: n => 14 + n * 3, speed: [3.9, 4.6], climb: 3.6, chew: 0.5, bite: 3, width: 1.1, cost: 1 },
   flarehound: { name: 'Flarehound', plural: 'Flarehounds', scale: 1.0, col: [1.25, 0.52, 0.17], glow: 0xff9a48, hp: n => 32 + n * 5, speed: [3.0, 3.6], climb: 3.0, chew: 1.5, bite: 5, width: 1.3, cost: 2.6 },
   lodestar:   { name: 'Lodestar', plural: 'Lodestars', scale: 1.38, col: [1.08, 0.76, 0.42], glow: 0xffd8a0, core: 0xcfe6ff, hp: n => 72 + n * 8, speed: [2.4, 2.7], climb: 2.5, chew: 1.0, bite: 7, width: 1.5, cost: 6 },
-  brightmaw:  { name: 'Brightmaw', plural: 'Brightmaws', scale: 3.0, col: [1.3, 0.82, 0.42], glow: 0xfff0d0, core: 0xffffff, hp: n => 1100 + n * 60, speed: [2.0, 2.0], climb: 3.0, chew: 3, bite: 16, width: 2.6, cost: 0 },
+  brightmaw:  { name: 'Brightmaw', plural: 'Brightmaws', scale: 5.5, col: [1.3, 0.82, 0.42], glow: 0xfff0d0, core: 0xffffff, hp: n => 1100 + n * 60, speed: [2.0, 2.0], climb: 3.0, chew: 3, bite: 16, width: 2.6, cost: 0 },
 };
 class Wildlight {
   constructor(route, kind = 'flarehound', o = {}) {
@@ -106,7 +138,9 @@ class Wildlight {
     this.kind = WL_KINDS[kind] ? kind : 'flarehound'; this.K = K; this.boss = !!o.boss; this.name = o.name || K.name;
     this.baseCol = new THREE.Color(...K.col);
     this.uni = { ...WL.uniforms, uCol: { value: this.baseCol.clone() }, uAlpha: { value: 0.85 }, uDissolve: { value: 1 }, uWidth: { value: o.width || K.width } };
-    const mat = new THREE.ShaderMaterial({ uniforms: this.uni, vertexShader: STROKE_VS, fragmentShader: STROKE_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    const mat = new THREE.ShaderMaterial({ uniforms: this.uni, vertexShader: STROKE_VS, fragmentShader: STROKE_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcColorFactor });   // screen
+    this.alpha0 = this.boss ? 0.6 : 0.85; this.uni.uAlpha.value = this.alpha0;   // a boss's strokes overlap more: fainter each
     this.mat = mat;
     this.root = new THREE.Group(); this.bones = {};
     for (const [k, p] of Object.entries(FOX_BONES)) {
@@ -117,7 +151,8 @@ class Wildlight {
     // the head bone's geometry is authored around its own pivot; others around theirs
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: wlGlowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.55, color: K.glow }));
     glow.scale.set(2.6, 1.8, 1); glow.position.set(0, 0.8, 0); this.root.add(glow); this.glow = glow;
-    const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: wlGlowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.35, color: K.glow }));
+    // a boss is heavy: the grass under it scorches dark (in the same draw as its pool of light)
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2).rotateX(-Math.PI / 2), o.boss ? wlBossPool(K.glow) : new THREE.MeshBasicMaterial({ map: wlGlowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.35, color: K.glow }));
     pool.position.y = 0.05; this.root.add(pool); this.pool = pool;
     // the swallowed light in a Lodestar's chest, and the white-hot heart of a Brightmaw
     if (K.core) { const c = new THREE.Sprite(new THREE.SpriteMaterial({ map: wlCoreTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.9, color: K.core, toneMapped: false })); c.scale.setScalar(this.kind === 'brightmaw' ? 0.5 : 0.42); c.position.set(0.22, 0.76, 0); this.bones.body.add(c); this.core = c; }
@@ -147,8 +182,9 @@ class Wildlight {
   update(dt) {
     this.born = Math.min(1, this.born + dt * 1.5);
     if (this.dead) {
-      this.dying += dt * (this.boss ? 0.6 : 1.6); this.uni.uDissolve.value = clamp(this.dying, 0, 1); this.uni.uAlpha.value = 0.85 * (1 - this.dying);
+      this.dying += dt * (this.boss ? 0.6 : 1.6); this.uni.uDissolve.value = clamp(this.dying, 0, 1); this.uni.uAlpha.value = (this.alpha0 || 0.85) * (1 - this.dying);
       this.glow.material.opacity = 0.55 * (1 - this.dying); this.pool.material.opacity = 0.35 * (1 - this.dying);
+      if (this.pool.material.userData.u) this.pool.material.userData.u.uDark.value = 1 - this.dying;
       if (this.core) this.core.material.opacity = 1 - this.dying;
       this.root.position.y += dt * 0.6;
       return this.dying < 1;
@@ -175,9 +211,23 @@ class Wildlight {
       moving = huntStep(this, dt);
       wlBite(this, dt);
     }
+    // a boss up the mine shaft squeezes through at the size the shaft allows, and draws itself up to its full height
+    // once it's out on the grass
+    if (this.boss && this.from === 'seam') {
+      if (this.fullScale == null) { this.fullScale = this.root.scale.x; if (this.pos.y < -0.5) this.root.scale.setScalar(Math.min(this.fullScale, 3)); }
+      const want = this.pos.y < -0.5 ? Math.min(this.fullScale, 3) : this.fullScale;
+      this.root.scale.setScalar(this.root.scale.x + (want - this.root.scale.x) * Math.min(1, dt * 1.4));
+    }
     // pose
     this.phase += dt * (moving ? this.speed * 3.2 / Math.sqrt(this.root.scale.x) : 2);
     const s = this.phase, run = moving ? 1 : 0.15;
+    // the Brightmaw's footfalls: a small shake as each pair of feet comes down (none with reduced motion: camShake)
+    const foot = Math.sin(s) >= 0;
+    if (this.kind === 'brightmaw' && this.boss && moving && !this.climbing && this.pos.y > -0.5 && foot !== this.foot && VIEW.mode === 'town') {
+      const near = clamp(1 - this.pos.distanceTo(controls.target) / 70, 0, 1);
+      if (near > 0) camShake(0.16 * near * Math.min(1, this.root.scale.x / 5.5));
+    }
+    this.foot = foot;
     const B = this.bones;
     B.legFL.rotation.z = Math.sin(s) * 0.75 * run; B.legFR.rotation.z = Math.sin(s + 0.6) * 0.75 * run;
     B.legBL.rotation.z = Math.sin(s + Math.PI) * 0.8 * run; B.legBR.rotation.z = Math.sin(s + Math.PI + 0.6) * 0.8 * run;

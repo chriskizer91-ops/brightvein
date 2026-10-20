@@ -538,8 +538,8 @@ function buildInterior(force) {
 // ----------------------------------------------------------------- the shell: walls, floors, roof, ground
 function keepShell(lv, nF) {
   const H = nF * FH, Zb = -KD / 2;
-  // the ground in front, the plinth and the steps up to the door
-  kput(KBOX(220, 0.5, 90), KM.turf, 0, -0.95, -18, { col: 0xb8c0a0, uv: 6 });
+  // the plateau's lawn, ending at a rocky rim on either side and behind, and the steps up to the door
+  keepPlateau();
   kput(KBOX(KW + 3, 0.7, KD + 2.2), KM.dressed, 0, -0.35, 0, { col: 0xa89a88 });
   for (let i = 0; i < 3; i++) kput(KBOX(4.0 - i * 0.4, 0.22, 0.8), KM.dressed, 0, -0.6 + i * 0.22, KD / 2 + 1.7 - i * 0.4, { col: 0xb8aa98 });
   kput(new THREE.PlaneGeometry(3.2, 14), KM.dressed, 0, -0.69, KD / 2 + 9, { rx: -Math.PI / 2, col: 0x9a8c7c, uv: 1.2 });
@@ -1212,32 +1212,74 @@ function keepAttic(lv, nF) {
   KR = null;
 }
 
-// ----------------------------------------------------------------- the sky behind, the peaks, the stars
+// ----------------------------------------------------------------- the plateau, and the cloud sea below it
+// The Keep stands on the claim's lawn, which runs out a little way either side and behind it to a rocky rim; past the
+// rim the cliffs drop away into the cloud sea, lit as the town's is. (The front runs out under the camera.)
+function keepPlateau() {
+  const N = 72, top = [], R = mulberry(909);
+  for (let i = 0; i < N; i++) {
+    const a = i / N * TAU, c = Math.cos(a), s = Math.sin(a), w = 1 + (vnoise(c * 2.4 + 11, s * 2.4 + 5) - 0.5) * 0.16;
+    let x = Math.sign(c) * Math.pow(Math.abs(c), 0.4) * 25 * w, z = Math.sign(s) * Math.pow(Math.abs(s), 0.4) * 27 * w - 3;
+    if (z > 0) z *= 1.6;
+    top.push([x, z]);
+  }
+  const Y = -0.7, lawn = new THREE.ShapeGeometry(new THREE.Shape(top.map(([x, z]) => new THREE.Vector2(x, -z))), 1); lawn.rotateX(-Math.PI / 2);
+  kput(lawn, KM.turf, 0, Y, 0, { col: 0xb8c0a0, uv: 6 });
+  // the rim: a stony lip, then the cliff falling away (stepping in a little, so its face shows) into the cloud
+  const ring = (k, y, jit) => top.map(([x, z], i) => { const j = 1 + (hash2(i, Math.round(y * 10)) - 0.5) * jit; return [x * k * j, y, z * k * j]; });
+  const rings = [ring(0.94, Y + 0.06, 0), ring(1.0, Y + 0.16, 0.02), ring(1.01, Y - 1.6, 0.04), ring(0.95, Y - 6, 0.07), ring(0.86, Y - 14, 0.08)];
+  const strip = (A, B) => {
+    const pos = [], idx = [];
+    for (let i = 0; i < N; i++) pos.push(...A[i], ...B[i]);
+    for (let i = 0; i < N; i++) { const a = i * 2, b = ((i + 1) % N) * 2; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+  };
+  kput(strip(rings[0], rings[1]), KM.stone, 0, 0, 0, { col: 0xa89a88, uv: 1.6 });
+  for (let j = 1; j < rings.length - 1; j++) kput(strip(rings[j], rings[j + 1]), KM.stone, 0, 0, 0, { col: j === 1 ? 0x9a8a7a : 0x7a6c64, uv: 3 });
+  // a few boulders along the rim
+  for (let i = 0; i < 16; i++) { const [x, z] = top[(R() * N) | 0]; if (z > 6) continue; const s = 0.5 + R() * 0.9; kput(new THREE.DodecahedronGeometry(s, 0), KM.stone, x * 0.95, Y + s * 0.3, z * 0.95, { col: 0x9a8c7c, s: [1.3, 0.7, 1], ry: R() * 3, uv: 1.4 }); }
+}
+// ----------------------------------------------------------------- the sky behind, the peaks, the stars, the cloud sea
+// One mesh, one draw: the painted sky and peaks standing far behind, and the cloud sea lying below the plateau's rim
+// (aSea marks its quad), lit with the town's cloud colours and fading into the haze far off.
 function keepBackdrop() {
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTop: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uFog: { value: new THREE.Color() }, uNight: { value: 0 }, uTime: { value: 0 }, uFlash: { value: 0 } },
-    vertexShader: `varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: `uniform vec3 uTop, uHor, uFog; uniform float uNight, uTime, uFlash; varying vec3 vW;
+    uniforms: { uTop: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uFog: { value: new THREE.Color() }, uNight: { value: 0 }, uTime: { value: 0 }, uFlash: { value: 0 },
+      uLit: cloudU.uLit, uShade: cloudU.uShade },
+    vertexShader: `attribute float aSea; varying vec3 vW; varying float vSea; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vSea = aSea; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `uniform vec3 uTop, uHor, uFog, uLit, uShade; uniform float uNight, uTime, uFlash; varying vec3 vW; varying float vSea;
       float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
       float vn(float x) { float i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(h21(vec2(i, 0.0)), h21(vec2(i + 1.0, 0.0)), f); }
+      float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y); }
       void main() {
-        float y = vW.y;
-        vec3 c = mix(uHor, uTop, smoothstep(-4.0, 60.0, y));
-        vec2 sc = vW.xy * 1.6, cell = floor(sc); float sh = h21(cell);
-        float st = step(0.985, sh) * (1.0 - smoothstep(0.03, 0.12, length(fract(sc) - 0.5 - (vec2(h21(cell + 3.1), h21(cell + 7.7)) - 0.5) * 0.6))) * uNight * smoothstep(6.0, 26.0, y);
-        c += st * vec3(0.95, 0.95, 1.0) * (0.6 + 0.4 * sin(uTime * 2.0 + sh * 40.0));
-        // two ranges of peaks, the far one paler
-        float p1 = 4.0 + vn(vW.x * 0.06 + 3.0) * 16.0 + vn(vW.x * 0.21) * 4.0;
-        float p2 = -1.0 + vn(vW.x * 0.09 + 11.0) * 10.0 + vn(vW.x * 0.33 + 5.0) * 2.5;
-        c = mix(c, mix(uFog, uHor, 0.35) * 0.85, step(y, p1) * 0.85);
-        c = mix(c, uFog * 0.62, step(y, p2) * 0.9);
+        vec3 c;
+        if (vSea > 0.5) {
+          vec2 p = vW.xz / 36.0 + vec2(uTime * 0.01, uTime * 0.004);
+          float k = n2(p) * 0.55 + n2(p * 2.1 + 7.0) * 0.3 + n2(p * 4.7 - 3.0) * 0.15;
+          c = mix(uShade, uLit, smoothstep(0.3, 0.75, k));
+          c = mix(c, mix(uHor, uFog, 0.5), smoothstep(50.0, 190.0, length(vW.xz - cameraPosition.xz)) * 0.9);
+        } else {
+          float y = vW.y;
+          c = mix(uHor, uTop, smoothstep(-4.0, 60.0, y));
+          vec2 sc = vW.xy * 1.6, cell = floor(sc); float sh = h21(cell);
+          float st = step(0.985, sh) * (1.0 - smoothstep(0.03, 0.12, length(fract(sc) - 0.5 - (vec2(h21(cell + 3.1), h21(cell + 7.7)) - 0.5) * 0.6))) * uNight * smoothstep(6.0, 26.0, y);
+          c += st * vec3(0.95, 0.95, 1.0) * (0.6 + 0.4 * sin(uTime * 2.0 + sh * 40.0));
+          // two ranges of peaks, the far one paler
+          float p1 = 4.0 + vn(vW.x * 0.06 + 3.0) * 16.0 + vn(vW.x * 0.21) * 4.0;
+          float p2 = -1.0 + vn(vW.x * 0.09 + 11.0) * 10.0 + vn(vW.x * 0.33 + 5.0) * 2.5;
+          c = mix(c, mix(uFog, uHor, 0.35) * 0.85, step(y, p1) * 0.85);
+          c = mix(c, uFog * 0.62, step(y, p2) * 0.9);
+        }
         c += uFlash * vec3(0.5, 0.52, 0.6);
         gl_FragColor = vec4(c, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
-      }`, depthWrite: false, fog: false,
+      }`, fog: false,
   });
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(600, 260), mat); m.position.set(0, 60, -90); m.renderOrder = -1; m.frustumCulled = false;
+  // the sky: upright, far behind; the cloud sea: flat, 11 m under the lawn, from under the camera out past the sky
+  const sky = new THREE.PlaneGeometry(600, 260).translate(0, 60, -90), sea = new THREE.PlaneGeometry(700, 360).rotateX(-Math.PI / 2).translate(0, -11, -40);
+  sky.setAttribute('aSea', new THREE.Float32BufferAttribute([0, 0, 0, 0], 1)); sea.setAttribute('aSea', new THREE.Float32BufferAttribute([1, 1, 1, 1], 1));
+  const m = new THREE.Mesh(mergeGeometries([sky, sea]), mat); m.renderOrder = -1; m.frustumCulled = false;
   KSCENE.add(m); KEEPV.backdrop = m;
 }
 
@@ -1414,10 +1456,10 @@ function keepLookUpdate(rdt, gdt) {
   if (!KEEPV.group || VIEW.mode !== 'keep') return;
   const now = performance.now() / 1000, night = TOD.night, M = WEATHER.mix, cover = wxCover(), day = clamp(1 - night * 1.15, 0, 1), light = QUALITY.level === 'light';
   // the real lights: soft, so the lamps and windows do the work
-  KEEPV.hemi.intensity = lerp(0.95, 0.3, night) * (1 - 0.25 * cover * day) + WEATHER.flash * 1.2;
+  KEEPV.hemi.intensity = lerp(0.95, 0.18, night) * (1 - 0.25 * cover * day) + WEATHER.flash * 1.2;   // low at night, so the lamps show
   KEEPV.hemi.color.set(0xfff0dc).lerp(_klc.setRGB(0.55, 0.62, 0.95), night * 0.6);
   KEEPV.sun.intensity = lerp(0.85, 0.16, night) * (1 - 0.3 * cover * day);
-  renderer.toneMappingExposure = lerp(1.02, 1.12, night) + WEATHER.flash * 0.2;
+  renderer.toneMappingExposure = lerp(1.02, 1.0, night) + WEATHER.flash * 0.2;
   if (bloom) { bloom.strength = lerp(0.4, 0.55, night); bloom.threshold = lerp(0.92, 0.84, night); bloom.radius = 0.5; }
   // the far ground fades into the horizon
   KSCENE.fog.color.copy(skyU.uHor.value).lerp(scene.fog.color, 0.5); KSCENE.fog.near = KCAM.d + 12; KSCENE.fog.far = KCAM.d + 95;

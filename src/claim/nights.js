@@ -12,8 +12,8 @@ const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-we
 const compassOf = (x, z) => COMPASS[((Math.round(Math.atan2(x, -z) / (Math.PI / 4)) % 8) + 8) % 8];
 const sideOf = i => { const [x, z] = OUTLINE[clamp(Math.round(i), 0, OUTLINE.length - 1)]; return compassOf(x, z); };
 const BOSSES = {
-  lodestar: { name: 'The Lantern-Eye', sub: 'a great Lodestar · it drinks the light of every lamp near it', scale: 2.3, width: 2.1, hp: n => 260 + n * 28, climb: 3.2 },
-  brightmaw: { name: 'The Brightmaw', sub: 'up from the deep seam · it charges the wall, and drinks the lamps', scale: 3.0, width: 2.6, hp: n => 350 + n * 38, climb: 3.0 },
+  lodestar: { name: 'The Lantern-Eye', sub: 'a great Lodestar · it drinks the light of every lamp near it', scale: 3.4, width: 2.6, hp: n => 260 + n * 28, climb: 3.2 },
+  brightmaw: { name: 'The Brightmaw', sub: 'up from the deep seam · it charges the wall, and drinks the lamps', scale: 5.5, width: 3.6, hp: n => 350 + n * 38, climb: 3.0 },
 };
 // what the claim has to lose: its stores and what it has built
 function wealthK() {
@@ -219,7 +219,7 @@ function bossTick(f, dt) {
   if (f.kind === 'brightmaw' && f.from !== 'seam') {
     if (f.dash) {
       const s = f.dash, d = new THREE.Vector3(s.mx - f.pos.x, 0, s.mz - f.pos.z), L = d.length();
-      if (L < 1.4 || s.broken) { bossSlam(f, s); return 'hold'; }
+      if (L < 1.4 * Math.max(1, f.root.scale.x / 3) || s.broken) { bossSlam(f, s); return 'hold'; }   // (a bigger beast meets the wall further from its middle)
       d.normalize(); f.vel.copy(d); f.pos.addScaledVector(d, Math.min(L, 13 * dt)); f.pos.y = 0;
       if (Math.random() < dt * 30) FX.puff(f.pos.clone().setY(0.3), 1, 0xc8b898, 1.2);
       return 'run';

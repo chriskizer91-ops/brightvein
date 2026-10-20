@@ -15,6 +15,7 @@
 // depends on the skies the Captain chose (progress.js).
 import * as THREE from 'three';
 import { buildShip, shipMotion } from '../ship/build.js';
+import { silverArt, silverGlows } from '../ship/materials.js';
 import { FLEET, STATS } from '../ships/index.js';
 import { makeFlyer } from './flight.js';
 import { makeGunnery, intercept } from './guns.js';
@@ -57,12 +58,13 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const LOOKS = {
   crew: { hull: 0x9a8781, sail: 0xc8735c, glow: 0x7a3020, flag: [0.72, 0.09, 0.07], hoist: [0.09, 0.07, 0.06] },
   captain: { hull: 0x7d6f72, sail: 0x3a3034, glow: 0x1c1216, flag: [0.95, 0.72, 0.28], hoist: [0.09, 0.07, 0.06] },
-  silver: { hull: 0xb7b3ae, sail: 0xd6dbe4, glow: 0x4a5266, flag: [0.82, 0.85, 0.9], hoist: [0.85, 0.66, 0.22] },
+  silver: { hull: 0xb4b8bc, sail: 0xd6dbe4, glow: 0x4a5266, flag: [0.82, 0.85, 0.9], hoist: [0.85, 0.66, 0.22] },
   candle: { hull: 0x5a4c48, sail: 0xf2ead2, glow: 0x6a4a20, flag: [0.95, 0.9, 0.75], hoist: [0.1, 0.07, 0.05] },
   friend: null,
 };
 function raiderArt(art, look) {
   const L = LOOKS[look]; if (!L) return art;
+  if (look === 'silver') art = silverArt(art, L.hull);   // the Exchange's: steel, blue crystal, grey planks (materials.js)
   const M = { ...art.M };
   M.hull = art.M.hull.clone(); M.hull.color.set(L.hull);
   M.canvas = art.M.canvas.clone(); M.canvas.color.set(L.sail); M.canvas.emissive.set(L.glow);
@@ -112,6 +114,7 @@ export function makeRaiders(scene, art, bolts, skies) {
     if (!T[key]) {
       const R = FLEET.find((s) => s.id === id), A = artFor(look), mid = buildShip(R, 'middle', A), far = buildShip(R, 'far', A);
       recolourPennants(mid, look); recolourPennants(far, look);
+      if (look === 'silver') { silverGlows(mid); silverGlows(far); }
       T[key] = { R, mid, far, zones: hitZones(mid) };
     }
     return T[key];

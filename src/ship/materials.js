@@ -115,3 +115,32 @@ export async function loadShipArt(renderer) {
   M.flag.customProgramCacheKey = () => 'pennant';
   return { T, M, rects: partsInfo.rects };
 }
+
+// ---------- the Gilded Exchange's ships ----------
+// Steel where other ships carry brass, cool blue sunstone, and grey, weathered planks. `art` is the ship art from
+// loadShipArt; this returns a copy with its own hull, steel and crystal (the sails and pennants are the caller's).
+// Used by the raiders in the skies (raiders.js) and the claim-jumpers over the claim (jumpers.js).
+let greyPlanks = null;
+export function silverArt(art, hull = 0xb4b8bc) {
+  if (!greyPlanks) {
+    const P = pixels(art.T.planks.image), a = P.data;
+    for (let i = 0; i < a.length; i += 4) { const l = a[i] * 0.3 + a[i + 1] * 0.59 + a[i + 2] * 0.11; a[i] = l * 0.95; a[i + 1] = l * 0.98; a[i + 2] = l * 1.04; }
+    greyPlanks = toTexture(P.data, P.width, P.height, true, true, art.T.planks.anisotropy);
+  }
+  const M = { ...art.M };
+  M.hull = art.M.hull.clone(); M.hull.map = greyPlanks; M.hull.emissiveMap = greyPlanks; M.hull.color.set(hull);
+  M.brass = art.M.brass.clone(); M.brass.color.set(0xc9ced6); M.brass.roughness = 0.34;
+  M.bronze = art.M.bronze.clone(); M.bronze.color.set(0x8a929c);
+  M.crystal = art.M.crystal.clone(); M.crystal.color.set(0x9fc8ff); M.crystal.emissive.set(0x3a6aff); M.crystal.emissiveIntensity = 0.9;
+  M.gem = art.M.gem.clone(); M.gem.map = null; M.gem.emissiveMap = null; M.gem.color.set(0x9fc8ff); M.gem.emissive.set(0x3a6aff); M.gem.emissiveIntensity = 0.7;
+  return { ...art, M };
+}
+// a built ship's glows (her crystals' light, her lanterns) cooled to the Exchange's blue-white
+export function silverGlows(ship) {
+  ship.body.traverse((o) => {
+    if (o.name !== 'glow' || !o.geometry.attributes.color) return;
+    const c = o.geometry.attributes.color;
+    for (let i = 0; i < c.count; i++) { const l = Math.max(c.getX(i), c.getY(i), c.getZ(i)); c.setXYZ(i, l * 0.62, l * 0.78, l); }
+    c.needsUpdate = true;
+  });
+}

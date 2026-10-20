@@ -159,7 +159,7 @@ function dockUpdate(dt) {
   if (s && s.dockParts && s.root.parent === scene) {
     s.update(dt, { calm: true });
     const n = TOD.night, px = renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
-    s.glow.material.uniforms.uScale.value = 0.6 * (0.3 + 0.45 * n) * px;
+    s.glow.material.uniforms.uScale.value = 0.6 * (0.12 + 0.6 * n) * px;   // (her glows small by day: the claim's light blooms)
     for (const L of s.lamps) L.intensity *= 0.3;   // (her lamps, set afresh by update, light her own sails: turned well down here)
     for (const g of s.dockParts.glow) g.m.emissiveIntensity = g.kind === 'canvas' ? 0.02 + n * 0.1 : g.kind === 'gem' ? 0.45 + n * 0.3 + Math.sin(DOCK.t * 2.4) * 0.08 : g.kind === 'parts' ? 0.3 + n * 1.0 : 0.25 + n * 0.7;
     // on Light: her one-piece stand-in while she's under about a sixth of the screen's height

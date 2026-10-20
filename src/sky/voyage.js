@@ -717,7 +717,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
   function pickShot(s, why = 'pick') {
     if (!gunnery || player.down || !SHOTS[s] || s === gunnery.shot) return false;
     if (!hasShot(s)) {
-      toast(s === 'breaker' && progress.data.shots?.breaker ? 'Out of crystal breakers' : `No ${SHOTS[s].name.toLowerCase()} yet: earn ${s === 'breaker' ? 'them' : 'it'} at sea or buy in port`);
+      toast(s === 'breaker' && progress.data.shots?.breaker ? 'Out of crystal breakers' : `No ${SHOTS[s].name.toLowerCase()} yet: earn ${s === 'breaker' ? 'them' : 'it'} at sea or buy ${s === 'breaker' ? 'them' : 'it'} in the Shipyard`);
       return false;
     }
     gunnery.setShot(s);
@@ -733,7 +733,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     if (!gunnery || player.down) return;
     const s = nextShot();
     if (s !== gunnery.shot) pickShot(s);
-    else toast(extraShots() ? 'Out of crystal breakers' : 'Only round shot aboard: earn chain shot at sea or in port');
+    else toast(extraShots() ? 'Out of crystal breakers' : 'Only round shot aboard: earn chain shot at sea, or buy it in the Shipyard');
   }
   // a kind of shot earned by a deed: kept in the save, the phone's button shown, and said in a banner (how to load it)
   // once this frame's raiders are counted (waves()): straight away while the fight goes on. A deed that ends the wave
@@ -1007,7 +1007,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
           sky.clearWeather(); world.puffs.bank(null); W.alt = null; roadButton();
           $('calm-title').textContent = 'Sea trial over: she won';
           const id = player.ship.recipe.id;
-          $('calm-line').textContent = `It cost nothing. She's ${price(id)} in port${needs(id)}.`;
+          $('calm-line').textContent = `It cost nothing. She's ${price(id)} in the Shipyard${needs(id)}.`;
           $('calm').classList.toggle('late', last); calmUp(true);
           W.bonus = 0; W.bonusShown = 0;
           return;
@@ -1211,6 +1211,8 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     // (the guns' label, wherever it is: along the top under the compass, or along the bottom over the touch buttons,
     // even reaching up past four tenths of the way down, as it does over the shot button on a phone held sideways)
     for (const b of boxes(['battery'])) if (b.b < view.h * 0.4) EDGE.top.push(b); else if (b.t <= view.h * 0.4) EDGE.bottom.push(b);
+    // (Brightvein: a raid's objective and its boss's bar, wherever they are)
+    for (const b of boxes(['objective', 'sky-boss'])) (b.t < view.h * 0.5 ? EDGE.top : EDGE.bottom).push(b);
     const c = $('calm');
     CALM_AT.on = !c.hidden && c.offsetWidth > 0;
     if (CALM_AT.on) Object.assign(CALM_AT, { l: c.offsetLeft - c.offsetWidth / 2, r: c.offsetLeft + c.offsetWidth / 2, t: c.offsetTop, b: c.offsetTop + c.offsetHeight, top: c.offsetTop + c.offsetHeight / 2 < view.h / 2 });
@@ -1711,6 +1713,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     // (and a toast while it shows: so "Rising through the clouds..." under the crosshair of a phone held sideways never
     // hides the tag of the raider it points to, low in the view, nor one at the edge of a phone held upright)
     if (performance.now() < TOAST_AT.until && TOAST_AT.r > TOAST_AT.l) OFF.push(TOAST_AT);
+    if (RAID_AT.on) OFF.push(RAID_AT); // (and the tag over the place being raided: raidTag)
     // (and the crosshair: tags at the edge keep off it, and so do those over ships, which go just over it when they'd
     // land on it, as one over a raider coming up from under the Captain's ship would)
     CROSS.l = W2 - 27; CROSS.r = W2 + 27; CROSS.t = H2 - 27; CROSS.b = H2 + 27; OFF.push(CROSS); offN = OFF.length;
@@ -2163,7 +2166,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
       boss: !!(cur?.boss && cur.boss.f.down), stars: site.stars, why: cur?.why ?? '', bounty: site.bounty ?? null };
   }
   function raidClear() {
-    raids.clear(); raidLock = null;
+    raids.clear(); raidLock = null; RAID_AT.on = false; placeKey = ''; $('btn-pause').style.top = '';
     for (const id of ['objective', 'sky-boss', 'goal-dir', 'raid-tag']) { const el = $(id); if (el) el.hidden = true; }
     document.body.classList.remove('boss-up');
   }
@@ -2206,8 +2209,8 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     const I = raids.info(), ob = $('objective'), bb = $('sky-boss'), gd = $('goal-dir');
     const showOb = !!I && !I.done, showBoss = !!I?.boss && !I.done;
     if (ob.hidden === showOb) ob.hidden = !showOb;
-    if (bb.hidden === showBoss) { bb.hidden = !showBoss; document.body.classList.toggle('boss-up', showBoss); layout(); }
-    if (!I || I.done) { gd.hidden = true; return; }
+    if (bb.hidden === showBoss) { bb.hidden = !showBoss; document.body.classList.toggle('boss-up', showBoss); }
+    if (!I || I.done) { gd.hidden = true; raidPlace(showOb, showBoss); return; }
     setText($('obj-goal'), I.goal); setText($('obj-sub'), I.sub);
     const bars = $('obj-bars');
     if (I.bars) {
@@ -2231,17 +2234,20 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     const dx = I.at.x - player.pos.x, dz = I.at.z - player.pos.z, rel = Math.atan2(dx, dz) - player.heading;
     setStyle($('goal-arrow'), 'transform', `rotate(${(-rel).toFixed(2)}rad)`);
     setText($('goal-d'), km(Math.hypot(dx, dz)));
+    raidPlace(showOb, showBoss); // (after the compass has its line to the objective: it may be taller now)
   }
   // the place being raided (or the next beacon): a gold tag over it, or at the edge of the screen pointing to it
   const rtP = new THREE.Vector3();
   function raidTag() {
     const cur = raids.cur, show = !!cur && !cur.taken && !cur.lost && (!cur.def.moving || cur.kind === 'storm');
     let el = $('raid-tag');
-    if (!show) { if (el && !el.hidden) el.hidden = true; return; }
+    if (!show) { RAID_AT.on = false; if (el && !el.hidden) el.hidden = true; return; }
     if (!el) { el = document.createElement('div'); el.id = 'raid-tag'; el.innerHTML = '<span class="arrow"></span><b></b><span class="d"></span>'; H.tags.append(el); }
     el.hidden = false;
-    setText(el.children[1], cur.kind === 'storm' ? 'Beacon' : `Raid · ${cur.def.short}`);
-    const at = cur.kind === 'storm' ? raids.where() : cur.center;
+    const at = cur.kind === 'storm' ? raids.where() : cur.center, n = raids.towersLeft;
+    const name = cur.kind === 'storm' ? 'Beacon' : `Raid · ${cur.def.short}`, d = `${km(at.distanceTo(player.pos))}${cur.kind === 'storm' ? ` · ${cur.next + 1} of ${cur.beacons.length}` : n ? ` · ${n} gun${n > 1 ? 's' : ''}` : ''}`;
+    if (el.children[1]._v !== name || el.children[2]._v !== d) { setText(el.children[1], name); setText(el.children[2], d); el._hw = 0; }
+    if (!el._hw) { el._hw = el.offsetWidth / 2 || 80; el._h = el.offsetHeight || 26; } // (measured as its words change)
     rtP.copy(at); rtP.y += cur.kind === 'storm' ? 40 : cur.def.size * 0.4 + 24;
     rtP.project(camera);
     const behind = rtP.z > 1, W2 = view.w / 2, H2 = view.h / 2;
@@ -2249,9 +2255,32 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     const k = Math.max(Math.abs(sx) / (W2 - 70), Math.abs(sy) / (H2 - 60)), edge = behind || k > 1;
     if (edge) { const kk = Math.max(k, 1e-6); sx /= kk; sy /= kk; setStyle(el.firstChild, 'transform', `rotate(${Math.atan2(sx, -sy).toFixed(2)}rad)`); }
     if (el._edge !== edge) { el._edge = edge; el.classList.toggle('edge', edge); }
-    el.style.transform = `translate(${(W2 + sx).toFixed(1)}px, ${(H2 + sy).toFixed(1)}px) translate(-50%, -100%)`;
-    const n = raids.towersLeft;
-    setText(el.children[2], `${km(at.distanceTo(player.pos))}${cur.kind === 'storm' ? ` · ${cur.next + 1} of ${cur.beacons.length}` : n ? ` · ${n} gun${n > 1 ? 's' : ''}` : ''}`);
+    // (all of it on the screen, and a box for the ships' tags to keep off: tags() OFF)
+    const x = clamp(W2 + sx, el._hw + 6, view.w - el._hw - 6), y = clamp(H2 + sy, el._h + 30, view.h - 6);
+    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+    Object.assign(RAID_AT, { on: true, l: x - el._hw, r: x + el._hw, t: y - el._h, b: y });
+  }
+  const RAID_AT = { on: false, l: 0, r: 0, t: 0, b: 0 };
+  // where the objective and the boss's bar go: the objective just under the score; on a phone held upright, the boss's
+  // bar under the Captain's own panel and beside the objective, so neither lands on another panel (worked out again when
+  // the window's size changes or one of them comes or goes)
+  let placeKey = '';
+  function raidPlace(showOb, showBoss) {
+    const cp = $('compass'), key = `${view.w}x${view.h}/${showOb}/${showBoss}/${cp.offsetHeight}`;
+    if (key === placeKey) return;
+    placeKey = key;
+    const ob = $('objective'), bb = $('sky-boss'), pause = $('btn-pause');
+    ob.style.top = ''; bb.style.top = bb.style.left = bb.style.width = bb.style.translate = ''; pause.style.top = '';
+    // (on a phone held upright the pause button sits just under the compass: kept clear of it as the compass grows a
+    // line for the way to the objective)
+    if (view.w <= 700 && view.h > 500) { const c = cp.getBoundingClientRect(), p = pause.getBoundingClientRect(); if (p.top < c.bottom + 4 && p.left < c.right && p.right > c.left) pause.style.top = `${Math.round(c.bottom + 6)}px`; }
+    if (showOb && view.h > 500) { const s = $('score').getBoundingClientRect(); if (s.height) ob.style.top = `${Math.round(s.bottom + 6)}px`; }
+    if (showBoss && view.w <= 700 && view.h > 500) {
+      const sh = $('ship').getBoundingClientRect(), p = $('btn-pause').getBoundingClientRect(), top = Math.max(sh.bottom, p.bottom) + 8, o = showOb ? ob.getBoundingClientRect() : null;
+      const right = o && o.height && o.top < top + 60 ? o.left - 8 : view.w - sh.left;
+      bb.style.top = `${Math.round(top)}px`; bb.style.left = `${Math.round(sh.left)}px`; bb.style.translate = 'none'; bb.style.width = `${Math.round(right - sh.left)}px`;
+    }
+    layout();
   }
 
   // ---------- the skies opened and closed (the claim's open and close, below) ----------

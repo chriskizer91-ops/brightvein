@@ -162,13 +162,28 @@ the ship turning on a stone berth.
 | Doldrums | Galleon | 5,000 shards, 6 Glass, 4 Heartstone | chapter 12 |
 | Thunderhead | Man-o'-war | 8,500 shards, 8 Glass, 6 Heartstone | chapter 14 |
 
-**Refits** by part, three levels each, and you can see each one on the ship: **hull** (brass straps, an iron band, then
-iron plates: a fifth more hull a level, a little slower), **sails** (wider yards, more speed and turn; the last level's
-canvas is woven with sunstone thread and glows), **guns** (a pair of rail swivels, heavier shot and longer bow guns, then
-another pair or stern chasers) and **crystals** (bigger clusters and more crystals in each crown: more crystal, quicker
-climbing, a longer Surge). A level costs shards (50, 120, 260, times the ship's size) and materials (Brass, then Glass,
-then Glass and Heartstone). **Looks** are cheap: six hull paints, six sail colours and seven figureheads (the Sun, the
-Lark, the Owl, the Lantern, the Star, the Moon), tried on before you keep them.
+The Shipyard is the airship game's (its stage 4 port, like a racing game's garage): the ship turns on her berth, and
+beside her are her numbers, her condition and repairs, her crew, her **crystal power** (a slider: more of the crystals'
+power to the sails, or to the guns), her **upgrades** and her **colours**.
+
+**Upgrades**, four of them, three steps each: **armour plates** (a fifth more hull a step, a little slower), **fine
+canvas** (a fifth more sails, a little faster), **gun drill** (reloading a tenth quicker) and **cut crystals** (a fifth
+more crystals, quicker climbing). A step costs shards (50, 120, 260, times the ship's size) and materials (Brass for the
+first; Brass and Glass for the second; Glass and Heartstone for the third, more on a bigger ship). **Shot**: chain shot
+(150 shards and 2 Brass) shreds sails, and crystal breakers (450 shards and 2 Glass) crack crystals; each is bought once
+for every ship, or earned at sea. **Colours**: sail colours and pennants, bought once for every ship with shards, and
+some only won (by rank, or by the stars of the hardest skies).
+
+**The Captain's record** (the log button in the Shipyard): a rank that rises with renown, commendations for deeds at sea,
+three stars on each skies (waves 5, 10 and 15), the last twelve voyages, and three harbour orders a day (a new three
+each claim day), each paying shards when it's done. Coming home from a patrol, a card says what the voyage did, with
+Sail again and Home to Brightvein. A Captain's first voyages come with one short tip at a time (they can be switched
+off, or shown again, in Settings › In the skies).
+
+**On patrol** raiders come in waves, each harder than the last: raiders with nerve who run or strike their colours,
+named raider captains with tricks of their own, waves that come out of the sun, up through the clouds or in a line of
+battle, a choice of road between waves (a storm, a treasure ship, a hunt), storms rolling in, and the Man-o'-war's
+fortress battle.
 
 **The crew** come from the claim's people: a **pilot** (Agility: turning, and a quicker Surge), a **bosun** (Grit: the
 hull takes less harm, the crew patch more between fights, repairs are quicker) and one to six **gunners** by the ship's

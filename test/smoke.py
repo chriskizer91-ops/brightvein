@@ -211,6 +211,26 @@ with sync_playwright() as p:
     r = pg.evaluate('''(() => { const B = __bv; B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
       return { saved: !!s.sky && s.sky.voyages === 1 && !('shards' in s.sky), moored: B.DOCK.ship.root.parent === B.scene }; })()''')
     check('the fleet is saved with the claim, and she is moored again', r['saved'] and r['moored'], json.dumps(r))
+    # (from the airship game's own checks, the ones that matter here) the Captain's log keeps the voyage on the claim's
+    # day; a kind of shot bought in the Shipyard is loaded at sea; the crew patch her at sea only so far, the rest
+    # waiting for the dock (Brightvein's bosun)
+    pg.evaluate('__bv.openSky("port")')
+    pg.wait_for_function('__bv.SKY.mode === "port"', timeout=LONG)
+    r = pg.evaluate('''(() => { const B = __bv, g = B.SKY, d = B.FLEET.data, out = {};
+      const L = d.log[d.log.length - 1]; out.log = L && { d: L.d, day: B.GAME.day, ship: L.ship, sunk: L.sunk };
+      g.G.deeds.today(); out.orders = d.orders.day === 'claim-' + B.GAME.day + '/1' && d.orders.picks.filter(x => x >= 0).length === 3;
+      d.shots.chain = false; B.GAME.shards += 500; B.GAME.mats.brass = (B.GAME.mats.brass || 0) + 5; g.port.refresh();
+      const s0 = B.GAME.shards; document.querySelector('#pp-shots [data-shot=chain] button').click(); out.bought = d.shots.chain; out.paid = Math.round(s0 - B.GAME.shards);
+      d.ships.skiff.wear = { hull: 1, sails: 1, crystals: 1 }; d.ships.skiff.repair = null; d.crew = { pilot: 0, bosun: 0, gunners: [] };
+      g.fly('skiff'); const G = g.G, P = g.player;
+      out.loaded = G.pickShot('chain') && g.gunnery.shot === 'chain';
+      P.health.hull = P.full.hull * 0.2; const cap = P.patchCap('hull'); out.started = !!P.startPatch(); g.step(12, {});
+      out.patch = { cap: Math.round(cap * 100), after: Math.round(P.frac('hull') * 100) };
+      g.endVoyage(1); B.UI.close();
+      return out; })()''')
+    check("the Captain's log keeps the voyage on the claim's day, and today's three harbour orders", r['log'] and r['log']['d'] == r['log']['day'] and r['orders'], json.dumps(r))
+    check('chain shot bought in the Shipyard, and loaded at sea', r['bought'] and r['paid'] == 150 and r['loaded'], json.dumps(r))
+    check('the crew patch her at sea only so far: the rest waits for the dock', r['started'] and r['patch']['after'] > 20 and r['patch']['after'] <= r['patch']['cap'] + 1 and r['patch']['cap'] < 100, json.dumps(r['patch']))
 
     # the Shipyard (the airship game's stage 4 port, Brightvein's prices): a ship bought with shards and materials, an
     # upgrade that raises her numbers, crew from the claim who make the guns reload faster (in the Shipyard's numbers and
@@ -603,6 +623,7 @@ with sync_playwright() as p:
     check('a claim saved before the bench still loads, stash and all', r['old']['pick'] and r['old']['stash'] >= old_n and r['old']['sockets'] and not quiet, json.dumps(r['old']) + f' saved {old_n}')
     check('with no sound in the browser, nothing breaks', not quiet and r['missing'] and r['render'] is None, json.dumps(r) + ' ' + '; '.join(quiet))
     pg2.close()
+
 
     # Saves from four older builds, a damaged save that can be mended, and one that can't be opened at all. Each opens
     # in a page of its own with only that save in storage (test/saves/: real saves kept from those builds).

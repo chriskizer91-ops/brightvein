@@ -90,7 +90,7 @@ function jumperDowned(j) {
   toast(`<b>${j.silver ? 'The Exchange’s' : 'A jumper'} ${j.kind} is going down!</b> She leaves ${SHARD} ${25 + Math.round(j.stolen)}${item ? ` and a crate: <b style="color:${rarityOf(item).color}">${esc(item.name)}</b>` : ''}${second ? `, and the crew board her for another: <b style="color:${rarityOf(second).color}">${esc(second.name)}</b>` : ''}.`);
 }
 // the Captain's ship at the Sky Dock fires on any jumper that comes in reach
-const DOCK_GUN = { skiff: 16, cutter: 24, brig: 34, frigate: 46 };
+const DOCK_GUN = { skiff: 16, cutter: 24, brig: 34, frigate: 46, galleon: 58, manowar: 72 };
 let dockGunT = 0;
 function dockGuns(dt) {
   const s = DOCK.ship; if (!s || s.root.parent !== scene || !JUMP.list.length) return;

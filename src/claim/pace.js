@@ -9,8 +9,8 @@
 // Hollowcrest who come over in chapter 13 (as guests on bedrolls until a bunk is free), and what act two's chapters
 // give besides shards (materials, gear, modules, Lark parts).
 const PACE = {
-  eventDays: 0.36,   // the chance a morning rolls a day event (some are then given up to a chapter or a Bright Night)
-  roll: 0.08,        // names on the charter roll for each clerk's worth of work a second (chapter 9)
+  eventDays: 0.34,   // the chance a morning rolls a day event (one that gives way to a chapter or a Bright Night waits for a free day)
+  roll: 0.04,        // names on the charter roll for each clerk's worth of work a second (chapter 9)
   afterEvent: 0.08,  // a chapter scene waits this long (in days) after a day event's card, so they don't come back to back
   richAt: 4000,      // from chapter 8: how much wealth over 1,500 makes the nights a step harder (paceThreat)
 };
@@ -104,17 +104,17 @@ function paceReward(R) {
 // (its stores, its ore and what it has built) and with how many nights it has stood. Before then nothing changes, so
 // the first nights stay gentle. add: more Wildlight; hpK: tougher ones; brightK: how much of a Bright Night's budget is
 // Wildlight besides its boss; bossK: a tougher boss; cap: the most that climb in one night; drinkK: how deep they drink
-// from the yards and the stores (a rich claim that leaves its lights unguarded loses more).
+// from the yards and the stores (a rich claim that leaves its lights unguarded loses more); biteK: how hard they bite.
 function paceWealth() {
   let v = GAME.shards + GAME.ore / 10;
   for (const b of Object.values(TOWN.b)) if (!b.pending && b.level) v += (BUY[b.type] || 80) * b.level * 0.5;
   return v;
 }
 function paceThreat(n) {
-  if (STORY.ch < 8) return { rich: 0, age: 0, add: 0, hpK: 1, brightK: 0.5, bossK: 1, cap: 34, drinkK: 1 };
+  if (STORY.ch < 8) return { rich: 0, age: 0, add: 0, hpK: 1, brightK: 0.5, bossK: 1, cap: 34, drinkK: 1, biteK: 1 };
   const rich = clamp((paceWealth() - 1500) / PACE.richAt, 0, 2), age = clamp((n - 8) / 16, 0, 1.25);
-  return { rich, age, add: rich * (2 + n * 0.2) + age * 4, hpK: 1 + 0.12 * rich + 0.2 * age, brightK: 0.5 + 0.15 * Math.min(1, rich + age),
-    bossK: 1 + 0.15 * rich + 0.25 * age, cap: 34 + Math.round(6 * Math.min(1, rich)), drinkK: 1 + 1.5 * rich };
+  return { rich, age, add: rich * (2 + n * 0.2) + age * 4, hpK: 1 + 0.12 * rich + 0.2 * age, brightK: 0.5 + 0.2 * Math.min(1, rich + age),
+    bossK: 1 + 0.15 * rich + 0.3 * age, cap: 34 + Math.round(6 * Math.min(1, rich)), drinkK: 1 + 1.5 * rich, biteK: 1 + 0.4 * age + 0.2 * Math.min(1, rich) };
 }
 
 // ---- the sun beacon, fed raw ore (the Keep at level 3): for a night it burns over the whole plateau, and every

@@ -4,7 +4,8 @@
 // a picture (painted ones go in assets/events/<id>.webp; until then, the faces of the people in it), a few lines of
 // story and one or two choices with a real trade-off. Time waits while you choose. The result shows what it did
 // (shards, people, gear, mood, the codex) and goes into the journal's days ("Day 12 · A wedding in the Hearth Hall").
-// About half of all days have one, never the same one twice in a row, and the amounts grow with the story.
+// About one day in three has one (not on a day the story turns or a Bright Night comes), never the same one twice in a
+// row, and the amounts grow with the story.
 const EVT = { day: 0, today: null, card: null, log: [], seen: {}, recent: [], next: null, turned: -99, flags: {}, pend: [], work: [], done: 0 };
 const evScale = () => 1 + Math.max(0, STORY.ch) * 0.12;
 const evAmt = n => Math.max(1, Math.round(n * evScale() / 5) * 5);
@@ -288,15 +289,17 @@ function birthdayFor() {
 
 // ---- rolling the day's event: about a third of all mornings, from day 3, at a random hour before mid-afternoon. Never
 // on a day with a Bright Night coming, and it gives way if a chapter opens or closes that day (pace.js), so the story,
-// the night and a card don't all land at once.
+// the night and a card don't all land at once: an event that gives way waits for the next free day (EVT.held).
 function eventsNewDay() {
   EVT.today = null;
   if (GAME.day < 3 || !BUILD.setupDone) return;
   const foretold = EVT.next && EVT.next.day === GAME.day ? EVT.next.id : null;
   EVT.next = null;
-  const bright = paceBright(paceNightsSeen() + 1);
-  const id = bright ? null : foretold && evCan(EVENTS.find(e => e.id === foretold)) ? foretold : Math.random() < PACE.eventDays ? evPick() : null;
-  if (id) EVT.today = { id, at: 0.1 + Math.random() * 0.3 };
+  const held = EVT.held && evCan(EVENTS.find(e => e.id === EVT.held)) ? EVT.held : null;
+  const id = held || (foretold && evCan(EVENTS.find(e => e.id === foretold)) ? foretold : Math.random() < PACE.eventDays ? evPick() : null);
+  EVT.held = null;
+  if (id && paceBright(paceNightsSeen() + 1)) EVT.held = id;   // a Bright Night tonight: another day
+  else if (id) EVT.today = { id, at: 0.1 + Math.random() * 0.3 };
   // Clem's cards: tomorrow's, read the morning before
   if (cardsOn()) { const n = Math.random() < PACE.eventDays && !paceBright(paceNightsSeen() + 2) ? evPick([id]) : null; EVT.next = n ? { day: GAME.day + 1, id: n } : { day: GAME.day + 1, id: null }; }
 }
@@ -319,7 +322,7 @@ function evQuiet() {
 function eventsFrame() {
   const T = EVT.today; if (!T || T.fired) return;
   if (GAME.t > 0.58) { EVT.today = null; return; }   // the day got away: it never happened
-  if (paceStoryDay()) { EVT.today = null; return; }   // a chapter turns today: the story has the day (pace.js)
+  if (paceStoryDay()) { EVT.held = T.id; EVT.today = null; return; }   // a chapter turns today: the story has the day (pace.js)
   if (GAME.t >= T.at && evQuiet()) { T.fired = true; EVT.firedAt = claimNow(); eventFire(T.id); }
 }
 
@@ -472,8 +475,8 @@ function daysJournal(ui, body) {
 }
 
 // ---- saving
-function eventsSave() { return { today: EVT.today, log: EVT.log, seen: EVT.seen, recent: EVT.recent, next: EVT.next, turned: EVT.turned, flags: EVT.flags, pend: EVT.pend, work: EVT.work, done: EVT.done, day: EVT.day }; }
+function eventsSave() { return { today: EVT.today, log: EVT.log, seen: EVT.seen, recent: EVT.recent, next: EVT.next, turned: EVT.turned, flags: EVT.flags, pend: EVT.pend, work: EVT.work, done: EVT.done, day: EVT.day, held: EVT.held || null }; }
 function eventsLoad(s) {
   s = s || {};
-  Object.assign(EVT, { today: s.today && !s.today.fired ? s.today : null, log: s.log || [], seen: s.seen || {}, recent: s.recent || [], next: s.next || null, turned: s.turned ?? -99, flags: s.flags || {}, pend: s.pend || [], work: s.work || [], done: s.done || 0, day: s.day || GAME.day, card: null });
+  Object.assign(EVT, { today: s.today && !s.today.fired ? s.today : null, log: s.log || [], seen: s.seen || {}, recent: s.recent || [], next: s.next || null, turned: s.turned ?? -99, flags: s.flags || {}, pend: s.pend || [], work: s.work || [], done: s.done || 0, day: s.day || GAME.day, held: s.held || null, card: null });
 }

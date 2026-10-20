@@ -205,8 +205,8 @@ function questStepDone(id, now = false) {
   if (Q.step < q.steps.length) { toast(`<b>${esc(q.who)}’s story:</b> ${esc(S.short || S.text)} ✓`); journalHUD(); return; }
   Q.state = 'closing';   // the last scene plays, then the reward (a claim saved in between gets it when it loads)
   const sc = { lines: q.close, heading: `${q.who}’s story · ${q.title}`, after: () => questFinish(id) };
-  // its scene waits until nothing is on the claim (pace.js), unless it came of something handed over just now
-  if (STORY.shown || EVT.card || (!now && !paceCalm())) STORY.queue.push(sc); else playScene(sc);
+  // its scene waits for a quiet hour (pace.js), unless it came of something handed over just now
+  if (STORY.shown || EVT.card || (!now && !paceQuiet())) STORY.queue.push(sc); else playScene(sc);
 }
 function questFinish(id) {
   const Q = QST[id], q = QUESTS[id]; if (!Q || Q.state === 'done') return;

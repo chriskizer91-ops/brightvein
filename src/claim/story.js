@@ -310,7 +310,7 @@ function storyTick(dt) {
   actFrame(dt);   // the day’s event card, the cast waiting at the Keep, the mood on the HUD (events.js, quests.js, mood.js)
   if ((storyT -= dt) > 0 || STORY.shown || EVT.card || (SKY && SKY.on) || BUILD.on || frontOpen()) return;   // not while the settings are open (title.js)
   storyT = 0.5;
-  if (STORY.queue.length && paceCalm()) return playScene(STORY.queue.shift());   // the cast's scenes: once nothing is on the claim
+  if (STORY.queue.length && paceQuiet()) return playScene(STORY.queue.shift());   // the cast's scenes wait for a quiet hour too
   const C = CHAPTERS[STORY.ch]; if (!C) { journalHUD(); return; }
   if (!STORY.started) { if (paceQuiet()) storyOpen(C); else journalHUD(); return; }
   journalHUD();

@@ -105,7 +105,7 @@ function planNight(n) {
   if (wx === 'fog') line += ' In the fog the towers won’t see them until they’re close.';
   if (wx === 'storm') line += ' Lightning will strike the claim.';
   if (deep && !boss) line += ' Some will come up the mine shaft.';
-  return { n, deep, bright, boss, waves, counts, title, line, seamBoss, shown: false, hpK: T.hpK, drinkK: T.drinkK };
+  return { n, deep, bright, boss, waves, counts, title, line, seamBoss, shown: false, hpK: T.hpK, drinkK: T.drinkK, biteK: T.biteK };
 }
 
 // ----------------------------------------------------------------- dusk: name the night
@@ -134,7 +134,7 @@ function nightBegin() {
   if (!P.shown) showBanner(P);
   if (P.seamBoss) NIGHT.seamWoke = true;
   if (P.boss && P.boss.grudge) NIGHT.grudge = null;
-  WL.night = { n, title: P.title, bright: P.bright, deep: P.deep, hpK: P.hpK || 1, drinkK: P.drinkK || 1, waves: P.waves.map(w => ({ ...w, units: w.units.slice(), next: w.t0, warned: false })),
+  WL.night = { n, title: P.title, bright: P.bright, deep: P.deep, hpK: P.hpK || 1, drinkK: P.drinkK || 1, biteK: P.biteK || 1, waves: P.waves.map(w => ({ ...w, units: w.units.slice(), next: w.t0, warned: false })),
     spawned: 0, downed: 0, drained: 0, lamps: 0, relit: 0, walls: 0, breaches: 0, wallHit: [], spent: 0, kinds: {}, dmg: {}, hurt: [], drops: [], mats: {}, dropShards: 0,
     boss: null, bossName: P.boss && P.boss.name, bossKind: P.boss && P.boss.kind, bossKilled: false, bossEscaped: false, shards0: GAME.shards, strikes: 0 };
 }
@@ -334,7 +334,7 @@ function wlBite(f, dt) {
   }
   if (!v) return;
   const guard = clamp((gearOf(v).guard || 0) / 100, 0, 0.7);
-  v.harm = (v.harm || 0) + f.K.bite * dt * (1 - guard) * (f.boss ? 1.6 : 1);
+  v.harm = (v.harm || 0) + f.K.bite * dt * (1 - guard) * (f.boss ? 1.6 : 1) * ((WL.night && WL.night.biteK) || 1);   // harder in act two (paceThreat)
   if (Math.random() < dt * 4) FX.sparks(v.pos.clone().setY(1.1), 3, 0xffb070, 1.4);
   if (v.harm >= maxHpOf(v) * 0.6) hurtVillager(v);
 }

@@ -248,7 +248,7 @@ function modelYard(b) {
   // level 2: sun mirrors along the back
   for (const x of [-4, -1.3, 1.3, 4]) {
     b.add(G.box(0.12, 2.4, 0.12, 1), MAT.oakDark, x, 1.2, -d / 2 - 0.7, { lvl: 2 });
-    b.add(G.box(2.2, 1.3, 0.08, 1), MAT.mirror, x, 2.3, -d / 2 - 0.62, { lvl: 2, rx: -0.5 });
+    b.add(G.box(2.2, 1.3, 0.08, 1), MAT.iron, x, 2.3, -d / 2 - 0.62, { lvl: 2, rx: -0.5 });   // polished iron, not brass: brass shone white in every weather (and a material of their own would cost a draw)
   }
   // level 3: a burning lens on a tall frame
   b.add(G.box(0.22, 4.4, 0.22, 1), MAT.oak, w / 2 - 1, 2.2, -d / 2 + 0.6, { lvl: 3 });

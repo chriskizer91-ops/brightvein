@@ -55,13 +55,17 @@ function setupLife() {
   const G1 = MINE.g1, G2 = MINE.g2;
   LIFE.dust = glowPts(90, i => { const G = i % 3 ? G1 : G2; return [G.x0 + R() * (G.x1 - G.x0), G.y0 + 0.4 + R() * (G.y1 - G.y0 - 0.8), WORLD.faceZ - 0.5 - R() * (MINE.depth - 1)]; }, 0xffd9a0, 0.07);
 }
-// two airships far off, on long slow passes between the peaks (once the ship builder's art is in)
+// two airships far off, on long slow passes between the peaks (once the ship builder's art is in). Each is her far
+// model in one piece (one draw, and her lamps' glow: onePieceOf)
 function lifeShips() {
   const A = SKY && SKY.shipArt; if (!A || LIFE.ships.length) return;
   for (const [id, r, h, sp, ph] of [['brig', 420, 40, 0.012, 1.2], ['cutter', 560, 75, -0.009, 4.1]]) {
     const R = SHIPS.find(s => s.id === id), s = buildShipFar(R, A);
     if (!s) return;
-    s.root.traverse(o => { if (o.isMesh) o.castShadow = false; });   // hundreds of metres off: their shadows fall on nothing
+    const one = onePieceOf(s.body), old = [];
+    s.body.traverse(o => { if (o.isMesh) old.push(o); });
+    for (const o of old) { o.removeFromParent(); o.geometry.dispose(); }
+    s.body.add(one);   // (hundreds of metres off: no shadows, which would fall on nothing)
     scene.add(s.root);
     LIFE.ships.push({ s, r, h, sp, ph });
   }

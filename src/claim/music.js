@@ -97,11 +97,8 @@ const MUSIC = (() => {
   // ---------------------------------------------------------------- what the game wants to hear
   let sceneRef = null, sceneLetter = false, pend = null, pendSince = 0, took = null, lvl = 0, lvlLowSince = 0, lastPhase = null, dawnAt = -1e9;
   function gameWant() {
-    if (typeof SKY !== 'undefined' && SKY && SKY.on) {
-      const W = SKY.waves, P = SKY.player, sailing = SKY.mode === 'voyage' && !(P && P.down) && !(W && W.sunk);
-      const fight = sailing && !SKY.paused && W && W.state === 'fight';
-      return { theme: 'skies', i: fight ? 2 : sailing && !SKY.paused ? 1 : 0, urgent: true };
-    }
+    // in the skies, the skies' own music plays (Chris's, src/audio/thareia: src/sky/sound.js), in the same audio context
+    if (typeof SKY !== 'undefined' && SKY && SKY.on) return { theme: null, i: 0, urgent: true };
     if (!started || !$('#intro').hidden || (BUILD.on && !BUILD.setupDone)) return { theme: 'title', i: 0 };
     if (STORY.shown) {
       // once the Baron's letter is read out, his music stays for the rest of the scene

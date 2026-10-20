@@ -94,19 +94,23 @@ function dockAt() { const L = LAYOUT.dock; return { x: L.x, z: L.z }; }
 // where a ship rides at the bridge: her centre, and how far aft of it the bridge meets her
 // Ships are built at their true size (a Man-o'-war is 90 m, more than the plateau is wide), so at the Dock the big ones
 // are shown smaller, as a diorama would: up to a Brig's 25 m as they are, and beyond that only a third of each extra
-// metre (a Frigate looks 30 m, a Galleon 37, a Man-o'-war 48). The same ship object flies and sits in the shipyard,
-// so openSky puts her back to full size before the skies take her.
+// metre (a Frigate looks 30 m, a Galleon 37, a Man-o'-war 48). (She's the Dock's own model of her: the one that flies
+// and sits in the Shipyard stays at full size)
 const dockScaleOf = R => { const L = R.length || 25; return L <= 25 ? 1 : (25 + (L - 25) * 0.35) / L; };
 function dockBerth(s) {
   const k = dockScaleOf(s.recipe), D = dockAt(), half = s.hull.deckHalf(0) * k, aft = s.recipe.length * 0.26 * k;
   return { pos: new THREE.Vector3(D.x + aft, DOCK.deck, D.z - 7.4 - 1.0 - half), half, aft };
 }
+// the ship moored here is her own lighter model (the skies' middle detail, in her colours: SKY.dockShip), not the one
+// that flies; on Light, when she's small on the screen, a one-piece model of her (one draw) stands in for it
 async function dockMoor() {
   if (!SKY) return;
-  const R = yardShip(FLEET.data.flying), s = await SKY.shipFor(R);
-  if (SKY.on) return;                                  // sailed off while she was being built
+  await SKY.art;
+  const R = yardShip(FLEET.data.flying), s = SKY.dockShip(R);
   if (DOCK.ship && DOCK.ship !== s) DOCK.ship.root.removeFromParent();
   DOCK.ship = s;
+  if (!s.dockParts) dockDress(s);
+  else dockFarAgain(s);
   const D = dockAt(), { pos, half, aft } = dockBerth(s);
   s.root.position.copy(pos);
   s.root.rotation.set(0, Math.PI / 2, 0);
@@ -125,27 +129,46 @@ async function dockMoor() {
   scene.add(DOCK.lines);
   const pick = $('#panel'); if (!pick.hidden && UI.cur && UI.cur.kind === 'dock') UI.refresh();
 }
+// her own copies of the materials that glow (dimmed here by day: the claim's light is brighter than the skies', and it
+// blooms), the meshes her far stand-in replaces, and the stand-in itself
+function dockDress(s) {
+  const P = s.dockParts = { glow: [], meshes: [], far: null };
+  s.body.traverse(o => {
+    if (!o.isMesh) return;
+    P.meshes.push(o);
+    if (['canvas', 'parts', 'crystal', 'gem'].includes(o.name) && !P.glow.some(g => g.m === o.material)) P.glow.push({ m: o.material, kind: o.name, base: o.material.emissiveIntensity });
+  });
+  dockFarAgain(s);
+}
+// (made afresh when her colours may have changed: coming home from the Shipyard)
+function dockFarAgain(s) {
+  const P = s.dockParts;
+  if (P.far) { P.far.removeFromParent(); safeFree(P.far); P.far = null; }
+  if (QUALITY.level !== 'light') { for (const o of P.meshes) o.visible = true; P.farOn = false; return; }
+  for (const o of P.meshes) o.visible = true;
+  P.far = onePieceOf(s.body); P.far.visible = false; s.body.add(P.far); P.farOn = false;
+}
+const _dockV = new THREE.Vector3();
 function dockUpdate(dt) {
   DOCK.t += dt;
   if (DOCK.hoist) { DOCK.hoist.rotation.x = Math.sin(DOCK.t * 0.9) * 0.05; DOCK.hoist.rotation.z = Math.sin(DOCK.t * 0.63) * 0.04; }
   if (DOCK.pennant) DOCK.pennant.rotation.y = Math.sin(DOCK.t * 2.3) * 0.25;
   if (DOCK.lampMat) DOCK.lampMat.emissiveIntensity = 0.25 + TOD.night * 2.2;
-  const s = DOCK.ship, A = SKY && SKY.shipArt;
-  if (s && A && s.root.parent === scene) {
+  SHIP_TIME.value += dt;   // (the sails' ripple and the pennants of every ship in the claim's sky, on the ships' own clock)
+  const s = DOCK.ship;
+  if (s && s.dockParts && s.root.parent === scene) {
     s.update(dt, { calm: true });
-    // the claim's light is brighter than the skies', and it blooms: her sails, rail lights, crystals and glows are
-    // dimmed here by day and come up at night (openSky puts them back as the skies light them)
-    const n = TOD.night;
-    if (!DOCK.lookBase) DOCK.lookBase = { parts: A.M.parts.emissiveIntensity, crystal: A.M.crystal.emissiveIntensity };
-    s.glow.material.uniforms.uScale.value = 0.6 * (0.3 + 0.45 * n) * renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
-    // her lamps (set afresh by s.update every frame, here and in the skies) light her own sails: turned well down here
-    if (!s.dockLamps) { s.dockLamps = []; s.body.traverse(o => { if (o.isPointLight) s.dockLamps.push(o); }); }
-    for (const L of s.dockLamps) L.intensity *= 0.3;
-    (s.M || A.M).canvas.emissiveIntensity = 0.02 + n * 0.1 + (s.paint && s.paint.glowSails ? 0.08 : 0);
-    A.M.canvas.userData.time.value += dt;
-    A.M.gem.emissiveIntensity = 0.45 + n * 0.3 + Math.sin(DOCK.t * 2.4) * 0.08;
-    A.M.parts.emissiveIntensity = 0.3 + n * 1.0;
-    A.M.crystal.emissiveIntensity = 0.25 + n * 0.7;
+    const n = TOD.night, px = renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+    s.glow.material.uniforms.uScale.value = 0.6 * (0.3 + 0.45 * n) * px;
+    for (const L of s.lamps) L.intensity *= 0.3;   // (her lamps, set afresh by update, light her own sails: turned well down here)
+    for (const g of s.dockParts.glow) g.m.emissiveIntensity = g.kind === 'canvas' ? 0.02 + n * 0.1 : g.kind === 'gem' ? 0.45 + n * 0.3 + Math.sin(DOCK.t * 2.4) * 0.08 : g.kind === 'parts' ? 0.3 + n * 1.0 : 0.25 + n * 0.7;
+    // on Light: her one-piece stand-in while she's under about a sixth of the screen's height
+    const P = s.dockParts;
+    if (P.far) {
+      const d = camera.position.distanceTo(s.root.getWorldPosition(_dockV)), tall = s.recipe.length * dockScaleOf(s.recipe) * px / Math.max(1, d);
+      const far = VIEW.mode !== 'town' || tall < renderer.domElement.height / 6;
+      if (far !== P.farOn) { P.farOn = far; for (const o of P.meshes) o.visible = !far; P.far.visible = far; }
+    }
   }
   yardTick(dt);
 }
@@ -157,34 +180,52 @@ function setupDock(save) {
   b.type = 'dock';
   modelDock(b); b.show(1);
   DOCK.b = b;
-  FLEET = makeProgress({ wallet: { get: () => GAME.shards, set: n => { GAME.shards = n; } }, load: () => save && save.sky, store: () => saveGame() });
-  SKY = makeSky({ renderer, canvas, progress: FLEET, onLeave: dockHome, sound: (k, at) => AUDIO.play(k, at), claim: dockLink() });
+  // the fleet's save is the claim's (its `sky`); a save asked for mid-fight waits for the fight's end
+  FLEET = makeProgress({ wallet: { get: () => GAME.shards, set: n => { GAME.shards = n; } }, load: () => save && save.sky, store: () => saveGame(),
+    hold: () => !!(SKY && SKY.mode === 'voyage' && SKY.waves && SKY.waves.state === 'fight') });
+  SKY = makeSky({ renderer, canvas, progress: FLEET, onLeave: dockHome, claim: dockLink() });
   SKY.art.then(() => setTimeout(dockMoor, 50)).catch(e => console.error(e));
 }
-// what the skies need from the claim: the crew, the claim's day (repairs), what the Shipyard has opened, the stores
+// a fleet from an older build, brought up to the new Shipyard as the claim opens: what it was owed is paid back into
+// the claim's purse, and said (main.js boot, once the claim's own purse is loaded)
+function dockOwed() {
+  if (!FLEET) return;
+  const o = FLEET.takeOwed(), got = [];
+  if (o.pay > 0) { GAME.shards += o.pay; SAFE.notes.push(`The new Shipyard counted your old voyages: their stars paid ${SHARD} ${o.pay}.`); }
+  if (o.shards > 0 || o.brass > 0) {
+    GAME.shards += o.shards; GAME.mats.brass = (GAME.mats.brass || 0) + o.brass;
+    if (o.shards) got.push(`${SHARD} ${o.shards}`); if (o.brass) got.push(`${o.brass} Brass Scrap`);
+    SAFE.notes.push(`The new Shipyard doesn’t sell hull paints or figureheads, so it paid yours back: ${got.join(' and ')}.`);
+  }
+}
+// what the skies need from the claim: the crew, the claim's day (repairs, the harbour orders), what the Shipyard has
+// opened, the stores, the claim's sound and picture, and its Settings panel
 const DOCK_MATS = ['brass', 'glass', 'heartstone'];
 function dockLink() {
   const afford = c => GAME.shards >= (c.shards || 0) && DOCK_MATS.every(k => (GAME.mats[k] || 0) >= (c[k] || 0));
   return {
     crew: id => yardCrewFor(id), crewNames: id => yardCrewNames(id),
     now: () => GAME.day + GAME.t,
+    day: () => GAME.day,
     at: () => ({ ch: STORY.ch, keep: TOWN.b.keep ? TOWN.b.keep.level : 1 }),
     mats: () => GAME.mats,
     afford,
     pay: c => { if (!afford(c)) return false; GAME.shards -= c.shards || 0; for (const k of DOCK_MATS) if (c[k]) GAME.mats[k] -= c[k]; return true; },
-    sound: k => AUDIO.play(k),
+    sound: () => { const v = AUDIO.vols; return { on: !v.muted, music: v.music, sfx: v.sfx }; },
+    audioContext: () => AUDIO.ctx,
+    picture: () => QUALITY.level,
+    openSettings: () => openMenu(),
   };
 }
 function openSky(mode, opts) {
   if (!SKY || SKY.on) return;
   if (BUILD.on) return;
   if (mode === 'voyage' || mode === 'raid') yardSailing();
-  if (DOCK.ship) DOCK.ship.root.scale.setScalar(1);       // full size again for the skies and the shipyard
-  const A = SKY.shipArt; if (A && DOCK.lookBase) { A.M.parts.emissiveIntensity = DOCK.lookBase.parts; A.M.crystal.emissiveIntensity = DOCK.lookBase.crystal; }   // and lit as the skies light her
   UI.close(); FOLLOW.v = null; VIEW.tween = null;
   controls.enabled = false;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  SKY.open(mode, opts).catch(e => { console.error(e); toast('The skies could not be opened: ' + esc(e.message)); dockHome({}); });
+  AUDIO.start();   // (the skies' sound is made in the claim's own audio context)
+  SKY.open(mode, opts).catch(e => { console.error(e); toast('The skies could not be opened: ' + esc(e.message)); SKY.close({}); });
 }
 function dockHome(r) {
   controls.enabled = VIEW.mode === 'town';
@@ -196,8 +237,9 @@ function dockHome(r) {
   // a raid: the place is ours for now (or the convoy is in, or the strongbox is ours), and its crates are opened at home
   if (r && r.raid && r.raid.taken) yardRaidHome(r);
   else if (r && r.ship) {
+    const more = r.voyages > 1 ? ` from ${r.voyages} voyages` : '';
     toast(r.lost ? `<b>The ${esc(r.ship)} went down.</b> Her crew brought her home${r.got ? ` with ${SHARD} ${r.got} shards` : ''}. She needs a long stay at the dock.`
-      : r.got ? `<b>The ${esc(r.ship)} is home</b> with ${SHARD} ${r.got} shards for the claim${r.downed ? `, and ${r.downed} raider${r.downed > 1 ? 's' : ''} downed` : ''}.` : `<b>The ${esc(r.ship)} is home.</b>`);
+      : r.got ? `<b>The ${esc(r.ship)} is home</b> with ${SHARD} ${r.got} shards for the claim${more}${r.downed ? `, and ${r.downed} raider${r.downed > 1 ? 's' : ''} downed` : ''}.` : `<b>The ${esc(r.ship)} is home.</b>`);
     AUDIO.play('chime');
   }
   saveGame();

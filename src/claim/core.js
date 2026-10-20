@@ -8,8 +8,10 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-// the skies (src/sky/): voyages, the shipyard and the fleet's save, from the airship game
-import { makeSky, SKIES, SHIPS, SITES, buildShipFar, buildShipAt } from './sky/voyage.js';
+// the skies (src/sky/): voyages, the shipyard and the fleet's save, from the airship game's stage 4. SHIP_TIME: the
+// ships' own clock (their sails' ripple, pennants, crystals), which the claim runs for the ships in its own sky;
+// onePieceOf: any built ship in one piece (one draw), for a ship small on the claim's screen
+import { makeSky, SKIES, SHIPS, SITES, buildShipFar, buildShipAt, WTIME as SHIP_TIME, onePieceOf } from './sky/voyage.js';
 import { makeProgress } from './sky/progress.js';
 import { silverArt as lookSilverArt, silverGlows as lookSilverGlows } from './ship/materials.js';   // the Exchange's ships (jumpers.js)
 

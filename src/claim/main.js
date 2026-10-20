@@ -530,6 +530,7 @@ async function boot() {
     workshopLoad(save.workshop);   // a claim from before the bench simply has none of it yet
     try { if (save.savedAt) GAME.away = catchUp((Date.now() - save.savedAt) / 1000); } catch (e) { safeFault('time away', e); GAME.away = null; }
     safeOpened(save);   // its parts, as their last good copies (saves.js)
+    dockOwed();   // a fleet from the old Shipyard: what it was owed, paid back into the purse (dock.js)
     for (const n of SAFE.notes) toast(n, 'night');   // what had to be mended, once the claim is open
   } else { starterStash(); seedVillagers(); if (go !== 'new') titleShowcase(); }
   for (const v of GAME.villagers) { const S = stationFor(v); if (S && S.kind === 'surface') v.place(S.pos.x + (Math.random() - 0.5), 0, S.pos.z + (Math.random() - 0.5)); }

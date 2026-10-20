@@ -1,7 +1,7 @@
 // parts.js: everything that stands on, hangs off or sticks out of a hull. Each maker puts its pieces in the batch
 // under a material's name, and tells the builder where the glows are (crystals, lanterns, gun muzzles).
 import * as THREE from 'three';
-import { Batch, clamp, lerp, place, frame, lathe, tube, box, polygon, walls, toRect } from './kit.js';
+import { Batch, clamp, lerp, place, frame, lathe, tube, box, polygon, walls, toRect, metal } from './kit.js';
 import { hullBand, hullStrap, rivetRow, hullDecal } from './hull.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -136,9 +136,24 @@ export function rails(hull, batch, R, q, S) {
 }
 
 // ---------- guns ----------
+// A battery's guns go off one after another, bow first (src/game/guns.js): a broadside one port every 55 ms (both decks
+// together), the whole side in at most 0.55 s; a pair of chasers 80 ms apart. Each gun on the model kicks back at its own
+// turn, so it's told it here (in its rig: src/ship/dress.js). A side's lids swing open bow first too, a port every
+// 60 ms, and each gun runs out once its lid is open
+export const RIPPLE = { step: 0.055, span: 0.55, pair: 0.08, lid: 0.06 };
+// the ports along a side, bow first (each z once: both decks fire together), and each one's turn when the side fires
+export function portOrder(R) {
+  const zs = [...new Set((R.ports?.z ?? []).map((z) => Math.round(z * 100)))].sort((a, b) => b - a);
+  const step = zs.length > 1 ? Math.min(RIPPLE.step, RIPPLE.span / (zs.length - 1)) : 0;
+  return (z) => { const i = zs.indexOf(Math.round(z * 100)); return { rank: i, fire: i * step, lid: i * RIPPLE.lid }; };
+}
+// how far a broadside gun runs in (metres): its whole barrel, from the port's height h
+export const runIn = (h) => 0.83 * h + 0.15;
+
 // A long gun (bow and stern chasers): a crystal chamber, a long barrel with a crystal point, on a swivel.
-// Built pointing along +z with its pivot at the origin; its base plate sits `post` below.
-function longGun(batch, m, len, q, S, glows, { post = 0.42, swivel = true } = {}) {
+// Built pointing along +z with its pivot at the origin; its base plate sits `post` below. `rig` (the gun's: kind 4)
+// makes it kick back along its barrel when it fires; its swivel stays put
+function longGun(batch, m, len, q, S, glows, { post = 0.42, swivel = true, rig = null } = {}) {
   const s = len / 2.6, seg = q.latheSeg, k = (g) => g.applyMatrix4(m);
   const add = (key, g, mat) => batch.add(key, g, mat ? new THREE.Matrix4().multiplyMatrices(m, mat) : m);
   const along = (g) => g.rotateX(Math.PI / 2);
@@ -158,23 +173,30 @@ function longGun(batch, m, len, q, S, glows, { post = 0.42, swivel = true } = {}
       add('bronze', new THREE.CylinderGeometry(0.035 * s, 0.035 * s, 0.44 * s, 6).rotateZ(Math.PI / 2), null);
     }
   }
+  // (from here on, the gun itself: it kicks back as it fires; its brass is the moving metal's)
+  batch.tag = rig;
+  const brass = rig ? 'rigMetal' : 'brass', B = (g) => (rig ? metal(g) : g);
   // the crystal chamber and the brass caps holding it
   add('crystal', along(new THREE.CylinderGeometry(0.12 * s, 0.12 * s, 0.62 * s, Math.max(6, seg >> 1), 1)), place([0, 0, -0.06 * s]));
-  for (const z of [-0.4, 0.27]) add('brass', along(lathe([[0.001, -0.07 * s], [0.15 * s, -0.07 * s], [0.17 * s, -0.03 * s], [0.17 * s, 0.03 * s], [0.15 * s, 0.07 * s], [0.001, 0.07 * s]], seg)), place([0, 0, z * s]));
-  if (lvl === 'full') for (const x of [-1, 1]) add('brass', box(0.03 * s, 0.03 * s, 0.6 * s), place([x * 0.12 * s, 0.1 * s, -0.06 * s]));
-  add('brass', along(lathe([[0.001, -0.05 * s], [0.1 * s, -0.05 * s], [0.12 * s, 0.02 * s], [0.06 * s, 0.1 * s], [0.001, 0.12 * s]], seg)), place([0, 0, -0.5 * s]));
+  for (const z of [-0.4, 0.27]) add(brass, B(along(lathe([[0.001, -0.07 * s], [0.15 * s, -0.07 * s], [0.17 * s, -0.03 * s], [0.17 * s, 0.03 * s], [0.15 * s, 0.07 * s], [0.001, 0.07 * s]], seg))), place([0, 0, z * s]));
+  if (lvl === 'full') for (const x of [-1, 1]) add(brass, B(box(0.03 * s, 0.03 * s, 0.6 * s)), place([x * 0.12 * s, 0.1 * s, -0.06 * s]));
+  add(brass, B(along(lathe([[0.001, -0.05 * s], [0.1 * s, -0.05 * s], [0.12 * s, 0.02 * s], [0.06 * s, 0.1 * s], [0.001, 0.12 * s]], seg))), place([0, 0, -0.5 * s]));
   // the barrel: dark wood with brass bands, a flared brass muzzle and a crystal point
   const L = len - 0.45 * s;
   add('wood', along(lathe([[0.1 * s, 0], [0.095 * s, L * 0.5], [0.075 * s, L]], seg)), place([0, 0, 0.34 * s]));
-  for (let i = 0; i < (lvl === 'full' ? 4 : 1); i++) { const t = 0.08 + i * 0.27; add('brass', along(S.ring(lerp(0.1, 0.075, t) * s, 0.025 * s)), place([0, 0, 0.34 * s + t * L])); }
-  add('brass', along(lathe([[0.07 * s, 0], [0.11 * s, 0.05 * s], [0.12 * s, 0.14 * s], [0.08 * s, 0.17 * s], [0.04 * s, 0.17 * s]], seg)), place([0, 0, 0.3 * s + L]));
+  for (let i = 0; i < (lvl === 'full' ? 4 : 1); i++) { const t = 0.08 + i * 0.27; add(brass, B(along(S.ring(lerp(0.1, 0.075, t) * s, 0.025 * s))), place([0, 0, 0.34 * s + t * L])); }
+  add(brass, B(along(lathe([[0.07 * s, 0], [0.11 * s, 0.05 * s], [0.12 * s, 0.14 * s], [0.08 * s, 0.17 * s], [0.04 * s, 0.17 * s]], seg))), place([0, 0, 0.3 * s + L]));
   add('crystal', along(lathe([[0.055 * s, 0], [0.06 * s, 0.05 * s], [0.001, 0.26 * s]], 6)), place([0, 0, 0.45 * s + L]));
-  glows.push({ p: V(0, 0, 0.55 * s + L).applyMatrix4(m), size: 0.75 * s, color: 0xffa040 });
-  glows.push({ p: V(0, 0, -0.06 * s).applyMatrix4(m), size: 0.6 * s, color: 0xff9830 });
+  batch.tag = null;
+  glows.push({ p: V(0, 0, 0.55 * s + L).applyMatrix4(m), size: 0.75 * s, color: 0xffa040, rig });
+  glows.push({ p: V(0, 0, -0.06 * s).applyMatrix4(m), size: 0.6 * s, color: 0xff9830, rig });
 }
 
-// A gun port in the hull: a brass frame, a dark opening, the gun's muzzle poking out, its lid propped open above
-function gunPort(batch, m, w, h, q, S, glows, { gun = true, lid = true, barrelM = null } = {}) {
+// A gun port in the hull: a brass frame, a dark opening, and its lid, built shut (it swings open on its hinge as the
+// ship clears for action: `lidRig`, kind 2), and the gun behind it, which runs out once the lid is open, kicks back in
+// as it fires and runs out again once it's loaded (`gunRig`, kind 3). On a ship in the middle distance the lid is a
+// plain board (`lid: 'board'`)
+function gunPort(batch, m, w, h, q, S, glows, { gun = true, lid = true, barrelM = null, lidRig = null, gunRig = null } = {}) {
   const b = Math.min(w, h) * 0.1, d = 0.11, seg = q.latheSeg;
   const add = (key, g, mat) => batch.add(key, g, new THREE.Matrix4().multiplyMatrices(m, mat));
   add('dark', new THREE.PlaneGeometry(w, h), place([0, 0, 0.018]));
@@ -186,56 +208,72 @@ function gunPort(batch, m, w, h, q, S, glows, { gun = true, lid = true, barrelM 
     const along = (g) => g.rotateX(Math.PI / 2);
     // the gun sits level in its port, even where the hull leans away below
     const add = (key, g, mat) => batch.add(key, g, new THREE.Matrix4().multiplyMatrices(barrelM ?? m, mat));
-    add('bronze', along(lathe([[r * 1.25, 0], [r * 1.25, 0.12 * L], [r * 1.05, 0.15 * L], [r * 1.0, 0.75 * L], [r * 1.2, 0.8 * L], [r * 1.2, 0.95 * L], [r * 0.9, L]], seg)), place([0, -0.02 * h, -0.2]));
-    add('brass', along(S.ring(r * 1.0, r * 0.18)), place([0, -0.02 * h, -0.2 + 0.45 * L]));
+    batch.tag = gunRig;
+    const mv = gunRig ? 'rigMetal' : null;
+    add(mv ?? 'bronze', (mv ? (g) => metal(g, false) : (g) => g)(along(lathe([[r * 1.25, 0], [r * 1.25, 0.12 * L], [r * 1.05, 0.15 * L], [r * 1.0, 0.75 * L], [r * 1.2, 0.8 * L], [r * 1.2, 0.95 * L], [r * 0.9, L]], seg))), place([0, -0.02 * h, -0.2]));
+    add(mv ?? 'brass', (mv ? metal : (g) => g)(along(S.ring(r * 1.0, r * 0.18))), place([0, -0.02 * h, -0.2 + 0.45 * L]));
     add('crystal', along(lathe([[r * 0.85, 0], [r * 0.85, 0.08 * h], [r * 0.5, 0.12 * h], [0.001, 0.13 * h]], 8)), place([0, -0.02 * h, -0.2 + L]));
-    glows.push({ p: V(0, -0.02 * h, -0.2 + L + 0.08 * h).applyMatrix4(barrelM ?? m), size: 0.75 * h, color: 0xff9a30 });
+    batch.tag = null;
+    glows.push({ p: V(0, -0.02 * h, -0.2 + L + 0.08 * h).applyMatrix4(barrelM ?? m), size: 0.75 * h, color: 0xff9a30, rig: gunRig });
   }
   if (lid) {
-    const lh = h * 0.62, t = 0.05, open = -2.25;
-    const hinge = new THREE.Matrix4().compose(V(0, h / 2 + b, d * 0.6), new THREE.Quaternion().setFromAxisAngle(V(1, 0, 0), open), V(1, 1, 1));
-    const lidM = (mat) => new THREE.Matrix4().multiplyMatrices(hinge, mat);
-    add('wood', box(w + b, lh, t, 1.4), lidM(place([0, -lh / 2, t / 2])));
-    for (const [x, y, bw, bh] of [[0, -0.04, w + b, 0.07], [0, -lh + 0.04, w + b, 0.07], [(w + b) / 2 - 0.035, -lh / 2, 0.07, lh], [-(w + b) / 2 + 0.035, -lh / 2, 0.07, lh]])
-      add('brass', box(bw, bh, 0.03), lidM(place([x, y, t + 0.012])));
+    // shut: hanging from its hinge along the top of the frame, just outside it, over the whole port
+    const lh = h + 2 * b, lw = w + 1.8 * b, t = 0.05;
+    const hinge = place([0, h / 2 + b, d - 0.013]), lidM = (mat) => new THREE.Matrix4().multiplyMatrices(hinge, mat);
+    batch.tag = lidRig;
+    add('wood', box(lw, lh, t, 1.4), lidM(place([0, -lh / 2, t / 2])));
+    if (lid !== 'board') for (const [x, y, bw, bh] of [[0, -0.04, lw, 0.07], [0, -lh + 0.04, lw, 0.07], [lw / 2 - 0.035, -lh / 2, 0.07, lh], [-lw / 2 + 0.035, -lh / 2, 0.07, lh]])
+      add(lidRig ? 'rigMetal' : 'brass', lidRig ? metal(box(bw, bh, 0.03)) : box(bw, bh, 0.03), lidM(place([x, y, t + 0.012])));
+    batch.tag = null;
   }
 }
+// where a gun port's lid hinges (the port's own frame m, its size), in the ship's frame
+export const lidHinge = (m, w, h) => V(0, h / 2 + Math.min(w, h) * 0.1, 0.11 - 0.013).applyMatrix4(m);
 export function guns(hull, batch, R, q, S, glows) {
   const { at, normal, tAt } = hull;
   // broadside ports down each side, in one row or several (a ship with two gun decks)
+  const order = portOrder(R);
   if (R.ports) for (const side of [1, -1]) for (const y of [].concat(R.ports.y)) for (const z of R.ports.z) {
     const t = tAt(z, y), p = at(z, t, side), n = normal(z, t, side);
     const up = UP.clone().sub(n.clone().multiplyScalar(n.y)).normalize(), right = new THREE.Vector3().crossVectors(up, n);
     const m = frame(V(...p), right, up, n);
     if (q.level === 'far') { batch.add('dark', new THREE.PlaneGeometry(R.ports.w * 1.1, R.ports.h * 1.1), new THREE.Matrix4().multiplyMatrices(m, place([0, 0, 0.03]))); continue; }
     const level = n.clone().setY(0).normalize(), lright = new THREE.Vector3().crossVectors(UP, level);
-    gunPort(batch, m, R.ports.w, R.ports.h, q, S, glows, { gun: q.portGuns, lid: q.portLids, barrelM: frame(V(...p), lright, UP.clone(), level) });
+    // (the lid's hinge runs fore and aft, and the gun runs in and out straight across the ship: the hull's normal has no
+    // part along her length, so one number each says where)
+    const o = order(z), hg = lidHinge(m, R.ports.w, R.ports.h);
+    gunPort(batch, m, R.ports.w, R.ports.h, q, S, glows, { gun: q.portGuns, lid: q.portLids, barrelM: frame(V(...p), lright, UP.clone(), level),
+      lidRig: [2, hg.x, hg.y, o.lid], gunRig: [3, side * runIn(R.ports.h), o.fire, o.lid] });
   }
-  for (const g of R.bowGuns) {
+  // the chasers: each kicks back along its barrel at its turn in its battery (a pair 80 ms apart)
+  const kick = (axis, i, len) => (q.level === 'far' ? null : [4, axis, i * RIPPLE.pair, 0.22 * len]);
+  R.bowGuns.forEach((g, i) => {
     if (g.face) {
       // straight out of the bow's face, through a brass collar
-      longGun(batch, place([g.x, g.y, g.z]), g.len, q, S, glows, { swivel: false });
+      longGun(batch, place([g.x, g.y, g.z]), g.len, q, S, glows, { swivel: false, rig: kick(1, i, g.len) });
       if (q.level !== 'far') batch.add('brass', lathe([[0.42 * g.len / 2.6, -0.3], [0.5 * g.len / 2.6, -0.1], [0.42 * g.len / 2.6, 0.05], [0.24 * g.len / 2.6, 0.12]], Math.max(8, q.latheSeg)).rotateX(Math.PI / 2), place([g.x, g.y, g.z - 0.25]));
-    } else longGun(batch, place([g.x, g.y, g.z]), g.len, q, S, glows, { post: Math.max(0.3, g.y - hull.deckY(g.z) + (g.swivel ? 0 : 0.02)) });
-  }
+    } else longGun(batch, place([g.x, g.y, g.z]), g.len, q, S, glows, { post: Math.max(0.3, g.y - hull.deckY(g.z) + (g.swivel ? 0 : 0.02)), rig: kick(1, i, g.len) });
+  });
   for (const g of R.swivels ?? []) {
     const m = place([g.x, g.y + R.rail.h * 0.9, g.z], { euler: [0, Math.sign(g.x) * Math.PI / 2, 0] });
-    longGun(batch, m, g.len, q, S, glows, { post: R.rail.h * 0.85 + 0.05 });
+    longGun(batch, m, g.len, q, S, glows, { post: R.rail.h * 0.85 + 0.05, rig: kick(2 * Math.sign(g.x), 0, g.len) });
   }
-  for (const g of R.sternGuns ?? []) {
+  (R.sternGuns ?? []).forEach((g, i) => {
     if (g.port) {
       // out of a port in the flat stern, pointing back
       const m = place([g.x, g.y, hull.zs - 0.005], { euler: [0, Math.PI, 0] });
       gunPort(batch, m, 0.62 * g.len / 1.8 + 0.5, 0.75 * g.len / 1.8 + 0.4, q, S, glows, { gun: false, lid: false });
-      longGun(batch, new THREE.Matrix4().multiplyMatrices(m, place([0, 0, -0.3])), g.len, q, S, glows, { swivel: false });
-    } else longGun(batch, place([g.x, g.y, g.z], { euler: [0, Math.PI, 0] }), g.len, q, S, glows, { post: Math.max(0.3, g.y - hull.deckY(g.z)) });
-  }
+      longGun(batch, new THREE.Matrix4().multiplyMatrices(m, place([0, 0, -0.3])), g.len, q, S, glows, { swivel: false, rig: kick(-1, i, g.len) });
+    } else longGun(batch, place([g.x, g.y, g.z], { euler: [0, Math.PI, 0] }), g.len, q, S, glows, { post: Math.max(0.3, g.y - hull.deckY(g.z)), rig: kick(-1, i, g.len) });
+  });
 }
 
 // ---------- crystal clusters: a glowing furnace column with brass arms holding sunstone crystals ----------
 export function clusters(hull, batch, R, q, S, glows, lights, embers = []) {
   const C = R.cluster, rects = S.rects, seg = Math.max(q.level === 'far' ? 5 : 8, q.latheSeg);
-  for (const cl of R.clusters) {
+  R.clusters.forEach((cl, ci) => {
+    // (each cluster's furnace and crystals are tagged with its number, so each can dim and crack on its own: dress.js)
+    batch.tag = [5, ci, 0, 0];
     const k = cl.scale ?? 1, r = C.r * k, h = C.h * k, y0 = hull.deckY(cl.z), m0 = place([0, y0, cl.z]);
     const add = (key, g, mat) => batch.add(key, g, mat ? new THREE.Matrix4().multiplyMatrices(m0, mat) : m0);
     // the plinth and the column, wearing the furnace's painted windows all round
@@ -287,22 +325,28 @@ export function clusters(hull, batch, R, q, S, glows, lights, embers = []) {
         U.setXY(j, lerp(cr.u0, cr.u1, u), 1 - lerp(cr.v0, cr.v1, lerp(0.02, 0.8, v)));
       }
       add('gem', g, place([c.x, c.y + 0.02 * k, c.z], { spin: i * 0.7 + 0.3 }));
-      glows.push({ p: V(c.x, c.y + H * 0.45, c.z).applyMatrix4(m0), size: H * 1.6, color: 0xff9a2a, pulse: true });
-      embers.push({ p: V(c.x, c.y + H * 0.6, c.z).applyMatrix4(m0), r: W, h: H });
-      if (i === 0) glows.push({ p: V(c.x, c.y + H * 0.38, c.z).applyMatrix4(m0), size: H * 0.55, color: 0xb25cff, pulse: true });
+      glows.push({ p: V(c.x, c.y + H * 0.45, c.z).applyMatrix4(m0), size: H * 1.6, color: 0xff9a2a, pulse: true, group: ci + 1 });
+      embers.push({ p: V(c.x, c.y + H * 0.6, c.z).applyMatrix4(m0), r: W, h: H, group: ci + 1 });
+      if (i === 0) glows.push({ p: V(c.x, c.y + H * 0.38, c.z).applyMatrix4(m0), size: H * 0.55, color: 0xb25cff, pulse: true, group: ci + 1 });
     });
-    glows.push({ p: V(0, 0.2 * k + h * 0.45, 0).applyMatrix4(m0), size: r * 2.6, color: 0xff8a2a });
+    glows.push({ p: V(0, 0.2 * k + h * 0.45, 0).applyMatrix4(m0), size: r * 2.6, color: 0xff8a2a, group: ci + 1 });
     lights.push({ p: V(0, cupY + 0.6 * k, 0).applyMatrix4(m0), power: 2.2 * k * R.length / 25 + 1 });
-  }
+    batch.tag = null;
+  });
 }
 
 // ---------- masts, yards, wing sails and their rigging ----------
 const SAIL = { a: [493, 55], b: [72, 253], c: [495, 310] }; // the canvas's corners in the sail picture (mast top, boom tip, boom root)
-export function masts(hull, batch, R, q, S, glows) {
+// Each wing sail is also told to `wings` (A at the mast, B at the yard's tip, C at its root, the way it bellies, which
+// mast and side, and the mast's z), so a shot through the sails can be put on the canvas itself (src/ship/dress.js).
+// Each wing (its sail, its yard and the spike at its tip, the rope along its edge, and the sheet down to the rail, less
+// and less towards the rail) is rigged to fold back along the hull as the sails are taken in (src/ship/dress.js).
+// A raider captain's ship (opts.captain) flies a great swallow-tailed banner from her tallest mast
+export function masts(hull, batch, R, q, S, glows, wings = [], opts = {}) {
   const rect = S.rects.sail, seg = Math.max(6, q.latheSeg);
   const sailUV = (pt) => { const [x, y] = pt; return [lerp(rect.u0, rect.u1, x / rect.w), 1 - lerp(rect.v0, rect.v1, y / rect.h)]; };
-  const ropes = [];
-  for (const M of R.masts) {
+  const ropes = [], tallest = R.masts.reduce((a, M) => (M.height > a.height ? M : a));
+  R.masts.forEach((M, mi) => {
     const y0 = hull.deckY(M.z), H = M.height, r0 = 0.08 + 0.0045 * R.length + 0.03, r1 = r0 * 0.6;
     const mx = (y) => lerp(r0, r1, (y - y0) / H);
     batch.add('wood', lathe([[r0, 0], [lerp(r0, r1, 0.5), H * 0.5], [r1, H]], seg), place([0, y0, M.z]));
@@ -310,7 +354,12 @@ export function masts(hull, batch, R, q, S, glows) {
     const bands = q.level === 'far' ? 0 : Math.max(2, Math.round(H / (q.level === 'full' ? 1.15 : 2.3)));
     for (let i = 1; i < bands; i++) { const y = y0 + (i / bands) * H; batch.add('brass', S.ring(mx(y), 0.035 + R.length * 0.0008), place([0, y, M.z])); }
     batch.add('brass', lathe([[r1 * 1.3, 0], [r1 * 1.45, 0.1], [r1 * 0.9, 0.22], [r1 * 1.15, 0.36], [r1 * 0.5, 0.5], [0.001, 0.82]], seg), place([0, y0 + H, M.z]));
-    pennant(batch, V(0, y0 + H - 0.05, M.z), H * 0.42, H * 0.045, q.level === 'full' ? 20 : q.level === 'middle' ? 6 : 2);
+    if (opts.captain && M === tallest) {
+      // (on a staff above her masthead, clear of her sails)
+      const s0 = y0 + H + 0.7, s1 = s0 + H * 0.2;
+      batch.add('wood', lathe([[r1 * 0.5, 0], [r1 * 0.35, s1 - s0 + 0.1]], Math.max(5, seg >> 1)), place([0, s0, M.z]));
+      banner(batch, V(0, s1, M.z), H * 0.55, H * 0.17, q.level === 'full' ? 16 : q.level === 'middle' ? 10 : 3);
+    } else pennant(batch, V(0, y0 + H - 0.05, M.z), H * 0.42, H * 0.045, q.level === 'full' ? 20 : q.level === 'middle' ? 6 : 2);
     const top = V(0, y0 + H * 0.97, M.z);
     if (q.level === 'full') {
       const fr = r0 * 4.2, fh = 0.62 * R.railScale + 0.1, corners = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
@@ -329,19 +378,25 @@ export function masts(hull, batch, R, q, S, glows) {
       batch.add('brass', lathe([[mx(yr) * 1.25, -0.12], [mx(yr) * 1.4, -0.06], [mx(yr) * 1.4, 0.06], [mx(yr) * 1.25, 0.12]], seg), place([0, yr, M.z]));
       for (const side of [1, -1]) {
         const root = V(side * mx(yr), yr, M.z), tip = V(side * Ti.span, yr + Ti.rise, M.z - Ti.sweep);
-        const yd = tip.clone().sub(root), len = yd.length();
-        // the yard: a tapered spar with a brass spike at its tip
+        const yd = tip.clone().sub(root), len = yd.length(), wing = [1, side * 2, M.z, 0];
+        // the yard: a tapered spar with a brass spike at its tip (too small to see far off, so left out there)
+        batch.tag = wing;
         batch.add('wood', lathe([[0.075 * R.railScale, 0], [0.045 * R.railScale, len]], Math.max(5, seg >> 1)), place(root, { dir: yd }));
-        batch.add('brass', lathe([[0.06, 0], [0.075, 0.05], [0.06, 0.12], [0.035, 0.16], [0.001, 0.42]].map(([a, b]) => [a * R.railScale, b * R.railScale]), Math.max(5, seg >> 1)), place(tip, { dir: yd }));
+        if (q.level !== 'far') batch.add('rigMetal', metal(lathe([[0.06, 0], [0.075, 0.05], [0.06, 0.12], [0.035, 0.16], [0.001, 0.42]].map(([a, b]) => [a * R.railScale, b * R.railScale]), Math.max(5, seg >> 1))), place(tip, { dir: yd }));
+        batch.tag = null;
         // the sail: from the mast (at the top, or just under the yard above) out to the yard's tip and back to its root
         const yA = ti === M.tiers.length - 1 ? y0 + H * 0.95 : y0 + M.tiers[ti + 1].at * H - 0.16;
         const A = V(side * mx(yA), yA, M.z);
         const Bp = root.clone().lerp(tip, 0.96), Cp = root.clone().lerp(tip, 0.035).add(V(0, 0.05, 0));
-        sail(batch, A, Bp, Cp, q.sailDiv, sailUV, side, 0.09 * len);
-        ropes.push([A.clone(), tip.clone().add(V(0, 0.05, 0))]);
-        // sheets: from the yard's tip down to the rail
-        const zr = clamp(tip.z - 0.6, hull.zs + 0.3, hull.zb - 0.3);
-        ropes.push([tip.clone(), V(side * (hull.deckHalf(zr) - 0.05), hull.deckY(zr) + R.rail.h, zr)]);
+        // (the canvas's rig tells which wing it is, side x (2 + its number): it moves all the way with the wing, and her
+        // holes are cut in their own wing only, src/ship/dress.js)
+        const wi = wings.length;
+        wings.push(sail(batch, A, Bp, Cp, q.sailDiv, sailUV, side, 0.09 * len, [1, side * (2 + wi), M.z]));
+        Object.assign(wings[wi], { i: wi, mast: mi, mz: M.z, tip: tip.clone(), top: ti === M.tiers.length - 1 });
+        ropes.push([A.clone(), tip.clone().add(V(0, 0.05, 0)), wing]);
+        // sheets: from the yard's tip down to the rail (moving with the wing at its top, not at all at the rail)
+        const zr = clamp(tip.z - 0.6, hull.zs + 0.3, hull.zb - 0.3), rail = V(side * (hull.deckHalf(zr) - 0.05), hull.deckY(zr) + R.rail.h, zr);
+        ropes.push([tip.clone(), rail, sheet(tip, rail, side, M.z)]);
       }
     });
     // shrouds: three a side from high on the mast to the deck edge, with ratlines across them
@@ -359,7 +414,7 @@ export function masts(hull, batch, R, q, S, glows) {
         }
       }
     }
-  }
+  });
   // stays: fore mast to the bow, aft mast to the stern, and mast to mast
   const sorted = [...R.masts].sort((a, b) => b.z - a.z);
   const topOf = (M) => V(0, hull.deckY(M.z) + M.height * 0.94, M.z);
@@ -369,20 +424,28 @@ export function masts(hull, batch, R, q, S, glows) {
   const last = sorted[sorted.length - 1];
   for (const side of [1, -1]) ropes.push([topOf(last), V(side * (hull.deckHalf(hull.zs + 0.4) - 0.1), hull.deckY(hull.zs + 0.4) + 0.1, hull.zs + 0.4)]);
   const rr = 0.016 + R.length * 0.0004;
-  for (const [a, b] of ropes) {
+  for (const [a, b, rig] of ropes) {
     if (!q.ropeRad) break;
     const mid = a.clone().lerp(b, 0.5).add(V(0, -a.distanceTo(b) * 0.012, 0));
+    if (typeof rig === 'function') batch.tagFn = rig; else batch.tag = rig ?? null;
     batch.add('rope', tube([a, mid, b], rr, q.ropeRad, Math.max(1, q.tubePer >> 1), false, 0.5), null);
+    batch.tag = batch.tagFn = null;
   }
 }
-// A pennant: a long tapering streamer from the mast top, plum with a gold hoist, flying aft
+// a sheet's rig at each of its corners: it moves with its wing at the yard's tip (a), not at all at the rail (b)
+function sheet(a, b, side, mz) {
+  const d = b.clone().sub(a), dd = d.lengthSq(), out = [1, 0, mz, 0];
+  return (x, y, z) => { const t = clamp(((x - a.x) * d.x + (y - a.y) * d.y + (z - a.z) * d.z) / dd, 0, 1); out[1] = side * (2 - t); return out; };
+}
+// A pennant: a long tapering streamer from the mast top, plum with a gold hoist, flying aft. It streams out straight at
+// speed and hangs limp when the ship is slow (its rig: [6, its hoist's z])
 function pennant(batch, top, len, wid, n) {
-  const pos = [], col = [], bil = [], idx = [];
+  const pos = [], col = [], bil = [], idx = [], rg = [];
   for (let i = 0; i <= n; i++) {
     const t = i / n, w = wid * (1 - t * 0.92);
     for (const s of [0.5, -0.5]) {
       pos.push(top.x, top.y - wid * 0.5 + s * w, top.z - t * len);
-      const gold = t < 0.12; col.push(...(gold ? [0.95, 0.72, 0.28] : [0.42, 0.1, 0.3])); bil.push(t);
+      const gold = t < 0.12; col.push(...(gold ? [0.95, 0.72, 0.28] : [0.42, 0.1, 0.3])); bil.push(t); rg.push(6, top.z, 0, 0);
     }
   }
   for (let i = 0; i < n; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
@@ -390,13 +453,41 @@ function pennant(batch, top, len, wid, n) {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.setAttribute('billow', new THREE.Float32BufferAttribute(bil, 1));
+  g.setAttribute('rig', new THREE.Float32BufferAttribute(rg, 4));
+  g.setIndex(idx); g.computeVertexNormals();
+  batch.add('flag', g);
+}
+// A raider captain's banner: a great swallow-tailed flag, black with a crimson border, its last third split into two
+// tails; it flies like a pennant. Built as two halves (above and below its middle line), each three rows across: its
+// crimson edge, its black, and its middle line, which beyond the notch opens out into the tails' inner edges
+export const BANNER = { black: [0.06, 0.05, 0.06], crimson: [0.62, 0.04, 0.09], notch: 0.68 };
+function banner(batch, top, len, wid, n) {
+  const pos = [], col = [], bil = [], idx = [], rg = [], cy = top.y - wid / 2;
+  for (const h of [1, -1]) {
+    const base = pos.length / 3;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, w = wid * (1 - t * 0.25) / 2, open = Math.max(0, (t - BANNER.notch) / (1 - BANNER.notch)), inner = w * 0.55 * open;
+      for (const [off, c] of [[w, BANNER.crimson], [(w + inner) / 2, BANNER.black], [inner, open > 0 ? BANNER.crimson : BANNER.black]]) {
+        pos.push(top.x, cy + h * off, top.z - t * len);
+        col.push(...(i === 0 ? BANNER.crimson : c)); bil.push(t); rg.push(6, top.z, 0, 0);
+      }
+    }
+    for (let i = 0; i < n; i++) for (let j = 0; j < 2; j++) { const a = base + i * 3 + j; idx.push(a, a + 3, a + 1, a + 1, a + 3, a + 4); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setAttribute('billow', new THREE.Float32BufferAttribute(bil, 1));
+  g.setAttribute('rig', new THREE.Float32BufferAttribute(rg, 4));
   g.setIndex(idx); g.computeVertexNormals();
   batch.add('flag', g);
 }
 
-// One wing sail: a triangle of canvas bellied out with the wind (it fills towards the bow)
-function sail(batch, A, B, C, n, uvOf, side, belly) {
-  const pos = [], uv = [], bil = [], idx = [];
+// One wing sail: a triangle of canvas bellied out with the wind (it fills towards the bow). Each corner's rig says it's
+// a wing sail, and how far it is from the free edge (A to B: 0 there, 1 at the yard's root, C), where torn canvas frays
+// first. Returns the sail's shape: its corners, which way it faces and how far it bellies
+function sail(batch, A, B, C, n, uvOf, side, belly, rig) {
+  const pos = [], uv = [], bil = [], idx = [], rg = [];
   const ua = uvOf(SAIL.a), ub = uvOf(SAIL.b), uc = uvOf(SAIL.c);
   const nrm = new THREE.Vector3().crossVectors(B.clone().sub(A), C.clone().sub(A)).normalize();
   if (nrm.z < 0) nrm.negate();
@@ -404,7 +495,7 @@ function sail(batch, A, B, C, n, uvOf, side, belly) {
   for (let i = 0; i <= n; i++) for (let j = 0; j <= i; j++) {
     const wb = n ? (i - j) / n : 0, wc = n ? j / n : 0, wa = Math.max(0, 1 - wb - wc), bw = Math.max(0, 27 * wa * wb * wc);
     const p = A.clone().multiplyScalar(wa).add(B.clone().multiplyScalar(wb)).add(C.clone().multiplyScalar(wc)).addScaledVector(nrm, belly * Math.pow(bw, 0.8));
-    pos.push(p.x, p.y, p.z); uv.push(ua[0] * wa + ub[0] * wb + uc[0] * wc, ua[1] * wa + ub[1] * wb + uc[1] * wc); bil.push(bw);
+    pos.push(p.x, p.y, p.z); uv.push(ua[0] * wa + ub[0] * wb + uc[0] * wc, ua[1] * wa + ub[1] * wb + uc[1] * wc); bil.push(bw); rg.push(rig[0], rig[1], rig[2], wc);
   }
   for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) {
     idx.push(id(i, j), id(i + 1, j), id(i + 1, j + 1));
@@ -414,9 +505,11 @@ function sail(batch, A, B, C, n, uvOf, side, belly) {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setAttribute('billow', new THREE.Float32BufferAttribute(bil, 1));
+  g.setAttribute('rig', new THREE.Float32BufferAttribute(rg, 4));
   g.setIndex(idx);
   g.computeVertexNormals();
   batch.add('canvas', g);
+  return { A: A.clone(), B: B.clone(), C: C.clone(), n: nrm, belly, side };
 }
 
 // ---------- fins under the belly, the rudder, the ram or bowsprit at the bow ----------
@@ -505,8 +598,10 @@ export function lanterns(hull, batch, R, q, S, glows) {
 }
 
 // ---------- the wheel, the stairs, hatches, the cabin's front, the stern's windows, cargo ----------
-export function deckworks(hull, batch, R, q, S) {
+// (a treasure ship, opts.treasure, carries open chests heaped with gold in place of her cargo, near enough to be seen)
+export function deckworks(hull, batch, R, q, S, opts = {}) {
   if (q.level === 'far') return;
+  if (opts.treasure) chests(hull, batch, R, q);
   const seg = Math.max(6, q.latheSeg), rects = S.rects;
   // the wheel, on its pedestal, facing forward
   { const W = R.wheel, y0 = hull.deckY(W.z), r = W.r, cy = y0 + r * 1.55;
@@ -576,7 +671,7 @@ export function deckworks(hull, batch, R, q, S) {
     batch.add('parts', g, place([0, y + h + 0.004, Hh.z]));
   }
   // cargo: barrels with brass hoops, coils of rope, crates bound in brass
-  if (!q.cargo) return;
+  if (!q.cargo || opts.treasure) return;
   const C = R.cargo ?? {}, k = clamp(R.length / 25, 0.65, 1.1);
   const barrel = lathe([[0.001, 0], [0.24 * k, 0], [0.27 * k, 0.12 * k], [0.29 * k, 0.32 * k], [0.27 * k, 0.52 * k], [0.24 * k, 0.64 * k], [0.001, 0.64 * k]], seg);
   for (const [x, z] of C.barrels ?? []) {
@@ -595,4 +690,19 @@ export function deckworks(hull, batch, R, q, S) {
     batch.add('deck', box(s, s, s, 1.2), place([x, y + s / 2, z], { euler: [0, 0.3, 0] }));
     for (const dy of [0.04, s - 0.04]) batch.add('brass', box(s + 0.02, 0.05, s + 0.02), place([x, y + dy, z], { euler: [0, 0.3, 0] }));
   }
+}
+// A treasure ship's chests: wooden, bound in brass, heaped with gold, their lids propped open. Where her recipe says
+// (R.treasure: [x, z] on her deck), or where her crates and barrels would stand, so any ship can carry them
+function chests(hull, batch, R, q) {
+  const spots = R.treasure ?? [...(R.cargo?.crates ?? []), ...(R.cargo?.barrels ?? [])];
+  const k = clamp(R.length / 25, 0.6, 1.4), seg = Math.max(6, q.latheSeg >> 1), w = 1.2 * k, h = 0.7 * k, d = 0.8 * k;
+  spots.forEach(([x, z], i) => {
+    const m = place([x, hull.deckY(z), z], { euler: [0, ((i * 0.37) % 1 - 0.5) * 0.9, 0] });
+    const add = (key, g, mat) => batch.add(key, g, new THREE.Matrix4().multiplyMatrices(m, mat));
+    add('wood', box(w, h, d, 1.4), place([0, h / 2, 0]));
+    for (const bx of [-0.33, 0.33]) add('brass', box(0.07 * k, h + 0.02, d + 0.02), place([bx * w, h / 2, 0]));
+    // the gold heaped over its rim, and the lid propped open behind it
+    add('brass', lathe([[0.52, 0], [0.5, 0.06], [0.4, 0.2], [0.2, 0.3], [0.001, 0.34]].map(([r, y]) => [r * w, y * k]), seg), place([0, h - 0.02, 0], { scale: [1, 1, (d / w) * 0.95] }));
+    add('wood', box(w, 0.08 * k, d, 1.4), new THREE.Matrix4().multiplyMatrices(place([0, h, -d / 2], { euler: [-1.85, 0, 0] }), place([0, 0.04 * k, d / 2])));
+  });
 }

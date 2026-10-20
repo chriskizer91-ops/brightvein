@@ -49,8 +49,38 @@ function syncMenu() {
   tog('#calm-btn', reducedMotion); tog('#night-btn', SETTINGS.nightSlow); tog('#tips-btn', SETTINGS.hints); tog('#b-sound', AUDIO.on);
   $('#calm-note').textContent = SETTINGS.calm == null ? `Following this device’s setting (${DEVICE_CALM ? 'less motion' : 'full motion'}).` : 'Set here, not by the device.';
   const cam = $('#cam-rng'); cam.value = Math.round(camK() * 100); $('#cam-v').textContent = camK().toFixed(1).replace(/\.0$/, '') + '×';
-  $('#b-title').hidden = !started; $('#b-save-now').hidden = !started; $('#b-reset').hidden = !started;
-  $('#menu-close').textContent = started ? 'Back to the claim' : 'Done';
+  // (opened over the skies: no title screen, starting over or the claim's first look from there)
+  const sky = !!(SKY && SKY.on);
+  $('#b-title').hidden = !started || sky; $('#b-save-now').hidden = !started; $('#b-reset').hidden = !started || sky; $('#b-help').hidden = sky;
+  $('#menu-close').textContent = sky ? 'Back to the skies' : started ? 'Back to the claim' : 'Done';
+  skyRows();
+}
+// the skies' own rows (src/sky/settings.js: aim speed, up and down, camera shake, Fire on the left on a phone, the
+// tips for a new Captain), drawn from their list; each takes effect in the skies at once
+function skyRows() {
+  const box = $('#sky-rows'); if (!box || !SKY) return;
+  const S = SKY.settings, D = S.data;
+  if (!box.childElementCount) {
+    for (const r of S.ROWS) {
+      const row = document.createElement('div'); row.className = 'row'; row.dataset.id = r.id;
+      const label = `<span>${esc(r.label)}</span>`;
+      if (r.kind === 'choice') {
+        row.innerHTML = `${label}<div class="seg" role="group" aria-label="${esc(r.label)}">${r.options.map(([v, t], i) => `<button type="button" data-i="${i}">${esc(t)}</button>`).join('')}</div>`;
+        row.querySelectorAll('button').forEach(b => { b.onclick = () => { S.set(r.id, r.options[+b.dataset.i][0]); syncMenu(); }; });
+      } else {
+        row.innerHTML = `${label}<span class="mc-pair"><button type="button" class="btn tog" aria-pressed="false">On</button>${r.id === 'tips' ? '<button type="button" class="btn" id="sky-tips-again">Show again</button>' : ''}</span>`;
+        row.querySelector('.tog').onclick = () => { S.set(r.id, !D[r.id]); syncMenu(); };
+        if (r.id === 'tips') row.querySelector('#sky-tips-again').onclick = () => { SKY.tipsAgain(); syncMenu(); flash('#sky-tips-again', 'They’ll show again'); };
+      }
+      box.append(row);
+      if (r.note) { const p = document.createElement('p'); p.className = 'small'; p.textContent = r.note; box.append(p); }
+    }
+  }
+  for (const row of box.querySelectorAll('.row')) {
+    const r = S.ROWS.find(x => x.id === row.dataset.id); if (!r) continue;
+    if (r.kind === 'choice') row.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(r.options[+b.dataset.i][0] === D[r.id])));
+    else { const b = row.querySelector('.tog'); b.setAttribute('aria-pressed', String(!!D[r.id])); b.textContent = D[r.id] ? 'On' : 'Off'; }
+  }
 }
 // saving: which claim is open, and when it was last saved (read from the save itself, so only when the panel opens)
 function menuSaveLine() {
@@ -75,7 +105,11 @@ $('#b-menu').onclick = openMenu;
 $('#menu-close').onclick = closeMenu;
 $('#menu-x').onclick = () => $('#menu-close').click();
 $('#menu').addEventListener('click', e => { if (e.target.id === 'menu') $('#menu-close').click(); });
-for (const b of document.querySelectorAll('#q-seg button')) b.onclick = () => { QUALITY.level = b.dataset.q; try { localStorage.setItem('bv-quality', QUALITY.level); } catch (e) { } applyQuality(); syncMenu(); };
+for (const b of document.querySelectorAll('#q-seg button')) b.onclick = () => {
+  QUALITY.level = b.dataset.q; try { localStorage.setItem('bv-quality', QUALITY.level); } catch (e) { } applyQuality(); syncMenu();
+  if (SKY) SKY.settings.changed('picture');   // the skies' picture follows it (src/sky/settings.js PICTURE_OF)
+  if (DOCK.ship && DOCK.ship.dockParts) dockFarAgain(DOCK.ship);   // and the moored ship's stand-in on Light (dock.js)
+};
 for (const b of document.querySelectorAll('#tz-seg button')) b.onclick = () => { SETTINGS.text = +b.dataset.z; settingsKeep(); applyLookSettings(); syncMenu(); };
 $('#calm-btn').onclick = () => { SETTINGS.calm = !reducedMotion; settingsKeep(); applyLookSettings(); syncMenu(); };
 $('#cam-rng').addEventListener('input', e => { SETTINGS.cam = Math.round(+e.target.value / 10) / 10; settingsKeep(); applyCamSettings(); syncMenu(); });

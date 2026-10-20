@@ -1,366 +1,1623 @@
-/* sky.css: the skies' look (from the airship game): plum panels with a cream edge, gold for names, the two pixel
-   fonts. Everything here lives inside #sky: the build scopes each rule to it (tools/build.mjs), so the claim's styles and
-   these never touch. Rules that start with `body` or `#sky` are left as written. */
-@font-face { font-family: 'Jacquard 12'; src: url(/*FONT_DISPLAY*/) format('woff'); font-display: swap; }
-@font-face { font-family: 'Pixelify Sans'; src: url(/*FONT_BODY*/) format('woff'); font-display: swap; }
-:root {
-  color-scheme: dark;
-  --night: #0e1626;
-  --panel: rgba(24, 12, 30, 0.82);
-  --plum: #3a1631;
-  --cream: #ecdcb8;
-  --ink: #f3ead8;
-  --dim: #c3b4cf;
-  --gold: #e2bd67;
-  --warn: #ffb4a0;
-  --display: 'Jacquard 12', 'Georgia', serif;
-  --body: 'Pixelify Sans', 'Trebuchet MS', system-ui, sans-serif;
-  --gutter: max(14px, env(safe-area-inset-left, 0px));
-  --top: calc(10px + env(safe-area-inset-top, 0px));
-  --bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-}
-#sky { position: fixed; inset: 0; z-index: 20; pointer-events: none; color: var(--ink);
-  font: 14px/1.35 var(--body); font-variant-ligatures: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+/* sky.css: the skies' look, from the airship game's stage 4 (its page's styles, demos/game.html: plum panels with a
+   cream edge, gold for names; Cinzel for titles, banners, card headings and ship names, Fira Sans for the rest), with
+   Brightvein's own pieces at the end (the Shipyard's claim side, a raid's objective and its boss bar).
+   Everything here lives inside #sky: the build scopes each rule to it (tools/build.mjs), so the claim's styles and these
+   never touch. Rules that start with `body` or `#sky` are left as written, so stage 4's rules for the page's own classes
+   (body.touch, body.between, body.has-shot...) are written `body.touch #sky ...`, and its body[data-mode] is
+   body[data-sky] here (voyage.js sets it). */
+
+/* ---------- Brightvein: the skies' box, over the claim's view ---------- */
+#sky { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
 #sky[hidden] { display: none !important; }
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-button, input, .panel, #minimap, .screen.dim { pointer-events: auto; }
-#warn { pointer-events: none; }
-/* while the skies are open, the claim's own controls step aside and the view is the sky's */
+/* (#sky lets presses through to the claim's canvas, which the skies draw on; what's in it takes them, unless a rule
+   below says not: stage 4's own rules come after these, so they win) */
+#sky > * { pointer-events: auto; }
+#hud { pointer-events: none; }
+#hud > * { pointer-events: auto; }
+/* while the skies are open, the claim's own controls step aside and the view is the sky's (but its Settings panel can
+   open over the skies: claim settings.js) */
 body.sky-on #app > :not(#view) { display: none !important; }
+body.sky-on #app > #menu:not([hidden]) { display: grid !important; }
+/* (#app is a box of its own on the page, under #sky: while its Settings panel is up, the whole of it comes over the skies) */
+body.sky-on:has(#menu:not([hidden])) #app { z-index: 30; }
 body[data-sky='voyage'] #view { cursor: crosshair; }
 body[data-sky='port'] #view, body[data-sky='title'] #view { cursor: grab; }
 body.locked #view { cursor: none; }
+/* Flying the Captain's ship over Aethermoor. The game's own look on every screen: plum panels with a cream edge, gold
+     for names. Cinzel (all small capitals) for the game's title, banners, card headings and ship names; Fira Sans for
+     everything else, with even, upright figures so numbers read at a glance. Everything is inside this one file, so it
+     works with no internet.
+     Three layouts: a laptop (the default), a phone held upright (max-width 700px) and a phone held sideways, or any
+     short window (max-height 500px). Each has its own place for everything, so nothing lands on anything else
+     (tools/check.mjs measures it): see the notes by each media query at the end. */
+@font-face { font-family: 'Cinzel'; src: url(/*FONT_CINZEL*/) format('woff2'); font-weight: 400 900; font-display: swap; }
+
+@font-face { font-family: 'Fira Sans'; src: url(/*FONT_FIRA_400*/) format('woff2'); font-weight: 400; font-display: swap; }
+
+@font-face { font-family: 'Fira Sans'; src: url(/*FONT_FIRA_500*/) format('woff2'); font-weight: 500; font-display: swap; }
+
+@font-face { font-family: 'Fira Sans'; src: url(/*FONT_FIRA_600*/) format('woff2'); font-weight: 600 700; font-display: swap; }
+
+:root {
+    color-scheme: dark;
+    --night: #0e1626;
+    --panel: rgba(24, 12, 30, 0.82);
+    --plum: #3a1631;
+    --cream: #ecdcb8;
+    --ink: #f3ead8;
+    --dim: #c3b4cf;
+    --gold: #e2bd67;
+    --warn: #ffb4a0;
+    --pill: rgba(14, 8, 22, 0.62); /* a soft dark backing for words over bright cloud */
+    --display: 'Cinzel', 'Georgia', serif;
+    --body: 'Fira Sans', 'Segoe UI', system-ui, sans-serif;
+    --gutter: max(14px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+    --top: calc(10px + env(safe-area-inset-top, 0px));
+    --bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    --map-w: clamp(150px, 20vw, 260px); /* the corner map's width (it's 3 by 2) */
+  }
+
+* { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+#sky { height: 100%; margin: 0; color: var(--ink); overflow: hidden; } /* (no background: the claim's canvas under it shows the skies) */
+
+#sky { font: 14px/1.35 var(--body); font-variant-numeric: lining-nums tabular-nums; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased; }
+
 button { font: inherit; color: inherit; cursor: pointer; }
+
 button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+kbd { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid currentColor; border-radius: 4px; font: 500 0.72em/1.5 var(--body); opacity: 0.75; vertical-align: 0.12em; }
+
 .panel { background: var(--panel); border: 1px solid rgba(236, 220, 184, 0.5); border-radius: 8px; }
+
 .shadow { text-shadow: 0 1px 0 #000, 0 0 10px rgba(0, 0, 0, 0.85); }
 
-#sky[data-mode='title'] #hud, #sky[data-mode='port'] #hud { display: none; }
+.pill { background: var(--pill); border-radius: 7px; padding: 2px 8px; }
+
+body[data-sky='title'] #sky #hud, body[data-sky='port'] #sky #hud { display: none; }
+
+
 .shards, .shards b { color: var(--gold); }
-.big { padding: 11px 26px; font: 400 28px/1 var(--display); color: var(--plum); background: linear-gradient(#f2d389, #c99a3e); border: 2px solid #fff3d0;
-  border-radius: 10px; box-shadow: 0 0 0 3px var(--plum), 0 8px 24px rgba(0, 0, 0, 0.5); }
+
+.big { padding: 12px 24px; font: 600 19px/1.1 var(--body); letter-spacing: 0.01em; color: var(--plum); background: linear-gradient(#f2d389, #c99a3e); border: 2px solid #fff3d0;
+    border-radius: 10px; box-shadow: 0 0 0 3px var(--plum), 0 8px 24px rgba(0, 0, 0, 0.5); }
+
 .big:disabled { filter: grayscale(0.8) brightness(0.7); cursor: default; }
-.plain { padding: 10px 16px; background: var(--panel); border: 1px solid rgba(236, 220, 184, 0.6); border-radius: 8px; font-size: 15px; }
+
+.plain { min-height: 44px; padding: 10px 16px; background: var(--panel); border: 1px solid rgba(236, 220, 184, 0.6); border-radius: 8px; font-size: 15px; font-weight: 500; }
+
 .screen { position: fixed; inset: 0; }
-.screen.dim { background: rgba(6, 4, 12, 0.55); display: grid; place-items: center; }
+/* the title screen and the port lie over the ship: presses on their open sky reach it (drag to turn her), and only
+     their cards and panels take presses themselves */
+#title, #port { pointer-events: none; }
 
-/* the title screen */
-#title { display: grid; align-content: center; padding: 24px clamp(18px, 7vw, 90px); overflow-y: auto;
-  background: linear-gradient(90deg, rgba(8, 6, 16, 0.88), rgba(8, 6, 16, 0.4) 58%, rgba(8, 6, 16, 0)); }
+#title .title-card, #port-ships, #port-panel { pointer-events: auto; }
+
+.screen.dim { background: rgba(6, 4, 12, 0.55); display: grid; place-items: center; padding: 8px; }
+/* ---------- the title screen ---------- */
+#title { display: grid; align-content: center; align-content: safe center; padding: 24px clamp(18px, 7vw, 90px); overflow-y: auto;
+    background: linear-gradient(90deg, rgba(8, 6, 16, 0.84), rgba(8, 6, 16, 0.5) 40%, rgba(8, 6, 16, 0) 60%); }
+
 .title-card { max-width: 480px; }
-#title h1 { margin: 0; font: 400 clamp(48px, 8.5vw, 96px)/0.88 var(--display); color: var(--gold); text-shadow: 0 3px 0 #000, 0 0 30px rgba(0, 0, 0, 0.8); }
-#title .lede { margin: 12px 0 20px; font-size: clamp(14px, 2vw, 17px); color: var(--cream); }
-/* the blackletter only at 28 px and up, where it reads; below that the pixel face, at 15 px or more for anything you steer by */
-#title h2, #port h3 { margin: 14px 0 6px; font: 400 15px/1.2 var(--body); color: var(--gold); letter-spacing: 0.06em; text-transform: uppercase; }
+
+#title h1 { margin: 0; font: 700 clamp(40px, 6.4vw, 74px)/1.02 var(--display); color: var(--gold); text-shadow: 0 3px 0 #000, 0 0 30px rgba(0, 0, 0, 0.8); }
+
+#title .lede { margin: 12px 0 18px; font-size: clamp(14px, 1.7vw, 16px); color: var(--cream); }
+
+#title h2, #port h3 { margin: 14px 0 6px; font: 600 16px/1.1 var(--display); letter-spacing: 0.03em; color: var(--cream); }
+
 #skies { display: grid; gap: 8px; }
+
 #skies button { display: grid; gap: 3px; padding: 10px 14px; text-align: left; background: var(--panel); border: 1px solid rgba(236, 220, 184, 0.35); border-radius: 8px; }
-#skies button b { font: 400 18px/1.15 var(--body); color: var(--cream); }
-#skies button span { font-size: 14px; color: var(--dim); }
-#skies button small { font-size: 13px; color: var(--gold); }
+
+#skies button b { font: 600 18px/1.1 var(--display); color: var(--cream); }
+
+#skies button span { font-size: 13px; color: var(--dim); }
+
+#skies button small { font-size: 12px; color: var(--gold); }
+
+#skies button small em { font-style: normal; }
+/* (each skies' three stars, for its fifth, tenth and fifteenth waves: gold once won. Drawn, so every font shows them) */
+.star { display: inline-block; width: 13px; height: 13px; margin-right: 2px; vertical-align: -1px; background: rgba(236, 220, 184, 0.28);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+
+.star.on { background: var(--gold); filter: drop-shadow(0 0 3px rgba(226, 189, 103, 0.8)); }
+
+#skies .stars { margin-right: 6px; white-space: nowrap; }
+
 #skies button[aria-checked='true'] { background: var(--plum); border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+
 #skies button[aria-checked='true'] b { color: var(--gold); }
-#btn-to-port { margin-top: 18px; }
+/* (a new Captain's hint, on Fair Winds) */
+#skies .first { justify-self: start; margin-top: 2px; padding: 1px 8px; border-radius: 9px; background: var(--gold); color: var(--plum); font: normal 600 11.5px/1.5 var(--body); }
 
-/* the port */
-.port-top { position: fixed; top: var(--top); left: var(--gutter); right: var(--gutter); display: flex; align-items: center; gap: 12px; pointer-events: none; }
+#title-rank { margin: -6px 0 4px; font-size: 15px; font-weight: 500; text-shadow: 0 1px 0 #000, 0 0 10px rgba(0, 0, 0, 0.85); }
+
+#title-rank b { font: 600 1.02em var(--display); color: var(--cream); white-space: nowrap; }
+
+.title-go { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-top: 18px; }
+
+.title-go .plain { min-height: 48px; padding: 10px 20px; font-size: 16px; }
+/* the dip through the night between the title, the port and the sea (main.js fades it away) */
+#veil { position: fixed; inset: 0; z-index: 10; background: var(--night); opacity: 0; pointer-events: none; }
+/* ---------- the port ---------- */
+.port-top { position: fixed; top: var(--top); left: var(--gutter); right: var(--gutter); display: flex; align-items: center; gap: 10px; pointer-events: none; }
+
 .port-top > * { pointer-events: auto; }
-.port-top h1 { margin: 0; font: 400 40px/1 var(--display); color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 20px rgba(0, 0, 0, 0.8); }
-#port-shards { padding: 5px 12px; font-size: 17px; white-space: nowrap; }
-#btn-skies { margin-left: auto; padding: 6px 12px; min-height: 36px; font-size: 15px; }
-#btn-home { padding: 6px 12px; min-height: 36px; font-size: 15px; }
-#port-note { position: fixed; top: calc(var(--top) + 56px); left: var(--gutter); margin: 0; padding: 6px 12px; color: var(--gold); opacity: 0; pointer-events: none; }
+
+.port-top h1 { margin: 0; font: 700 30px/1 var(--display); color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 20px rgba(0, 0, 0, 0.8); }
+
+#port-shards { padding: 6px 12px; font-size: 17px; font-weight: 500; white-space: nowrap; }
+
+#btn-skies { margin-left: auto; min-height: 40px; padding: 6px 12px; font-size: 14px; white-space: nowrap; }
+/* (the Captain's log: a book, and her rank where there's room) */
+#btn-log { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 10px; font: 600 14px/1.1 var(--display); color: var(--gold); white-space: nowrap; }
+
+#btn-log svg { flex: none; width: 19px; height: 19px; }
+/* the quartermaster's line: under the top bar on the left, like the note (which it makes way for while that shows);
+     its words shorter on a phone, on one line */
+#pp-next { position: fixed; top: calc(var(--top) + 54px); left: var(--gutter); max-width: calc(100% - 2 * var(--gutter) - 396px); margin: 0; padding: 5px 12px; font-size: 14px; color: var(--gold); pointer-events: none; }
+
+#pp-next .short { display: none; }
+
+#pp-next:empty { display: none; }
+
+#port.noting #pp-next { visibility: hidden; }
+/* (and under it, dim: today's harbour orders and the commendation she's nearest; on a phone held upright, whose Log
+     button is just the book, her rank opening the short words) */
+#pp-next .more { display: block; margin-top: 2px; font-size: 12.5px; color: var(--dim); }
+
+#pp-next .more i { font-style: normal; white-space: nowrap; }
+
+#pp-next .rank { display: none; color: var(--cream); }
+/* (a gold dot on what it means: a ship's button, an upgrade, a kind of shot) */
+#port-ships button.advised b::after, .mod.advised b::before, .buyshot.advised b::before { content: ''; display: inline-block; width: 7px; height: 7px; margin: 0 0 0 5px; border-radius: 50%; background: var(--gold);
+    box-shadow: 0 0 6px var(--gold); vertical-align: 2px; }
+
+.mod.advised b::before, .buyshot.advised b::before { margin: 0 6px 0 0; }
+/* her colours: a row of swatches for her sails and one for her pennants (a lock on those not hers yet) */
+.swatch-row { display: grid; gap: 4px; margin: 6px 0; font-size: 13px; color: var(--dim); }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.swatch { position: relative; flex: none; width: 32px; height: 32px; padding: 0; border-radius: 50%; border: 2px solid rgba(236, 220, 184, 0.45); background: var(--dye); box-shadow: inset 0 -4px 7px rgba(0, 0, 0, 0.3); }
+
+.swatch[aria-checked='true'] { border-color: #fff3d0; box-shadow: inset 0 -4px 7px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--plum), 0 0 0 4px var(--gold); }
+
+.swatch.locked::after { content: ''; position: absolute; right: -4px; bottom: -4px; width: 15px; height: 15px; border-radius: 50%; background: #241329 center / 9px 9px no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath fill='%23e2bd67' d='M2 4.5h6v5H2zM3.2 4.5V3a1.8 1.8 0 0 1 3.6 0v1.5h-1V3a.8.8 0 0 0-1.6 0v1.5z'/%3E%3C/svg%3E");
+    box-shadow: 0 0 0 1px var(--gold); }
+
+#pp-dye-note { margin: 0 0 6px; font-size: 12.5px; color: var(--cream); }
+
+#pp-dye-buy, #btn-dye { width: 100%; }
+/* (the port's note: left of the panel, like the ships, so a long one never runs under it) */
+#port-note { position: fixed; top: calc(var(--top) + 54px); left: var(--gutter); max-width: calc(100% - 2 * var(--gutter) - 396px); margin: 0; padding: 6px 12px; color: var(--gold); opacity: 0; pointer-events: none; }
+
 #port-note.on { animation: region 5s ease-in-out forwards; }
-#port-ships { position: fixed; left: var(--gutter); bottom: var(--bottom); display: flex; gap: 3px; padding: 3px; max-width: calc(100% - 2 * var(--gutter)); overflow-x: auto; scrollbar-width: none; }
-#port-ships button { display: grid; justify-items: center; gap: 2px; padding: 6px 12px 5px; background: none; border: 0; border-radius: 6px; flex: 0 0 auto; }
-#port-ships button b { font: 400 16px/1.05 var(--body); white-space: nowrap; }
-#port-ships button small { font-size: 12px; color: var(--dim); letter-spacing: 0.05em; text-transform: uppercase; }
-#port-ships button em { font-style: normal; font-size: 13px; color: var(--gold); }
+/* (the six ships: in one row on a laptop, left of the panel; in two rows of three where that's too narrow: a narrow
+     laptop window, and a phone either way) */
+#port-ships { position: fixed; left: var(--gutter); bottom: var(--bottom); display: grid; grid-auto-flow: column; gap: 3px; padding: 3px; max-width: calc(100% - 2 * var(--gutter) - 396px); overflow-x: auto; scrollbar-width: none; }
+
+#port-ships button { display: grid; justify-items: center; align-content: start; gap: 3px; padding: 7px 12px 6px; background: none; border: 0; border-radius: 6px; }
+
+#port-ships button b { font: 600 16px/1 var(--display); white-space: nowrap; }
+
+#port-ships button small { font-size: 10.5px; color: var(--dim); letter-spacing: 0.05em; text-transform: uppercase; }
+
+#port-ships button em { font-style: normal; font-size: 12px; color: var(--gold); }
+
 #port-ships button[aria-pressed='true'] { background: var(--plum); box-shadow: inset 0 0 0 1px var(--gold); }
+
 #port-ships button[aria-pressed='true'] b { color: var(--gold); }
+
 #port-panel { position: fixed; top: calc(var(--top) + 54px); right: var(--gutter); bottom: var(--bottom); width: 380px; overflow-y: auto; padding: 10px 14px 0;
-  overscroll-behavior: contain; touch-action: pan-y; }
-#pp-name { margin: 0; font: 400 34px/1 var(--display); color: var(--gold); }
-#port .cls { margin: 0; font-size: 12.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
-#pp-blurb { margin: 6px 0; font-size: 15px; color: var(--cream); }
-.buy { padding: 8px 14px; font-size: 15px; color: var(--plum); background: linear-gradient(#f2d389, #c99a3e); border: 1px solid #fff3d0; border-radius: 8px; }
+    overscroll-behavior: contain; touch-action: pan-y; }
+
+#pp-name { margin: 0; font: 700 26px/1.1 var(--display); color: var(--gold); }
+
+#port .cls { margin: 2px 0 0; font-size: 12px; color: var(--dim); }
+
+#pp-cls span { white-space: nowrap; }
+
+#pp-blurb { margin: 6px 0; font-size: 13.5px; color: var(--cream); }
+/* the tabs: on a phone the panel shows the ship or her upgrades (a gold dot: an upgrade you can buy) */
+#pp-tabs { display: none; gap: 4px; margin: 8px 0 2px; }
+
+#pp-tabs button { flex: 1; min-height: 38px; padding: 6px 10px; background: rgba(236, 220, 184, 0.06); border: 1px solid rgba(236, 220, 184, 0.35); border-radius: 7px; font-size: 14px; font-weight: 500; color: var(--dim); }
+
+#pp-tabs button[aria-selected='true'] { background: var(--plum); border-color: var(--gold); color: var(--gold); }
+
+#pp-tabs .dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px var(--gold); vertical-align: 1px; }
+
+.buy { padding: 8px 14px; font-size: 15px; font-weight: 500; color: var(--plum); background: linear-gradient(#f2d389, #c99a3e); border: 1px solid #fff3d0; border-radius: 8px; }
+
 .buy:disabled { filter: grayscale(0.85) brightness(0.65); cursor: default; }
-#pp-need { margin: 4px 0 0; font-size: 13.5px; color: var(--dim); }
-.stat { display: grid; grid-template-columns: 84px 1fr auto; gap: 8px; align-items: center; font-size: 14px; margin: 3px 0; }
+
+.stat { display: grid; grid-template-columns: 74px 1fr auto; gap: 8px; align-items: center; font-size: 13px; margin: 4px 0; }
+
 .stat span { color: var(--dim); }
-.stat b { font-weight: 400; color: var(--cream); font-variant-numeric: tabular-nums; min-width: 7ch; text-align: right; }
+
+.stat b { font-weight: 400; color: var(--cream); min-width: 8.5em; text-align: right; }
+
 .stat .bar { position: relative; height: 6px; border-radius: 3px; background: rgba(236, 220, 184, 0.12); overflow: hidden; }
+
 .stat .bar i { position: absolute; inset: 0 auto 0 0; background: var(--gold); border-radius: 3px; }
+
 .stat .bar i.base { background: rgba(236, 220, 184, 0.45); }
+
 .stat .bar i.less { background: #c0573f; }
-.power { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: 14px; color: var(--dim); }
+/* (where the ship you sail now sits, on the bars of a ship you're looking at) */
+.stat .bar i.mine { left: auto; width: 2px; background: #fff; border-radius: 0; box-shadow: 0 0 3px #000; }
+
+.power { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: 13px; color: var(--dim); }
+
 .power input { width: 100%; accent-color: var(--gold); }
-#pp-power-note { margin: 4px 0 0; font-size: 13.5px; color: var(--cream); min-height: 2.6em; }
-.mod { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; padding: 8px 0; border-top: 1px solid rgba(236, 220, 184, 0.15); }
-.mod b { font-weight: 400; color: var(--cream); }
-.mod .pips { color: var(--gold); letter-spacing: 2px; font-size: 14px; }
-.mod p { grid-column: 1 / -1; margin: 0; font-size: 13.5px; color: var(--dim); }
-.mod .buy { grid-row: 1 / span 2; grid-column: 2; padding: 6px 10px; min-height: 36px; font-size: 14px; }
-.sail-out { position: sticky; bottom: 0; padding: 12px 0 14px; margin-top: 10px; background: linear-gradient(rgba(24, 12, 30, 0), rgba(24, 12, 30, 0.95) 30%); text-align: center; }
-#btn-sail { width: 100%; }
-#port-mats { padding: 5px 10px; font-size: 14px; color: var(--cream); white-space: nowrap; }
-#port-ships button.locked { opacity: 0.55; }
-#port-ships button.locked em { color: var(--dim); }
-#port-ships button.flag em { color: #9fe7ff; }
-.pp-tabs { display: flex; gap: 4px; margin: 8px 0 6px; }
-.pp-tabs button { flex: 1; padding: 6px 0; min-height: 36px; background: rgba(236, 220, 184, 0.06); border: 1px solid rgba(236, 220, 184, 0.3); border-radius: 6px; font: 400 16px/1 var(--body); color: var(--cream); }
-.pp-tabs button[aria-pressed='true'] { background: var(--plum); border-color: var(--gold); color: var(--gold); }
-#pp-flag { margin: 6px 0; }
-#pp-flag .buy, #pp-buy .buy, #pp-repair .buy { width: 100%; }
-#pp-repair { margin-top: 6px; }
-#pp-repair-note, #pp-looks-note, #port .small { margin: 4px 0 0; font-size: 13.5px; color: var(--dim); }
-#pp-crew { color: var(--cream); }
-.stat.wear { grid-template-columns: 76px 1fr 3.5em; }
-.stat.wear b { min-width: 0; }
-.mod .pn { color: var(--gold); }
-.mod .lv { font-size: 13.5px; color: var(--cream); }
-.mod p.next { color: var(--cream); }
-.swatches { display: flex; flex-wrap: wrap; gap: 5px; }
-.swatch { display: flex; align-items: center; gap: 5px; padding: 4px 8px 4px 5px; min-height: 32px; background: rgba(236, 220, 184, 0.06); border: 1px solid rgba(236, 220, 184, 0.28); border-radius: 14px; font-size: 14px; }
-.swatch i { width: 16px; height: 16px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4); }
-.swatch.fig { padding: 5px 10px; }
-.swatch[aria-pressed='true'] { border-color: var(--gold); background: var(--plum); color: var(--gold); }
-.swatch.kept::after { content: '✓'; color: var(--gold); margin-left: 2px; }
-#pp-looks-buy { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
-#pp-looks-buy[hidden] { display: none !important; }
-#pp-looks-buy .buy { flex: 1; }
 
-/* between waves, and paused */
+#pp-power-note { margin: 4px 0 0; font-size: 12.5px; color: var(--cream); min-height: 2.7em; }
+
+.mod, .buyshot { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; padding: 8px 0; border-top: 1px solid rgba(236, 220, 184, 0.15); }
+
+.mod b, .buyshot b { font-weight: 500; color: var(--cream); }
+
+.mod .pips { margin-left: 4px; color: var(--gold); letter-spacing: 2px; font-size: 12px; }
+
+.mod p, .buyshot p { grid-column: 1; margin: 0; font-size: 13px; color: var(--cream); }
+
+.mod small { grid-column: 1; font-size: 11.5px; color: var(--dim); }
+
+.mod .buy, .buyshot .buy { grid-row: 1 / span 3; grid-column: 2; min-width: 76px; min-height: 40px; padding: 6px 10px; font-size: 14px; }
+/* (the kinds of shot, the Captain's for every ship she sails: bought once, or earned at sea) */
+#pp-shot-part h3 small { font: 400 12px var(--body); letter-spacing: 0; color: var(--dim); }
+
+.buyshot b svg { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
+
+.sail-out { position: sticky; bottom: 0; display: grid; gap: 6px; justify-items: center; padding: 12px 0 14px; margin-top: 10px;
+    background: linear-gradient(rgba(24, 12, 30, 0), rgba(24, 12, 30, 0.95) 22%); text-align: center; }
+
+.sail-out.dyeing { background: linear-gradient(rgba(24, 12, 30, 0), rgba(24, 12, 30, 0.97) 10px); }
+/* (a colour tried on: solid behind its note, never words over the swatches) */
+.sail-out .big, #pp-buy { width: 100%; }
+/* a ship you don't own: the big button buys her (gold filling up with the shards you have towards her price), and
+     setting sail in your own ship is a plain line under it */
+#btn-buy { position: relative; overflow: hidden; }
+
+#btn-buy:disabled { filter: none; color: var(--cream); background: rgba(58, 22, 49, 0.9); border-color: rgba(236, 220, 184, 0.5); cursor: default; }
+
+#btn-buy:disabled::before { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--got, 0%); background: linear-gradient(#a8873f, #6e5426); opacity: 0.75; }
+
+#btn-buy span { position: relative; }
+
+#btn-buy .price { white-space: nowrap; }
+/* (the price in one piece: "◆" never left at the end of a line) */
+#pp-need { margin: 0; font-size: 12.5px; color: var(--dim); }
+
+#pp-need:empty { display: none; }
+
+#btn-sail.alt { width: auto; padding: 6px 10px; font: 500 14px/1.2 var(--body); color: var(--cream); background: none; border: 0; box-shadow: none; text-decoration: underline; text-underline-offset: 3px; }
+/* (and beside that, for a ship you don't own, "Try her out": a sea trial, one fight for nothing) */
+.sail-alts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px; width: 100%; }
+
+#pp-buy:not([hidden]) ~ .sail-alts { margin-top: 6px; }
+/* ("Try her out" a thumb's width clear of Buy, which spends the shards at once) */
+#btn-try { min-height: 34px; padding: 4px 14px; font: 500 14px/1.2 var(--body); color: var(--gold); white-space: nowrap; }
+/* ---------- cards: between waves, paused, how to fly ---------- */
 .card { padding: 14px 18px; text-align: center; width: min(92vw, 430px); }
-.card h2 { margin: 0; font: 400 34px/1 var(--display); color: var(--gold); }
-.card p { margin: 8px 0 12px; color: var(--cream); font-size: 14px; }
+
+.card h2 { margin: 0; font: 700 26px/1.1 var(--display); color: var(--gold); }
+
+.card p { margin: 8px 0 12px; color: var(--cream); font-size: 14.5px; }
+
 .choices { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
-#calm { position: fixed; left: 50%; top: 40%; translate: -50% 0; }
-#btn-pause { position: fixed; top: var(--top); right: calc(var(--gutter) + clamp(150px, 20vw, 260px) + 12px); width: 42px; height: 40px; padding: 0; font-size: 13px; }
+/* coming home, and the Captain's log (record.js): a card over the port, its words scrolling between its heading and
+     its buttons, which always show; ribbons for what's been won (gold), and those still to win (dim) */
+#homecoming, #log { z-index: 15; background: rgba(6, 4, 12, 0.62); }
 
-#ship { position: fixed; top: var(--top); left: var(--gutter); padding: 6px 12px 8px; pointer-events: none; }
-#ship h1 { margin: 0; font: 400 30px/0.95 var(--display); color: var(--gold); }
-#ship .cls { font-size: 12.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
-#readout { display: grid; grid-template-columns: auto auto; gap: 0 10px; margin-top: 4px; font-size: 14px; font-variant-numeric: tabular-nums; }
+#homecoming .card, #log .card { display: flex; flex-direction: column; width: min(94vw, 520px); max-height: calc(100% - 4px); padding: 0; overflow: hidden; text-align: left; background: rgb(24, 12, 30);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); }
+
+#log .card { height: min(760px, calc(100% - 4px)); }
+/* (the same height whichever page it shows, so its tabs stay under the finger) */
+.card-head { padding: 12px 16px 6px; text-align: center; }
+
+.card-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 16px 10px; touch-action: pan-y; }
+
+.card-foot { padding: 8px 16px 12px; border-top: 1px solid rgba(236, 220, 184, 0.15); text-align: center; }
+
+#hc-sub { margin: 2px 0 0; font-size: 13px; color: var(--dim); }
+
+#hc-rows, .records { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 6px 0 10px; font-size: 14px; }
+
+#hc-rows dt, .records dt { color: var(--dim); white-space: nowrap; }
+
+#hc-rows dd, .records dd { margin: 0; color: var(--cream); }
+
+.gold { color: var(--gold); font-weight: 500; }
+
+.dim { color: var(--dim); }
+
+#hc-next { margin: 8px 0 0; font-size: 13.5px; }
+
+.hc-purse { margin: 0 0 8px; font-size: 16px; color: var(--cream); }
+
+.hc-purse b { font-weight: 600; }
+
+.ribbons { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; margin: 6px 0 10px; }
+
+.ribbon { display: grid; gap: 1px; padding: 6px 18px 6px 12px; border-radius: 6px 0 0 6px; color: var(--plum); background: linear-gradient(#f2d389, #c99a3e);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 50%, 100% 100%, 0 100%); }
+
+.ribbon b { font: 700 14px/1.15 var(--display); }
+
+.ribbon small { font-size: 12px; line-height: 1.25; }
+
+.ribbon.order b { font: 600 13.5px/1.2 var(--body); }
+
+.ribbon .have { font: inherit; font-weight: 600; color: var(--cream); }
+
+.gem { white-space: nowrap; }
+
+.ribbon.dim { color: var(--dim); background: rgba(236, 220, 184, 0.09); }
+
+.ribbon.dim b { color: var(--cream); }
+
+.rankbar { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; align-items: center; margin: 4px 0; }
+
+.rankbar b { font: 700 16px var(--display); color: var(--gold); white-space: nowrap; }
+
+.rankbar .bar { position: relative; height: 7px; border-radius: 4px; background: rgba(236, 220, 184, 0.14); overflow: hidden; }
+
+.rankbar .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: linear-gradient(90deg, #c99a3e, #f2d389); }
+
+.rankbar small { grid-column: 1 / -1; font-size: 12.5px; color: var(--dim); }
+
+#log h3 { margin: 10px 0 4px; font: 600 15px/1.2 var(--display); color: var(--cream); }
+
+#log h3 small { font: 400 12px var(--body); color: var(--dim); }
+
+#log-rank { text-align: left; }
+
+.log-tabs { display: flex; gap: 4px; margin: 8px 0 2px; }
+
+.log-tabs button { flex: 1; min-height: 38px; padding: 6px 8px; background: rgba(236, 220, 184, 0.06); border: 1px solid rgba(236, 220, 184, 0.35); border-radius: 7px; font-size: 14px; font-weight: 500; color: var(--dim); }
+
+.log-tabs button[aria-selected='true'] { background: var(--plum); border-color: var(--gold); color: var(--gold); }
+
+.voyages { margin: 6px 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--cream); }
+
+.voyages li { padding: 5px 0; border-top: 1px solid rgba(236, 220, 184, 0.12); }
+
+.voyages li b { display: block; font-weight: 500; color: var(--gold); }
+
+#log .card-body p { font-size: 13.5px; }
+/* the pause card (and the one when your ship goes down) lies over everything at sea: the strip between waves, the
+     banner and the big map (5 to 7); only Settings and How to fly open over it */
+#paused { z-index: 9; }
+/* between waves: a strip docked at the bottom (sideways, at the top: the bottom is for your thumbs), clear of the
+     wreck and her shards in the middle */
+#calm { position: fixed; left: 50%; bottom: calc(var(--bottom) + 12px); translate: -50% 0; width: min(calc(100% - 2 * var(--gutter)), 600px);
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: center; padding: 10px 14px; text-align: left; z-index: 3; }
+
+#calm h2 { margin: 0; font: 700 19px/1.15 var(--display); color: var(--gold); }
+
+#calm p { margin: 2px 0 0; font-size: 13.5px; color: var(--cream); }
+
+#calm .choices { flex-wrap: nowrap; }
+
+#calm .big { padding: 10px 16px; font-size: 17px; }
+
+#calm .plain { padding: 8px 12px; font-size: 14px; }
+/* it rises into view (after the slow motion when the wave's last raider went down: .late); until then it can't be
+     pressed. Shown or hidden, the game knows at once */
+#calm:not([hidden]) { animation: calm-in 0.45s ease-out both; }
+
+#calm.late:not([hidden]) { animation-delay: 1.4s; }
+
+@keyframes calm-in { from { opacity: 0; visibility: hidden; translate: -50% 24px; } to { opacity: 1; visibility: visible; translate: -50% 0; } }
+
+#calm-bonus { font-weight: 500; color: var(--gold); }
+/* a second way on (main.js roadFor): a button beside Sail on with its name and what it brings, coloured by the road
+     (slate for the storm, wine and gold for a treasure ship's trail, crimson for a hunt); the card puts its buttons in
+     a row under its words then */
+#calm.roads { grid-template-columns: 1fr; }
+
+#calm.roads .choices { justify-content: flex-start; flex-wrap: wrap; }
+
+.road { display: grid; grid-template-columns: auto auto; align-items: center; justify-content: start; gap: 0 6px; min-height: 44px; padding: 6px 12px; text-align: left; border-radius: 10px;
+    color: var(--ink); background: linear-gradient(#4b5a78, #2c3650); border: 2px solid #c9d6ef; box-shadow: 0 0 0 3px var(--plum), 0 8px 24px rgba(0, 0, 0, 0.5); }
+
+.road[data-road='treasure'] { background: linear-gradient(#7a2440, #4a1228); border-color: #f2d389; }
+
+.road[data-road='hunt'] { background: linear-gradient(#8a2a1c, #4e130c); border-color: #ffd36a; }
+
+.road b { font: 600 16px/1.15 var(--body); }
+
+.road small { grid-column: 1; max-width: 250px; font-size: 12.5px; line-height: 1.2; color: var(--cream); }
+
+.road kbd { grid-row: 1 / span 2; grid-column: 2; }
+
+#btn-pause { position: fixed; top: var(--top); right: calc(var(--gutter) + var(--map-w) + 10px); width: 44px; height: 44px; padding: 0; display: grid; place-items: center; }
+
+#btn-pause svg { width: 16px; height: 16px; }
+/* ---------- your ship's panel ---------- */
+#ship { position: fixed; top: var(--top); left: var(--gutter); padding: 7px 12px 8px; pointer-events: none; }
+
+#ship h1 { margin: 0; font: 700 21px/1.1 var(--display); color: var(--gold); white-space: nowrap; }
+
+#ship .cls { font-size: 11.5px; color: var(--dim); }
+
+#readout { display: grid; grid-template-columns: auto auto; gap: 0 10px; margin: 4px 0 0; font-size: 13px; }
+
+#readout div { display: contents; }
+
 #readout dt { color: var(--dim); }
+
 #readout dd { margin: 0; color: var(--cream); text-align: right; }
-.meter { display: block; width: 100%; height: 5px; margin-top: 2px; border-radius: 3px; background: rgba(236, 220, 184, 0.15); overflow: hidden; }
-.meter i { display: block; height: 100%; width: 50%; background: var(--gold); }
+
+.meter { position: relative; display: block; width: 100%; height: 5px; margin-top: 3px; border-radius: 3px; background: rgba(236, 220, 184, 0.15); overflow: hidden; }
+
+.meter i { position: relative; display: block; height: 100%; width: 50%; background: var(--gold); }
+/* the chip: what was just knocked off shows pale for a moment, then drains away after the bar */
+.meter b { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: rgba(255, 255, 255, 0.7); transition: width 0.45s 0.25s; }
 /* what's left of the ship: hull, sails, crystals */
-#health { display: grid; grid-template-columns: auto 1fr auto; gap: 1px 8px; align-items: center; margin: 6px 0 0; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+#health { display: grid; grid-template-columns: auto 1fr auto; gap: 1px 8px; align-items: center; margin: 6px 0 0; font-size: 12.5px; }
+
 #health .row { display: contents; }
+
 #health dt { color: var(--dim); }
+
 #health dd { margin: 0; min-width: 4ch; text-align: right; color: var(--cream); }
+
 #health .meter { margin: 0; width: 70px; }
+
 #health .low dt, #health .low dd { color: var(--warn); }
+
 .meter.hull i { background: var(--gold); }
+
 .meter.sails i { background: var(--cream); }
+
 .meter.crystals i { background: #ff9f45; }
+
 .meter.surge i { background: #9fe7ff; }
+
 #row-surge.ready dt { color: #9fe7ff; }
-#wind { margin-left: 10px; font: 15px var(--body); color: var(--dim); white-space: nowrap; }
-#wind i { display: inline-block; font-style: normal; color: #9fe7ff; margin-right: 3px; }
-#wind b { font-weight: 400; color: var(--cream); }
+/* the crew patching her (main.js): the row for what they patch glows green; on a laptop, the Patch row fills as they
+     get ready again (X) */
+.meter.patch i { background: #b8e6a0; }
 
-#minimap { position: fixed; top: var(--top); right: var(--gutter); width: clamp(150px, 20vw, 260px); aspect-ratio: 3 / 2; border: 2px solid var(--cream);
-  border-radius: 6px; box-shadow: 0 0 0 2px var(--plum), 0 8px 24px rgba(0, 0, 0, 0.5); background: #0a3b80; cursor: pointer; }
-#minimap.big { width: min(92vw, 900px); left: 50%; right: auto; translate: -50% 0; top: calc(var(--top) + 54px); z-index: 5; }
+#row-patch.ready dt { color: #b8e6a0; }
 
-#compass { position: fixed; top: var(--top); left: 50%; translate: -50% 0; padding: 5px 12px; font: 400 17px/1.1 var(--body); color: var(--cream); pointer-events: none; }
-#region { position: fixed; left: 50%; top: 22%; translate: -50% 0; margin: 0; pointer-events: none; white-space: nowrap; opacity: 0;
-  font: 400 clamp(28px, 5vw, 52px)/1 var(--display); color: var(--cream); text-shadow: 0 2px 0 #000, 0 0 24px rgba(0, 0, 0, 0.9); }
-#region::before, #region::after { content: '—'; margin: 0 0.4em; color: var(--gold); }
+#health .patching dt, #health .patching dd { color: #b8e6a0; }
+
+#health .patching .meter { box-shadow: 0 0 0 1px #b8e6a0, 0 0 8px rgba(184, 230, 160, 0.85); }
+/* ---------- the compass and the wind, the map, the score ---------- */
+#compass { position: fixed; top: var(--top); left: 50%; translate: -50% 0; display: flex; align-items: baseline; gap: 10px; padding: 4px 12px; white-space: nowrap;
+    font-size: 16px; font-weight: 500; color: var(--cream); pointer-events: none; }
+
+#wind { font-size: 13.5px; font-weight: 400; color: var(--dim); }
+
+#wind i { display: inline-block; font-style: normal; color: #9fe7ff; margin-right: 4px; }
+
+#wind b { font-weight: 500; color: var(--cream); }
+
+#minimap { position: fixed; top: var(--top); right: var(--gutter); width: var(--map-w); aspect-ratio: 3 / 2; border: 2px solid var(--cream);
+    border-radius: 6px; box-shadow: 0 0 0 2px var(--plum), 0 8px 24px rgba(0, 0, 0, 0.5); background: #0a3b80; cursor: pointer; }
+/* the big map: as big as fits, in the middle, over a dimmed sky; tap the sky round it, the cross or M to close */
+#minimap.big { width: min(92vw, 900px, calc((100vh - 2 * var(--top) - 24px) * 1.5)); left: 50%; top: 50%; right: auto; translate: -50% -50%; z-index: 6; cursor: zoom-out; }
+
+#map-dim { position: fixed; inset: 0; z-index: 5; background: rgba(6, 4, 12, 0.6); }
+
+#map-close { position: fixed; z-index: 7; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; font-size: 22px; line-height: 1; }
+
+#score { position: fixed; right: var(--gutter); top: calc(var(--top) + var(--map-w) / 1.5 + 10px); padding: 4px 10px; font-size: 13px; pointer-events: none; white-space: nowrap;
+    transform-origin: 100% 50%; }
+/* (shards gathered: it pops gold, and the count counts up: main.js) */
+#score b { color: var(--gold); font-weight: 500; }
+
+#score > span + span::before { content: ' · '; color: var(--dim); }
+
+#score .shards b { color: var(--gold); }
+/* ---------- the words in the sky: the region's name, the banner, the toast, a warning ---------- *//* the region and the banner share the sky under the compass (the game never shows both at once); the toast has its
+     own place under the guns' label, and a warning under the crosshair (as on a phone), clear of them on any window */
+#region { position: fixed; left: 50%; top: 21%; translate: -50% 0; margin: 0; pointer-events: none; white-space: nowrap; opacity: 0;
+    font: 700 clamp(24px, 3vw, 40px)/1.1 var(--display); color: var(--cream); text-shadow: 0 2px 0 #000, 0 0 24px rgba(0, 0, 0, 0.9); }
+
+#region { text-align: center; }
+
+#region-name::before, #region-name::after { content: '—'; margin: 0 0.4em; color: var(--gold); }
+/* (under the name, the region's air in a line: "Hot, dusty air") */
+#region-air { display: block; margin: 3px 0 0; font: 500 max(13.5px, 0.42em)/1.3 var(--body); letter-spacing: 0.01em; }
+
+#region-air:empty { display: none; }
+
 #region.on { animation: region 3.4s ease-in-out forwards; }
+
 @keyframes region { 0% { opacity: 0; } 18%, 72% { opacity: 1; } 100% { opacity: 0; } }
 
-#aim { position: fixed; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; pointer-events: none; }
-#aim svg { width: 100%; height: 100%; overflow: visible; transition: transform 0.15s; }
-#aim.locked svg { transform: rotate(45deg) scale(1.15); }
-#aim.locked circle, #aim.locked path { stroke: #ff7a5a; }
-#aim.far { opacity: 0.4; }
-#battery { position: fixed; left: 50%; top: calc(50% + 32px); translate: -50% 0; text-align: center; font-size: 15px; pointer-events: none; white-space: nowrap; padding: 3px 10px; border-radius: 8px; background: var(--panel); border: 1px solid rgba(236, 220, 184, 0.3); }
-#battery b { color: var(--gold); font-weight: 400; }
-#warn { position: fixed; left: 50%; top: 32%; translate: -50% 0; margin: 0; padding: 6px 14px; color: var(--warn); font-size: 15px; pointer-events: none; }
-#score { position: fixed; right: var(--gutter); top: calc(var(--top) + clamp(100px, 13.3vw, 174px) + 10px); padding: 4px 10px; font-size: 15px; pointer-events: none; }
-#score b { color: var(--gold); font-weight: 400; }
-.narrow { display: none; }
+#banner { position: fixed; left: 50%; top: 21%; translate: -50% 0; width: max-content; max-width: min(760px, calc(100% - 2 * (var(--gutter) + 236px))); padding: 8px 22px 10px; text-align: center; pointer-events: none; opacity: 0;
+    background: radial-gradient(closest-side, rgba(10, 6, 18, 0.55), rgba(10, 6, 18, 0.35) 70%, rgba(10, 6, 18, 0)); border-radius: 40px; z-index: 2; }
 
-/* the raiders: a tag over each one, or at the edge of the screen pointing to it */
-#tags { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
-#objective, #sky-boss, #ship, #compass, #score, #minimap { z-index: 2; }
-.tag { position: absolute; left: 0; top: 0; display: grid; grid-template-columns: auto auto; gap: 2px 6px; padding: 3px 6px 4px; font-size: 13px; white-space: nowrap;
-  background: rgba(48, 10, 14, 0.72); border: 1px solid rgba(255, 110, 90, 0.75); border-radius: 5px; color: var(--ink); will-change: transform; }
-.tag b { font-weight: 400; color: #ffb4a0; }
-.tag .d { color: var(--dim); text-align: right; }
-.tag .meter { grid-column: 1 / -1; width: 66px; height: 3px; margin: 0; }
-.tag .arrow { display: none; position: absolute; left: 50%; top: -15px; margin-left: -6px; width: 12px; text-align: center; color: #ff6a50; font-size: 12px; }
-.tag.edge .arrow { display: block; }
-.tag.edge { opacity: 0.85; }
-.tag.locked { border-color: #ffd36a; box-shadow: 0 0 10px rgba(255, 200, 90, 0.6); }
-.tag.captain { background: rgba(26, 18, 8, 0.82); border-color: #ffd36a; }
-.tag.captain b { color: #ffd36a; }
-.tag.site { background: rgba(40, 26, 8, 0.85); border-color: #ffb347; }
-.tag.site b { color: #ffcf85; }
-#banner { position: fixed; left: 50%; top: 33%; translate: -50% 0; width: max-content; max-width: 92vw; text-align: center; pointer-events: none; opacity: 0;
-  padding: 16px 30px; background: radial-gradient(ellipse closest-side, rgba(24, 12, 30, 0.78), rgba(24, 12, 30, 0.5) 60%, rgba(24, 12, 30, 0)); }   /* a backing: the words sit over the sky */
 #banner.on { animation: region 4.4s ease-in-out forwards; }
-#banner-title { margin: 0; font: 400 clamp(30px, 6vw, 56px)/1 var(--display); color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 24px rgba(0, 0, 0, 0.9); }
-#banner-line { margin: 6px 0 0; font-size: clamp(15px, 2.4vw, 18px); color: var(--cream); text-shadow: 0 1px 0 #000, 0 0 12px rgba(0, 0, 0, 0.9); }
-#toast { position: fixed; left: 50%; top: calc(var(--top) + 118px); translate: -50% 0; margin: 0; padding: 4px 12px; font-size: 14px; color: #ffb4a0; pointer-events: none; opacity: 0; white-space: nowrap; }
+
+#banner-title { margin: 0; font: 700 clamp(28px, 4.2vw, 46px)/1.12 var(--display); color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 24px rgba(0, 0, 0, 0.9); }
+
+#banner-line { display: inline-block; margin: 6px 0 0; padding: 2px 10px; border-radius: 7px; background: var(--pill); font-size: clamp(14px, 1.6vw, 17px); color: var(--cream);
+    text-shadow: 0 1px 0 #000, 0 0 12px rgba(0, 0, 0, 0.9); }
+
+#toast { position: fixed; left: 50%; top: calc(var(--top) + 84px); translate: -50% 0; width: max-content; max-width: min(560px, calc(100% - 2 * (var(--gutter) + 236px))); margin: 0; padding: 4px 12px;
+    font-size: 15px; color: #ffcbbd; text-align: center; pointer-events: none; opacity: 0; }
+
 #toast.on { animation: region 3s ease-in-out forwards; }
-#hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(170, 20, 10, 0) 50%, rgba(170, 20, 10, 0.6) 100%); }
 
-#keys { position: fixed; left: var(--gutter); right: var(--gutter); bottom: var(--bottom); display: flex; gap: 8px; align-items: flex-end; justify-content: space-between; pointer-events: none; }
-#keys > * { pointer-events: auto; }
-#help { padding: 8px 12px; font-size: 14px; max-width: 380px; }
-#help h2 { margin: 0 0 4px; font: 400 15px/1.2 var(--body); color: var(--gold); letter-spacing: 0.06em; text-transform: uppercase; }
+#warn { position: fixed; left: 50%; top: calc(50% + 40px); translate: -50% 0; width: max-content; max-width: min(560px, calc(100% - 2 * (var(--gutter) + 236px))); margin: 0; padding: 4px 12px;
+    color: var(--warn); font-size: 14.5px; text-align: center; pointer-events: none; }
+
+#warn.note { color: #dcecff; }
+/* (not a warning: hidden in the cloud) *//* ---------- the crosshair, and hits ---------- */
+#aim { position: fixed; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; pointer-events: none; }
+
+#aim svg { width: 100%; height: 100%; overflow: visible; transition: transform 0.15s; }
+
+#aim.locked svg { transform: rotate(45deg) scale(1.15); }
+
+#aim.locked .cross { stroke: #ff7a5a; }
+/* a hit: ticks between the crosshair's arms in the colour of what was hit; a kill: red, and a ring growing out */
+#hitmark, #killring { opacity: 0; }
+/* hits on you: a red arc round the middle pointing where the shot came from */
+#incoming { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+
+#incoming i { position: absolute; left: 50%; top: 50%; width: 68vmin; height: 68vmin; margin: -34vmin 0 0 -34vmin; border-radius: 50%; border-top: 5px solid rgba(255, 70, 50, 0.9);
+    -webkit-mask: conic-gradient(from -35deg, #000 70deg, transparent 0); mask: conic-gradient(from -35deg, #000 70deg, transparent 0); opacity: 0; filter: drop-shadow(0 0 6px rgba(255, 40, 20, 0.8)); }
+
+#aim.far { opacity: 0.4; }
+/* the guns that will fire (where you look), and their reload */
+#battery { position: fixed; left: 50%; top: calc(var(--top) + 44px); translate: -50% 0; text-align: center; font-size: 13.5px; pointer-events: none; white-space: nowrap; }
+
+#battery b { color: var(--gold); font-weight: 500; }
+
+#battery .meter { width: 110px; margin: 3px auto 0; }
+
+body.touch #sky #battery-shot { display: none; }
+/* (on a phone the shot button says what's loaded) *//* your broadside raking a raider (down her length): "Raked!" just right of the crosshair for a moment (main.js), clear
+     of the tag over the raider you're aiming at; big, on a dark backing and outlined, so it reads over bright cloud */
+#raked { position: fixed; left: calc(50% + 30px); top: calc(50% - 16px); margin: 0; padding: 4px 9px 5px; border-radius: 8px; background: var(--pill); font: 700 23px/1 var(--display); letter-spacing: 0.04em;
+    color: #ffd36a; opacity: 0; pointer-events: none; white-space: nowrap; transform-origin: 0 50%; -webkit-text-stroke: 3px #1a0c08; paint-order: stroke fill;
+    text-shadow: 0 2px 0 #000, 0 0 14px rgba(255, 140, 40, 0.85); }
+
+body.between #sky #battery { display: none; }
+/* (between waves there's nothing to fire at) *//* a raider's bounty, rising in gold out of her wreck (placed and faded by main.js) */
+#bounties { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+
+.bounty { position: absolute; left: 0; top: 0; margin: 0; white-space: nowrap; opacity: 0; will-change: transform, opacity;
+    font: 600 26px/1 var(--body); color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 12px rgba(0, 0, 0, 0.9), 0 0 24px rgba(255, 180, 70, 0.55); }
+
+.bounty small { display: block; margin-bottom: 3px; font: 600 12px/1 var(--display); letter-spacing: 0.04em; color: var(--cream); text-align: center; }
+
+.bounty small:empty { display: none; }
+
+.bounty b { font-weight: 600; }
+
+.bounty i { font: normal 0.62em/1 var(--body); vertical-align: 0.12em; }
+
+.bounty.rich { font-size: 32px; }
+
+.narrow { display: none; }
+/* the raiders: a tag over each one, or at the edge of the screen pointing to it (kept clear of the panels: main.js) */
+#tags { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+
+.tag { position: absolute; left: 0; top: 0; display: grid; grid-template-columns: auto auto; gap: 2px 6px; padding: 3px 6px 4px; font-size: 12px; white-space: nowrap;
+    background: rgba(48, 10, 14, 0.72); border: 1px solid rgba(255, 110, 90, 0.75); border-radius: 5px; color: var(--ink); will-change: transform; }
+
+.tag b { font-weight: 500; color: #ffb4a0; }
+
+.tag .d { color: var(--dim); text-align: right; }
+
+.tag .meter { grid-column: 1 / -1; width: 66px; height: 3px; margin: 0; }
+/* (the arrow is drawn, not a letter, so it looks the same in every font; it takes its colour from `color`. It's a slim
+     dart, nearly twice as long as it's wide with a notch in its tail, so whichever way main.js turns it, it plainly points
+     one way (a squat triangle turned a third of the way round looks just as it did), with a firm dark edge (two soft
+     dark lines, one over the other), so it shows on bright sky and on Aethermoor's own orange and red-brown ground alike. It turns round
+     its own middle, 12 px over the tag: main.js keeps room for it there whichever way it points) */
+.tag .arrow { display: none; position: absolute; left: 50%; top: -21px; margin-left: -5px; width: 10px; height: 18px; color: #ff6a50;
+    filter: drop-shadow(0 0 1px rgba(24, 4, 2, 0.95)) drop-shadow(0 0 1px rgba(24, 4, 2, 0.95)); }
+
+.tag .arrow::before { content: ''; position: absolute; inset: 0; background: currentColor; clip-path: polygon(50% 0, 100% 100%, 50% 70%, 0 100%); }
+
+.tag.edge .arrow { display: block; }
+
+.tag.edge { opacity: 0.85; }
+
+.tag.locked { border-color: #ffd36a; box-shadow: 0 0 10px rgba(255, 200, 90, 0.6); }
+
+.tag.captain { background: rgba(26, 18, 8, 0.82); border-color: #ffd36a; }
+
+.tag.captain b { color: #ffd36a; }
+/* a raider just burst up through the clouds: her tag and its arrow pulse pale sky-blue a few times (a pale ring between
+     two dark lines, so it reads on the white cloud she came out of and on the sky alike; not gold, which means locked on,
+     or a raider captain), so the eye goes to her, at the edge of a phone's narrow view too (main.js BURST_GLOW; a
+     "Broadside!" flashes over it). For players whose device asks for less motion it stays lit, without the pulse */
+.tag.burst { opacity: 1; border-color: #e6f6ff; animation: tag-burst 0.45s ease-in-out 6 alternate; }
+
+.tag.burst .arrow { color: #bfe8ff; animation: arrow-burst 0.45s ease-in-out 6 alternate; }
+
+@keyframes tag-burst { from { box-shadow: 0 0 0 1px rgba(8, 18, 34, 0.9), 0 0 0 4px rgba(168, 222, 255, 0.95), 0 0 0 5px rgba(8, 18, 34, 0.8), 0 0 14px rgba(140, 210, 255, 0.85); }
+    to { box-shadow: 0 0 0 1px rgba(8, 18, 34, 0.6), 0 0 0 2px rgba(168, 222, 255, 0.55), 0 0 0 3px rgba(8, 18, 34, 0.4), 0 0 2px rgba(140, 210, 255, 0.2); } }
+
+@keyframes arrow-burst { from { filter: drop-shadow(0 0 1px rgba(4, 12, 24, 0.95)) drop-shadow(0 0 1px rgba(4, 12, 24, 0.95)) drop-shadow(0 0 5px #8fd6ff); }
+    to { filter: drop-shadow(0 0 1px rgba(4, 12, 24, 0.95)) drop-shadow(0 0 1px rgba(4, 12, 24, 0.95)) drop-shadow(0 0 1px rgba(143, 214, 255, 0)); } }
+/* a raider off screen readying her broadside: her tag and its arrow flash red, and say "Broadside!" in place of her
+     bars (main.js) */
+.tag .bs { display: none; grid-column: 1 / -1; font-size: 12px; font-weight: 600; color: #fff; text-align: center; }
+
+.tag.warn { z-index: 1; opacity: 1; background: rgba(150, 18, 12, 0.92); border-color: #ff4636; animation: tag-warn 0.22s ease-in-out infinite alternate; }
+
+.tag.warn .bs { display: block; }
+
+.tag.warn .meter { display: none; }
+/* (in place of her bars, so the tag is no taller and fits between the panels) */
+.tag.warn b, .tag.warn .d { color: #ffe2d8; }
+/* (its arrow bigger, a pixel higher, the dart itself always solid, crisp inside its edges, with only a red glow round
+     them flashing) */
+.tag.warn .arrow { top: -22px; color: #ff3a28; scale: 1.3; filter: drop-shadow(0 0 1px #2a0402) drop-shadow(0 0 1px #2a0402) drop-shadow(0 0 4px #ff2a10); animation: arrow-warn 0.22s ease-in-out infinite alternate; }
+/* (and a ring beside the word, closing as she's about to fire: --k, 0 to 1, from main.js) */
+.tag .bs .ring { display: inline-block; width: 11px; height: 11px; margin-right: 5px; vertical-align: -1px; border-radius: 50%;
+    background: conic-gradient(#fff calc((1 - var(--k, 0)) * 360deg), rgba(255, 255, 255, 0.2) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent 52%, #000 56%); mask: radial-gradient(farthest-side, transparent 52%, #000 56%); }
+
+@keyframes tag-warn { from { background-color: rgba(190, 24, 14, 0.95); border-color: #ffd0c0; box-shadow: 0 0 16px rgba(255, 50, 30, 0.95); }
+    to { background-color: rgba(80, 8, 10, 0.88); border-color: #ff4636; box-shadow: 0 0 4px rgba(255, 50, 30, 0.4); } }
+
+@keyframes arrow-warn { from { filter: drop-shadow(0 0 1px #2a0402) drop-shadow(0 0 1px #2a0402) drop-shadow(0 0 5px #ff2a10); }
+    to { filter: drop-shadow(0 0 1px #2a0402) drop-shadow(0 0 1px #2a0402) drop-shadow(0 0 1px rgba(255, 42, 16, 0)); } }
+
+#tags.held .tag.warn, #tags.held .tag.warn .arrow, #tags.held .tag.burst, #tags.held .tag.burst .arrow { animation-play-state: paused; }
+/* (the game paused: no flashing behind the menu) *//* a raider hidden in cloud far off: her tag stays where she was last seen, faded and dashed, saying so in place of
+     her bars *//* what she's up to, by her name ("· running", "· help in 12", the Man-o'-war's "· 42 guns", "· below the clouds"), and
+     the Man-o'-war's five crystal columns in place of her crystals' bar, each with what's left of it; one coming out of
+     the sun has no tag till she's out of its glare */
+.tag b .st { font-style: normal; font-weight: 400; color: #ffd8cc; }
+
+.tag.captain b .st { color: #ffe9b0; }
+
+.tag .pips { grid-column: 1 / -1; display: flex; gap: 3px; width: 66px; height: 3px; }
+
+.tag .pips span { flex: 1; position: relative; border-radius: 2px; background: rgba(236, 220, 184, 0.15); overflow: hidden; }
+
+.tag .pips i { display: block; height: 100%; width: 100%; background: #ff9f45; }
+
+.tag.warn .pips { display: none; }
+
+.tag.lost .pips { display: none; }
+
+.tag.unseen { display: none; }
+
+.tag .lost { display: none; grid-column: 1 / -1; font-size: 12px; color: #dcecff; text-align: center; }
+
+.tag.lost { opacity: 0.6; border-style: dashed; }
+
+.tag.lost .lost { display: block; }
+
+.tag.lost .meter { display: none; }
+/* (under a banner while it shows, a wave's say: faded away, so both can be read: main.js) */
+.tag { transition: opacity 0.25s; }
+
+#tags .tag.hush { opacity: 0; }
+
+.tag.lost.warn .lost { display: none; }
+/* the red at the screen's edge when you're hit, leaning to the side the shot came from (--hx, --hy: -1 to 1) */
+#hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0;
+    background: radial-gradient(ellipse at calc(50% + var(--hx, 0) * 25%) calc(50% + var(--hy, 0) * 25%), rgba(170, 20, 10, 0) 50%, rgba(170, 20, 10, 0.6) 100%); }
+/* ---------- the keys (a laptop) ---------- */
+#dock { position: fixed; left: var(--gutter); right: var(--gutter); bottom: var(--bottom); display: flex; gap: 8px; align-items: flex-end; justify-content: space-between; pointer-events: none; }
+
+#dock > * { pointer-events: auto; }
+
+#help { padding: 8px 12px; font-size: 13px; max-width: 370px; }
+
+#help h2 { margin: 0 0 4px; font: 700 15px/1.2 var(--display); color: var(--gold); }
+
 #help dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; margin: 0; }
-#help dt { color: var(--cream); white-space: nowrap; }
-#help dd { margin: 0; color: var(--dim); }
-#help p { margin: 6px 0 0; color: var(--gold); }
-#btn-help { padding: 6px 12px; min-height: 40px; font-size: 15px; }
 
-/* the crew row and who's aboard */
-.meter.crew i { background: #c9a0d8; }
-#crew-line { margin: 4px 0 0; max-width: 240px; font-size: 13px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* a raid's objective, under the map */
-#objective { position: fixed; right: var(--gutter); top: calc(var(--top) + clamp(100px, 13.3vw, 174px) + 44px); width: clamp(180px, 20vw, 260px); padding: 6px 10px 8px; pointer-events: none; display: grid; gap: 2px; }
-#obj-goal { font: 400 16px/1.15 var(--body); color: var(--gold); }
-#obj-sub { font-size: 14px; color: var(--cream); }
+#help dt { color: var(--cream); white-space: nowrap; font-weight: 500; }
+
+#help dd { margin: 0; color: var(--dim); }
+
+#help p { margin: 6px 0 0; color: var(--gold); }
+
+#btn-help { padding: 6px 10px; min-height: 36px; }
+/* a new Captain's tip (coach.js): at the bottom in the middle on a laptop (beside the keys), and just over the card
+     between waves (--calm-top: where the card's top is, main.js layout); on a phone in the hint's place, the hint making
+     way for it */
+#tip { flex: 0 1 460px; max-width: 460px; margin: 0 auto; padding: 7px 12px 8px; border-left: 3px solid var(--gold); border-radius: 8px; background: rgba(14, 8, 22, 0.8); color: var(--ink);
+    font-size: 14.5px; line-height: 1.35; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35); }
+
+#dock > #tip { pointer-events: none; }
+
+body:not(.touch).between #sky #tip { margin-bottom: calc(100vh - var(--bottom) - var(--calm-top, 100vh) + 8px); }
+
+body.touch #sky #tip { position: fixed; left: var(--gutter); bottom: calc(var(--bottom) + 8px); width: max-content; max-width: min(240px, calc(100% - 2 * var(--gutter) - 190px)); margin: 0; padding: 6px 10px 7px; font-size: 13px; }
+
+body.touch.fire-left #sky #tip { left: auto; right: var(--gutter); border-left: 0; border-right: 3px solid var(--gold); }
+
+body.touch.tipping #sky #touch-hint { visibility: hidden; }
+/* ---------- the Settings card, and How to fly ---------- */
+.gear { display: grid; place-items: center; width: 44px; height: 40px; padding: 0; color: var(--cream); }
+
+.gear svg { width: 20px; height: 20px; }
+
+.gear-text { display: inline-flex; align-items: center; gap: 6px; }
+
+.gear-text svg { width: 16px; height: 16px; }
+
+#howto { z-index: 20; background: rgba(6, 4, 12, 0.6); }
+/* (solid, so the pause card under it doesn't show through its rows; Settings' rows scrolling, as coming home's card
+     does, between its heading and its buttons, which always show) */
+#howto .card { max-height: calc(100% - 4px); overflow-y: auto; overscroll-behavior: contain; text-align: left; background: rgb(24, 12, 30);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); }
+
+#howto h2 { text-align: center; }
+
+#howto .choices { margin-top: 6px; }
+
+#howto dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 12px 0; font-size: 14px; }
+
+#howto dt { color: var(--gold); font-weight: 500; white-space: nowrap; }
+
+#howto dl.touch-only { display: none; }
+
+body.touch #sky #howto dl.touch-only { display: grid; }
+
+#howto dd { margin: 0; color: var(--cream); }
+/* ---------- touch controls, shown on phones and tablets ---------- */
+.touch-only { display: none; }
+
+body.touch #sky .touch-only { display: grid; }
+
+body.touch #sky .mouse-only { display: none !important; }
+
+#stick { position: fixed; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(236, 220, 184, 0.55);
+    background: rgba(24, 12, 30, 0.35); pointer-events: none; display: grid; place-items: center; }
+
+#stick i { width: 44px; height: 44px; border-radius: 50%; background: rgba(226, 189, 103, 0.75); box-shadow: 0 0 12px rgba(0, 0, 0, 0.5); }
+
+#touch-buttons { position: fixed; right: var(--gutter); bottom: calc(var(--bottom) + 8px); gap: 10px; justify-items: end; }
+
+#btn-fire { width: 86px; height: 86px; border-radius: 50%; border: 2px solid var(--cream); background: radial-gradient(circle at 50% 40%, #a33a2a, #5a1a20);
+    font: 600 20px/1 var(--body); letter-spacing: 0.02em; color: var(--cream); box-shadow: 0 0 0 3px var(--plum), 0 6px 20px rgba(0, 0, 0, 0.5); touch-action: none; }
+
+#btn-fire.on { background: radial-gradient(circle at 50% 40%, #e2bd67, #a35a2a); color: var(--plum); }
+
+.fire-row { display: flex; gap: 12px; align-items: end; }
+
+#btn-surge { width: 58px; height: 58px; border-radius: 50%; border: 2px solid #9fe7ff; background: radial-gradient(circle at 50% 40%, #2a5a78, #12233a); color: #dff6ff; font-size: 13px; font-weight: 500; touch-action: none; }
+
+#btn-surge:disabled { opacity: 0.45; }
+/* the shot button, over Surge once she has more than round shot (main.js), showing the shot loaded in its colour; and
+     the Patch button, by the sail buttons once she's hurt, its ring filling as the crew get ready again, glowing while
+     they patch */
+.fire-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+#btn-shot { position: relative; width: 50px; height: 50px; padding: 0; border-radius: 50%; border: 2px solid var(--shot, var(--gold)); background: radial-gradient(circle at 50% 40%, #4a3446, #1a0f1e);
+    color: var(--shot, var(--gold)); display: grid; place-items: center; align-content: center; gap: 1px; touch-action: none; box-shadow: 0 0 10px rgba(0, 0, 0, 0.45); }
+
+#btn-shot svg { width: 19px; height: 19px; }
+
+#btn-shot small { font-size: 10px; font-weight: 500; line-height: 1; color: var(--ink); white-space: nowrap; }
+/* (with crystal breakers loaded, how many volleys are left: a little badge on its shoulder, towards the middle of the
+     screen, clear of the guns' label over it) */
+#btn-shot .left { position: absolute; top: -5px; left: -5px; min-width: 17px; height: 17px; padding: 0 4px; box-sizing: border-box; border-radius: 9px;
+    background: var(--shot); color: #10202a; font: 600 11px/17px var(--body); font-variant-numeric: tabular-nums lining-nums; box-shadow: 0 0 0 1.5px #1a0f1e; }
+
+body.fire-left #sky #btn-shot .left { left: auto; right: -5px; }
+
+.sail { align-items: center; }
+
+#btn-patch { position: relative; width: 46px; height: 46px; padding: 0; border-radius: 50%; border: 2px solid #b8e6a0; background: radial-gradient(circle at 50% 40%, #3e5e34, #18281a);
+    color: #e8ffe0; font-size: 12px; font-weight: 500; touch-action: none; }
+
+#btn-patch.busy { border-color: rgba(184, 230, 160, 0.3); color: rgba(232, 255, 224, 0.6); }
+
+#btn-patch.busy::after { content: ''; position: absolute; inset: -2px; border-radius: 50%; background: conic-gradient(#b8e6a0 calc(var(--k, 0) * 360deg), transparent 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); }
+
+#btn-patch.on { animation: patching 0.8s ease-in-out infinite alternate; }
+
+@keyframes patching { from { box-shadow: 0 0 4px rgba(184, 230, 160, 0.4); } to { box-shadow: 0 0 16px rgba(184, 230, 160, 0.95); } }
+
+body.fire-left #sky #btn-patch { order: 3; }
+/* (between waves there's nothing to fire at, and the crew patch her for nothing: the shot and Patch buttons wait for
+     the next wave, so the card between waves has its room) */
+body.between #sky #btn-shot, body.between #sky #btn-patch { display: none; }
+
+.sail { display: flex; gap: 8px; }
+
+.sail button { width: 56px; height: 46px; border-radius: 8px; border: 1px solid rgba(236, 220, 184, 0.6); background: var(--panel); font-size: 14px; font-weight: 500; touch-action: none; }
+
+.sail button.on { border-color: var(--gold); color: var(--gold); }
+
+#touch-hint { position: fixed; left: var(--gutter); bottom: calc(var(--bottom) + 8px); width: max-content; max-width: min(240px, calc(100% - 2 * var(--gutter) - 190px)); margin: 0; padding: 6px 10px;
+    font-size: 13px; color: var(--ink); background: var(--pill); border-radius: 8px; pointer-events: none; transition: opacity 0.6s; }
+
+#touch-hint.gone { opacity: 0; }
+/* Fire on the left (Settings, for phones): the buttons, the stick and the hint swap sides */
+body.fire-left #sky #touch-buttons { right: auto; left: var(--gutter); justify-items: start; }
+
+body.fire-left #sky .fire-row { flex-direction: row-reverse; }
+
+body.fire-left #sky #touch-hint { left: auto; right: var(--gutter); }
+/* your ship going down: the controls dim */
+body.sinking #sky .touch-only { opacity: 0.3; pointer-events: none; }
+/* ---------- a phone held upright ----------
+     Top: your ship's panel (left), the compass with the pause button under it (middle), the map and score (right).
+     Under them, in turn: the region's name or the banner, the toast, the crosshair, a warning, then the card between
+     waves, the guns' label and the touch buttons (right) and the hint (left). */
+@media (max-width: 700px) {
+:root { --map-w: 108px; --ships-h: 98px; }
+/* (--ships-h: the ships' two rows along the bottom, and a little room over them) */
+#port-note { max-width: calc(100% - 2 * var(--gutter)); }
+/* (the panel is along the bottom here) */
+#title { align-content: end; background: linear-gradient(0deg, rgba(8, 6, 16, 0.92), rgba(8, 6, 16, 0.6) 62%, rgba(8, 6, 16, 0)); }
+
+#title h1 { font-size: clamp(34px, 10.5vw, 46px); }
+
+#skies button { padding: 8px 12px; }
+
+#skies button b { font-size: 17px; }
+
+.title-go { margin-top: 14px; }
+
+.title-go .big { flex: 1 1 auto; padding: 11px 16px; font-size: 18px; }
+
+.port-top h1 { font-size: 26px; }
+
+.port-top { gap: 8px; }
+
+#btn-skies { font-size: 13px; padding: 6px 10px; }
+/* (the panel as tall as what's in it, from just above the ships along the bottom, so her ship has the room above
+       it, as big as it fits (port.js): up to the bottom half of the screen for her ship's tab, more for her upgrades
+       and for a ship you don't own (how she sails, above the Buy button), where the ship shows smaller above) */
+#port-panel { top: auto; left: var(--gutter); right: var(--gutter); width: auto; bottom: calc(var(--bottom) + var(--ships-h)); max-height: calc(56vh - var(--bottom) - var(--ships-h)); padding-top: 8px; }
+
+#port-panel[data-tab='upgrades'] { max-height: calc(74vh - var(--bottom) - var(--ships-h)); }
+
+#port-panel.buying { max-height: calc(70vh - var(--bottom) - var(--ships-h)); }
+/* (your own ship's tab: no heading over how she sails, as the tab says it, so all of it shows above Set sail) */
+#port-panel:not(.buying) #pp-ship-part h3 { display: none; }
+
+#btn-skies span { display: none; }
+/* (just the skies' name: the top line never wraps) */
+.mod { padding: 7px 0; }
+
+#port-ships { left: 50%; translate: -50% 0; grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); width: min(calc(100% - 2 * var(--gutter)), 400px); max-width: none; }
+
+#port-ships button b { font-size: 14px; }
+
+#port-ships button { padding: 5px 4px 4px; gap: 3px; }
+
+#port-ships button small { display: none; }
+/* (her class is in the panel: two rows of names stay low, so the panel keeps its room) */
+#ship { padding: 4px 8px 5px; }
+
+#ship .cls { display: none; }
+
+#ship h1 { font-size: 15px; }
+/* (speed and height on one line, then the sail) */
+#readout { display: flex; flex-wrap: wrap; gap: 0 5px; max-width: 100px; margin-top: 1px; font-size: 11.5px; }
+
+#readout div { display: flex; gap: 4px; }
+
+#readout .rd-speed dt, #readout .rd-height dt { display: none; }
+
+#readout .rd-height::before { content: '·'; color: var(--dim); }
+
+#readout .rd-sail { flex-basis: 100%; }
+
+#health { font-size: 11px; gap: 0 6px; grid-template-columns: auto 1fr; margin-top: 3px; }
+
+#health .meter { width: 42px; }
+
+#health dd { display: none; }
+
+#compass { flex-direction: column; align-items: center; gap: 0; padding: 3px 8px 4px; font-size: 13.5px; }
+
+#compass, #compass #wind { line-height: 1.3; }
+
+#wind { font-size: 11.5px; }
+
+.wide { display: none; }
+
+.narrow { display: inline; }
+
+#btn-pause { top: calc(var(--top) + 48px); right: auto; left: 50%; translate: -50% 0; }
+/* (the score in two lines under the map: the wave and the shards, then the raiders downed) */
+#score { display: grid; grid-template-columns: auto auto; gap: 0 8px; justify-items: end; font-size: 12.5px; padding: 3px 8px; top: calc(var(--top) + var(--map-w) / 1.5 + 8px); }
+
+#score > span + span::before { content: none; }
+
+#score .sc-wave { order: -1; }
+
+#score .sc-down { grid-column: 1 / -1; order: 1; }
+
+#region { top: calc(var(--top) + 146px); font-size: 20px; }
+
+#banner { top: calc(var(--top) + 146px); max-width: calc(100% - 2 * var(--gutter)); padding: 6px 12px 8px; border-radius: 24px; }
+
+#banner-title { font-size: 21px; }
+
+#banner-line { font-size: 13.5px; margin-top: 4px; }
+
+#toast { top: calc(var(--top) + 240px); max-width: calc(100% - 2 * var(--gutter)); font-size: 13.5px; }
+
+#warn { top: calc(50% + 30px); max-width: calc(100% - 2 * var(--gutter)); font-size: 13.5px; }
+
+body.between #sky #warn { display: none; }
+/* (its place is the card's, between waves: no raiders then, and the crew patch her up) */
+body.between #sky #aim { display: none; }
+/* (nor anything to fire at: the card may reach up past it, with a long line) */
+.bounty { font-size: 20px; }
+
+.bounty.rich { font-size: 24px; }
+
+#dock { justify-content: center; }
+
+body.touch #sky #battery { top: auto; bottom: calc(var(--bottom) + 158px); right: var(--gutter); left: auto; translate: none; text-align: right; }
+
+body.touch.has-shot #sky #battery { bottom: calc(var(--bottom) + 188px); }
+/* (over the shot button, over Surge) */
+body.touch.fire-left #sky #battery { right: auto; left: var(--gutter); text-align: left; }
+
+#touch-hint { max-width: calc(100% - 2 * var(--gutter) - 186px); }
+
+body.touch #sky #calm { bottom: calc(var(--bottom) + 156px); }
+
+#calm { grid-template-columns: 1fr; padding: 8px 12px; gap: 6px; }
+
+#calm h2 { font-size: 17px; }
+
+#calm p { font-size: 13px; }
+
+#calm .choices { justify-content: stretch; }
+
+#calm .choices button { flex: 1; }
+
+#calm .big { font-size: 16px; padding: 9px 10px; }
+
+.card h2 { font-size: 22px; }
+
+#btn-log span { display: none; }
+/* (just the book: the top line stays on one line) */
+#pp-next .more { font-size: 11.5px; }
+
+.ribbons { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+
+#hc-rows, .records { font-size: 13.5px; gap: 3px 10px; }
+
+  }
+/* a phone held upright: no room for the port's name beside the Log button; the quartermaster's line in short words,
+     opened by her rank, and only over her ship's own tab or her colours (her upgrades, or a ship to buy, need the room for her panel); the tip
+     in the hint's place beside the buttons */
+@media (max-width: 700px) and (min-height: 501px) {
+.port-top h1 { display: none; }
+
+#pp-next { max-width: calc(100% - 2 * var(--gutter)); font-size: 13px; padding: 4px 10px; }
+
+#pp-next .long { display: none; }
+
+#pp-next .short { display: inline; }
+
+#pp-next .rank { display: inline; }
+/* (her rank, which the Log button has no room for here, opens the line instead) */
+#port.buying #pp-next, #port[data-tab='upgrades'] #pp-next { display: none; }
+
+body.touch #sky #tip { max-width: calc(100% - 2 * var(--gutter) - 186px); }
+
+  }
+/* ---------- a phone held sideways, or any short window ----------
+     Top: your ship's panel (left), the compass (middle), the pause button and the map (right). Under the compass: the
+     region's name or the banner, and between waves the card (the bottom is for your thumbs here); the crosshair; the
+     toast and a warning under it; the hint (bottom left) and the touch buttons (bottom right). */
+@media (max-height: 500px) {
+:root { --map-w: 108px; }
+
+#title { align-content: start; padding: 12px var(--gutter) 12px clamp(18px, 5vw, 48px); }
+
+.title-card { max-width: min(56vw, 480px); }
+
+#title h1 { font-size: clamp(24px, 4.6vw, 38px); }
+/* (on one line, on a small phone too) */
+#title .lede { margin: 6px 0 8px; font-size: 13px; }
+
+#title h2 { margin: 6px 0 4px; font-size: 14px; }
+
+#skies { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+#skies button { align-content: start; padding: 7px 9px; }
+
+#skies button b { font-size: 15px; }
+
+#skies button span { font-size: 11.5px; line-height: 1.3; }
+
+.title-go { margin-top: 10px; gap: 8px; flex-wrap: nowrap; }
+
+.title-go .big { padding: 9px 18px; font-size: 17px; }
+
+.title-go .plain { min-height: 42px; padding: 8px 16px; font-size: 15px; }
+
+#title-rank { margin: -4px 0 2px; font-size: 13.5px; }
+
+#skies .first { font-size: 10.5px; padding: 0 6px; }
+
+.port-top h1 { font-size: 24px; }
+/* (on the right, as tall as what's in it; the ships along the bottom on the left, even on a narrow one) */
+#port-panel { left: auto; right: var(--gutter); width: min(372px, 50vw); top: calc(var(--top) + 50px); bottom: auto; max-height: calc(100% - var(--top) - 50px - var(--bottom)); padding-top: 4px; }
+
+#port-panel.buying, #port-panel[data-tab='upgrades'] { max-height: calc(100% - var(--top) - 50px - var(--bottom)); }
+
+#port-ships { left: var(--gutter); translate: none; grid-auto-flow: row; grid-template-columns: repeat(3, auto); width: auto; max-width: calc(50vw - var(--gutter) - 16px); }
+
+#port-note { max-width: calc(50vw - var(--gutter) - 24px); }
+
+#port-ships button small { display: none; }
+/* (two rows of names, low under her ship) */
+#pp-name { font-size: 21px; }
+
+#port .cls { font-size: 11.5px; }
+
+#port-ships button { padding: 5px 8px 4px; }
+
+#port-ships button b { font-size: 14px; }
+
+.sail-out { gap: 2px; margin-top: 4px; padding: 5px 0 6px; }
+
+.sail-out .big { padding: 8px 14px; font-size: 17px; }
+
+#pp-need { display: none; }
+/* (the shards are at the top, and the Buy button fills with gold towards her price) */
+#btn-sail.alt { padding: 2px 8px; }
+
+#btn-try { min-height: 32px; padding: 3px 12px; font-size: 13.5px; }
+/* (so the panel shows all of how she sails and her blurb, or two of her upgrades, above the button: her stats
+       before her blurb, without their heading (the tab says it), and the tabs, stats and upgrades a little tighter) */
+#pp-ship-part { display: flex; flex-direction: column; }
+
+#pp-ship-part h3 { display: none; }
+
+#pp-blurb { order: 1; margin: 5px 0 0; font-size: 12.5px; line-height: 1.3; }
+
+#pp-stats { margin-top: 3px; }
+
+.stat { margin: 2px 0; font-size: 12.5px; }
+
+#pp-tabs { margin: 5px 0 0; }
+
+#pp-tabs button { min-height: 30px; padding: 3px 10px; }
+
+#port-panel[data-tab='upgrades'] #pp-cls { display: none; }
+/* (her class and guns are on the ship's tab) */
+.mod { padding: 6px 0; }
+
+.mod small { line-height: 1.25; }
+
+#ship { padding: 5px 9px 6px; }
+
+#ship .cls { display: none; }
+
+#ship h1 { font-size: 15px; }
+
+#readout { display: flex; flex-wrap: wrap; gap: 0 6px; max-width: 128px; margin-top: 1px; font-size: 11.5px; }
+
+#readout div { display: flex; gap: 4px; }
+
+#readout .rd-speed dt, #readout .rd-height dt { display: none; }
+
+#readout .rd-height::before { content: '·'; color: var(--dim); }
+
+#readout .rd-sail { flex-basis: 100%; }
+
+#health { font-size: 11px; gap: 0 6px; grid-template-columns: auto 1fr; margin-top: 3px; }
+
+#health .meter { width: 52px; }
+
+#health dd { display: none; }
+
+#compass { padding: 3px 10px; font-size: 14px; gap: 8px; }
+
+#wind { font-size: 12px; }
+
+.wide { display: none; }
+
+.narrow { display: inline; }
+/* (the score in two lines under the map, as held upright: the wave and the shards, then the raiders downed, so it
+       stays about as narrow as the map and the card between waves, beside it, never runs into it) */
+#score { display: grid; grid-template-columns: auto auto; gap: 0 8px; justify-items: end; font-size: 12px; padding: 3px 8px; top: calc(var(--top) + var(--map-w) / 1.5 + 8px); }
+
+#score > span + span::before { content: none; }
+
+#score .sc-wave { order: -1; }
+
+#score .sc-down { grid-column: 1 / -1; order: 1; }
+
+#region { top: calc(var(--top) + 36px); font-size: 19px; }
+
+#banner { top: calc(var(--top) + 34px); max-width: calc(100% - 2 * (var(--gutter) + 172px)); padding: 4px 14px 6px; border-radius: 22px; }
+
+#banner-title { font-size: 20px; }
+
+#banner-line { font-size: 13px; margin-top: 3px; }
+
+#toast { top: calc(50% + 30px); max-width: calc(100% - 2 * (var(--gutter) + 172px)); font-size: 13.5px; }
+
+#warn { top: calc(50% + 76px); max-width: calc(100% - 2 * (var(--gutter) + 172px)); font-size: 13px; padding: 3px 10px; }
+
+.bounty { font-size: 20px; }
+
+.bounty.rich { font-size: 24px; }
+/* (the guns' label over the touch buttons, lower than on a phone held upright: written as strongly as the upright
+       phone's rules, which a narrow phone held sideways (640 by 360) matches too, so these win there and the label
+       keeps clear of your ship's panel with Fire on the left) */
+body.touch #sky #battery, #battery { top: auto; bottom: calc(var(--bottom) + 150px); right: var(--gutter); left: auto; translate: none; text-align: right; font-size: 12.5px; }
+
+body.touch.fire-left #sky #battery, body.fire-left #sky #battery { right: auto; left: var(--gutter); text-align: left; }
+
+#touch-buttons { bottom: calc(var(--bottom) + 2px); }
+/* (the shot button over Surge, both a little smaller, and the guns' label over them) */
+body.has-shot #sky .fire-col { gap: 6px; }
+
+body.has-shot #sky #btn-shot { width: 42px; height: 42px; }
+
+body.has-shot #sky #btn-shot svg { width: 15px; height: 15px; }
+/* (its picture and name smaller, so the name fits inside its ring) */
+body.has-shot #sky #btn-shot small { font-size: 8.5px; }
+
+body.has-shot #sky #btn-surge { width: 54px; height: 54px; }
+
+body.touch.has-shot #sky #battery, body.has-shot #sky #battery { bottom: calc(var(--bottom) + 166px); }
+
+#touch-hint { max-width: 164px; font-size: 12px; padding: 4px 8px; }
+
+body.touch #sky #calm, #calm { bottom: auto; top: calc(var(--top) + 32px); width: min(calc(100% - 2 * (var(--gutter) + 172px)), 560px); grid-template-columns: 1fr; padding: 6px 10px; gap: 4px; }
+
+#calm .choices { justify-content: flex-start; }
+
+#calm .choices button { flex: none; }
+
+#calm #btn-sail-on[hidden] + #btn-go-port { flex: 1; }
+/* (a sea trial's card: the one way on, across the card) *//* (between waves there's nothing to fire at: the crosshair makes way for the card, which may reach down past it with
+       a long line (a shot just earned, a big wave next, a storm coming), and the toast goes a little lower, in the
+       warning's place, clear of the card's foot; no warning then, as on a phone held upright) */
+body.between #sky #aim, body.between #sky #warn { display: none; }
+
+body.between #sky #toast { top: calc(50% + 62px); }
+
+@keyframes calm-in { from { opacity: 0; visibility: hidden; translate: -50% -16px; } to { opacity: 1; visibility: visible; translate: -50% 0; } }
+
+#calm h2 { font-size: 16px; }
+
+#calm p { font-size: 12.5px; }
+
+#calm .big { font-size: 15px; padding: 8px 12px; }
+
+#calm .plain { min-height: 38px; padding: 6px 10px; font-size: 13px; }
+
+#help { max-height: calc(100vh - 2 * var(--top) - 150px); overflow-y: auto; font-size: 12px; }
+
+.card { padding: 10px 14px; }
+
+.card h2 { font-size: 21px; }
+
+.card p { margin: 6px 0 8px; }
+
+#howto dl { grid-template-columns: auto 1fr auto 1fr; gap: 4px 10px; font-size: 13px; margin: 8px 0; }
+/* (the quartermaster's line in short words, beside the panel; the tip in the hint's place; coming home and the log
+       wide and low, the purse beside the buttons) */
+#pp-next { top: calc(var(--top) + 50px); max-width: calc(50vw - var(--gutter) - 24px); font-size: 12.5px; padding: 3px 10px; }
+
+#pp-next .long { display: none; }
+
+#pp-next .short { display: inline; }
+
+#pp-next .more { margin-top: 1px; font-size: 11.5px; }
+
+body.touch #sky #tip { max-width: 164px; font-size: 12px; padding: 4px 8px; }
+/* (the hint's own size, in its place) */
+#homecoming .card, #log .card { width: min(96vw, 720px); }
+
+.card-head { padding: 6px 14px 2px; }
+
+.card-head h2 { font-size: 19px; }
+
+#hc-sub { font-size: 12px; }
+
+.card-body { padding: 2px 14px 6px; }
+
+.card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 14px 8px; }
+
+.card-foot .choices { flex-wrap: nowrap; }
+
+.card-foot .choices:only-child { margin: 0 auto; }
+
+.hc-purse { margin: 0; font-size: 15px; }
+
+#homecoming .big, #log .big { padding: 8px 16px; font-size: 16px; }
+
+#hc-rows, .records { grid-template-columns: auto 1fr auto 1fr; font-size: 12.5px; gap: 2px 10px; margin: 4px 0 6px; }
+
+.ribbons { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px; margin: 4px 0 6px; }
+
+.ribbon { padding: 4px 16px 4px 10px; }
+
+.ribbon b { font-size: 13px; }
+
+.ribbon small { font-size: 11.5px; }
+
+.log-tabs { margin: 4px 0 0; }
+
+.log-tabs button { min-height: 32px; padding: 3px 8px; font-size: 13px; }
+
+#log-rank .rankbar { margin: 2px 0; }
+
+#skies button small .more { display: none; }
+/* (her colours a little smaller, each kind in one row, so both rows show above Set sail on the smallest phone) */
+.swatch { width: 28px; height: 28px; }
+
+.swatches { gap: 4px; }
+
+#pp-colours-part .swatch-row { gap: 2px; margin: 2px 0 3px; font-size: 12px; }
+
+#pp-tabs button { white-space: nowrap; }
+
+  }
+/* a phone held upright: the Buy button's words on one line, down to a phone 320 px across */
+@media (max-width: 700px) and (min-height: 501px) {
+#btn-buy { padding-left: 12px; padding-right: 12px; font-size: min(19px, 4.7vw); }
+
+  }
+/* a small phone held upright: the title's panel tighter (no opening line), so her ship shows above it; a ship you
+     don't own in port, her panel taller again (port.js knows), with no line under the Buy button (the shards are at the
+     top, and the button fills with gold towards her price), so her ship still stands clear above it. Upright only: a
+     small phone held sideways keeps the sideways layout (above) */
+@media (max-width: 700px) and (min-height: 501px) and (max-height: 720px) {
+#port-panel { max-height: calc(61vh - var(--bottom) - var(--ships-h)); }
+/* (a little more of the screen, as the ships take two rows) */
+#port-panel.buying { max-height: calc(75vh - var(--bottom) - var(--ships-h)); }
+
+#pp-need { display: none; }
+/* (the ship's tab a little tighter, so the first of how she sails shows above Set sail, even under the Skiff's long blurb) */
+#pp-tabs { margin: 6px 0 0; }
+
+#pp-tabs button { min-height: 34px; padding: 4px 10px; }
+
+#pp-blurb { margin: 4px 0; }
+
+.stat { margin: 3px 0; }
+
+#title { padding-top: 12px; padding-bottom: 14px; }
+
+#title h1 { font-size: clamp(30px, 9vw, 38px); }
+
+#title .lede { display: none; }
+
+#title-rank { margin: 6px 0 0; }
+
+#title h2 { margin: 8px 0 5px; }
+
+#skies { gap: 6px; }
+
+#skies button { padding: 6px 11px; gap: 1px; }
+
+#skies button b { font-size: 15.5px; }
+
+#skies button span { font-size: 12px; line-height: 1.3; }
+
+.title-go { margin-top: 10px; gap: 8px; }
+
+.title-go .big { padding: 10px 12px; font-size: 16px; }
+
+.title-go .plain { min-height: 44px; padding: 8px 14px; font-size: 15px; }
+
+  }
+/* a small phone held sideways with its browser's bars showing: no opening line either, so Set sail still shows; and in
+     port no blurb, so how she sails fits above the button */
+@media (max-height: 340px) {
+#title .lede { display: none; }
+
+#title-rank { margin: 4px 0 0; }
+
+#pp-blurb { display: none; }
+
+  }
+/* a narrow laptop window: the six ships in two rows of three, left of the panel */
+@media (min-width: 701px) and (max-width: 1090px) and (min-height: 501px) {
+#port-ships { grid-auto-flow: row; grid-template-columns: repeat(3, auto); }
+
+  }
+/* a laptop window not so tall (a 1366 by 768 laptop's browser, or smaller): the banner's words a little smaller, so it
+     keeps between the toast and the crosshair even when it takes two lines */
+@media (min-width: 701px) and (min-height: 501px) and (max-height: 720px) {
+#banner { padding: 6px 18px 8px; }
+
+#banner-title { font-size: clamp(26px, 3.4vw, 40px); }
+
+#banner-line { margin-top: 4px; font-size: clamp(14px, 1.5vw, 16px); }
+
+  }
+/* a laptop window short and narrow at once, or a narrow phone held sideways (667 by 375, 640 by 360): the short
+     window's top and middle, with the compass on one line as on a wider phone held sideways, and the banner's words a
+     little smaller (the first voyage's title on one line), so it fits under the compass, between the panels at the top
+     and over the crosshair */
+@media (max-width: 700px) and (max-height: 500px) {
+#btn-log span { display: none; }
+/* (a Captain back from the sea, on a small phone held sideways: her rank in the place of the skies' heading, so the
+       title's card fits with every skies' stars and best wave) */
+#title-rank:not([hidden]) + h2 { display: none; }
+
+#title-rank:not([hidden]) + h2 + #skies { margin-top: 6px; }
+
+#btn-pause { top: var(--top); left: auto; right: calc(var(--gutter) + var(--map-w) + 8px); translate: none; }
+
+#port-ships button { padding: 5px 6px 4px; }
+
+#port-ships button b { font-size: 13px; }
+
+#compass { flex-direction: row; align-items: baseline; gap: 8px; padding: 3px 10px; }
+
+#banner { max-width: calc(100% - 2 * (var(--gutter) + 162px)); padding: 4px 10px 6px; }
+
+#banner-title { font-size: 17px; }
+
+#banner-line { font-size: 12.5px; padding: 2px 8px; }
+
+#region { font-size: 17px; }
+/* (in port, "Try her out" and "or sail the Zephyr" side by side on one line, "Try her out" still tall enough for a
+       thumb) */
+.sail-alts { gap: 2px 8px; }
+
+#btn-try { min-height: 32px; padding: 2px 10px; font-size: 13px; }
+
+#btn-sail.alt { font-size: 13px; }
+
+#btn-sail .long { display: none; }
+
+  }
+/* the smallest phones held sideways (568 by 320, an iPhone SE's first one with the browser's bars showing): the
+     banner (and the region's name, in its place) just under the pause button, as wide as the room between your ship's
+     panel (a little narrower here) and the map, its words smaller again; and the guns' label a little lower, clear of
+     the score */
+@media (max-width: 600px) and (max-height: 500px) {
+#readout { max-width: 112px; }
+
+#health .meter { width: 46px; }
+
+#banner, #region { top: calc(var(--top) + 48px); }
+
+#banner { max-width: calc(100% - 2 * (var(--gutter) + 134px)); }
+
+#banner-title { font-size: 16px; }
+
+#banner-line { font-size: 12px; }
+
+#region { font-size: 16px; }
+
+  }
+
+@media (max-height: 340px) {
+body.touch #sky #battery, #battery { bottom: calc(var(--bottom) + 146px); }
+/* (with Fire on the left, the left side has no room for the guns' label between your ship's panel and the buttons:
+       it stays on the right, under the score, where it is with Fire on the right) */
+body.touch.fire-left #sky #battery, body.fire-left #sky #battery { right: var(--gutter); left: auto; text-align: right; }
+/* (with the shot button over Surge, the buttons a little smaller again, so they're no taller than without it) */
+body.has-shot #sky #touch-buttons { gap: 8px; }
+
+body.has-shot #sky .fire-col { gap: 4px; }
+
+body.has-shot #sky #btn-fire { width: 80px; height: 80px; }
+
+body.has-shot #sky #btn-surge { width: 48px; height: 48px; }
+
+body.has-shot #sky .sail button { height: 40px; }
+
+body.has-shot #sky #btn-patch { width: 40px; height: 40px; }
+
+body.touch.has-shot #sky #battery, body.has-shot #sky #battery { bottom: calc(var(--bottom) + 146px); }
+
+  }
+/* the smallest phones held sideways (568 px across, as an iPhone SE's first one): the panel a little narrower and the
+     ships' buttons a little tighter, so all six fit along the bottom without being cut off */
+@media (max-width: 600px) and (max-height: 500px) {
+#port-panel { width: 47vw; }
+
+#port-ships { max-width: calc(53vw - var(--gutter) - 16px); }
+
+#port-note, #pp-next { max-width: calc(53vw - var(--gutter) - 24px); }
+
+#port-ships button { padding: 5px 4px 4px; }
+
+#port-ships button b { font-size: 12px; }
+
+.sail-out .big { font-size: 15.5px; padding: 8px 10px; }
+
+#btn-buy { letter-spacing: 0; }
+
+#btn-buy .the { display: none; }
+/* ("Buy Thunderhead · ◆ 30,000": her name is just above, and so it fits on one line) *//* (between waves the card just under the pause button, as wide as the room between your ship's panel and the map,
+       and a little tighter, so a long line (a big wave next, a storm coming) still ends above Surge and the toast) */
+body.touch #sky #calm, #calm { top: calc(var(--top) + 48px); width: calc(100% - 2 * (var(--gutter) + 134px)); padding: 5px 10px; gap: 3px; }
+
+body.touch.between #sky #tip { max-width: 126px; }
+/* (and a new Captain's tip beside the card, in the room left beside it) */
+#calm p { font-size: 11.5px; }
+
+#calm .big { padding: 7px 12px; }
+
+#calm .plain { min-height: 34px; }
+/* (the toast and a warning under the crosshair a little wider, between the hint and the touch buttons, so the
+       longest toast takes two lines and the warning keeps clear under it) */
+#toast { max-width: calc(100% - 2 * (var(--gutter) + 166px)); font-size: 12.5px; }
+
+#warn { top: calc(50% + 80px); max-width: calc(100% - 2 * (var(--gutter) + 176px)); font-size: 12.5px; }
+/* (clear of the Patch button by the sail buttons) *//* (the raiders' tags a little smaller, so a crowd of them all round still finds room on so small a screen) */
+.tag { gap: 1px 5px; padding: 2px 5px 3px; font-size: 11px; }
+
+.tag .meter { width: 56px; }
+
+.tag .bs { font-size: 11px; }
+
+  }
+/* the tabs, wherever the panel is short (a phone either way). The Upgrades tab shows the upgrades first (no heading:
+     the tab says it), then crystal power, so they're there without scrolling */
+@media (max-width: 700px), (max-height: 500px) {
+#pp-tabs { display: flex; }
+
+#port-panel[data-tab='ship'] #pp-own { display: none; }
+
+#port-panel[data-tab='upgrades'] #pp-ship-part, #port-panel[data-tab='colours'] #pp-ship-part { display: none; }
+
+#pp-own { display: flex; flex-direction: column; }
+
+#pp-mods-part { order: -1; }
+
+#pp-mods-part h3 { display: none; }
+
+#port-panel[data-tab='upgrades'] #pp-colours-part { display: none; }
+
+#port-panel[data-tab='colours'] #pp-power-part, #port-panel[data-tab='colours'] #pp-mods-part, #port-panel[data-tab='colours'] #pp-shot-part, #port-panel[data-tab='colours'] #pp-colours-part h3, #port-panel[data-tab='colours'] #pp-cls { display: none; }
+
+#pp-colours-part .swatch-row { margin: 4px 0; }
+
+#pp-tabs button { padding: 6px 6px; }
+
+  }
+/* a second way on, on a phone: across the card, over Sail on and Back to port held upright (the card grows upwards
+     from the buttons, so they stay where they always are); held sideways, under them (the card is docked at the top
+     there, so Sail on and Back to port stay in their places and a tap where Sail on always is never takes the other
+     road), a little smaller, and the card with it reaches down past Fire and Surge, which wait meanwhile (there's
+     nothing to fire at between waves) */
+@media (max-width: 700px), (max-height: 500px) {
+#calm.roads .choices { flex-wrap: wrap; }
+
+#calm.roads #btn-road { order: -1; flex: 1 1 100%; }
+
+  }
+
+@media (max-height: 500px) {
+#calm.roads #btn-road { order: 1; }
+ }
+/* (and the toast, between waves with a second way on, out of the taller card's way: upright, just under the region's
+     name, or higher, just over the card, when the card reaches up past there (a long line and a road's two lines, on a
+     small phone: --calm-top, where the card's top is, main.js layout); held sideways, at the foot of the screen between
+     the thumbs) */
+@media (max-width: 700px) and (min-height: 501px) {
+body.between.roads #sky #toast { top: min(calc(var(--top) + 196px), calc(var(--calm-top, 100vh) - 56px)); }
+ }
+
+@media (max-height: 500px) {
+body.between.roads #sky #toast { top: auto; bottom: calc(var(--bottom) + 6px); }
+
+body.between.roads #sky #btn-fire, body.between.roads #sky #btn-surge { visibility: hidden; }
+
+.road { min-height: 36px; padding: 4px 10px; }
+
+.road b { font-size: 14px; }
+
+.road small { font-size: 11.5px; }
+
+  }
+
+@media (prefers-reduced-motion: reduce) {
+#region.on, #banner.on, #toast.on, #calm:not([hidden]) { animation-duration: 0.01s; }
+
+.tag.warn, .tag.warn .arrow, .tag.burst, .tag.burst .arrow { animation: none; }
+
+.tag.burst:not(.warn) { box-shadow: 0 0 0 1px rgba(8, 18, 34, 0.9), 0 0 0 3px rgba(168, 222, 255, 0.95), 0 0 0 4px rgba(8, 18, 34, 0.8), 0 0 10px rgba(140, 210, 255, 0.7); }
+
+.tag.burst:not(.warn) .arrow { filter: drop-shadow(0 0 1px rgba(4, 12, 24, 0.95)) drop-shadow(0 0 1px rgba(4, 12, 24, 0.95)) drop-shadow(0 0 4px #8fd6ff); }
+ }
+
+
+
+/* ---------- Brightvein's own pieces ---------- */
+/* the Shipyard's top bar: back to the claim, and the claim's materials beside its shards */
+#btn-home { min-height: 40px; padding: 6px 12px; font-size: 14px; white-space: nowrap; }
+#port-mats { padding: 6px 10px; font-size: 13px; color: var(--cream); white-space: nowrap; }
+#port-mats b { font-weight: 500; color: var(--gold); }
+/* a ship the yard can't build yet, and the flagship, along the bottom */
+#port-ships button.locked { opacity: 0.6; }
+#port-ships button.locked em { color: var(--dim); }
+#port-ships button.flag em { color: #9fe7ff; }
+/* her condition, repairs at the dock and her crew from the claim (the ship's tab of a ship the claim owns) */
+#pp-claim { margin-top: 4px; }
+#pp-claim .stat.wear { grid-template-columns: 74px 1fr 3.4em; }
+#pp-claim .stat.wear b { min-width: 0; }
+#pp-flag .buy, #pp-repair .buy { width: 100%; min-height: 40px; }
+#pp-flag { margin: 8px 0 2px; }
+#pp-repair { margin-top: 6px; }
+#pp-repair-note, #pp-crew { margin: 4px 0 0; font-size: 12.5px; color: var(--dim); }
+#pp-crew { color: var(--cream); }
+/* what a price is short of, and where to find it */
+.short-of { margin: 2px 0 0; grid-column: 1 / -1; font-size: 11.5px; color: var(--warn); }
+/* the crew aboard, under her name on the voyage's panel */
+#crew-line { margin: 4px 0 0; max-width: 240px; font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* a raid's objective, under the map and the score */
+#objective { position: fixed; right: var(--gutter); top: calc(var(--top) + var(--map-w) / 1.5 + 44px); width: var(--map-w); min-width: 170px; padding: 6px 10px 8px; pointer-events: none; display: grid; gap: 2px; z-index: 2; }
+#obj-goal { font: 600 14px/1.2 var(--body); color: var(--gold); }
+#obj-sub { font-size: 12.5px; color: var(--cream); }
 #objective.urgent { border-color: #ff8a6a; box-shadow: 0 0 14px rgba(255, 110, 80, 0.45); }
 #objective.urgent #obj-sub { color: var(--warn); }
 #obj-bars { display: grid; gap: 2px; }
-#obj-bars .ob { display: grid; grid-template-columns: 5em 1fr; gap: 6px; align-items: center; font-size: 13px; color: var(--dim); }
+#obj-bars .ob { display: grid; grid-template-columns: 5em 1fr; gap: 6px; align-items: center; font-size: 12px; color: var(--dim); }
 #obj-bars .ob.gone { opacity: 0.4; text-decoration: line-through; }
 #obj-bars .meter { margin: 0; }
 #obj-meter { height: 7px; }
 #obj-meter i { background: #ff9f45; }
 #obj-meter.warn i { background: #ff5a3a; }
-/* the boss bar, under the compass */
-#sky-boss { position: fixed; left: 50%; top: calc(var(--top) + 50px); translate: -50% 0; width: min(560px, 56vw); pointer-events: none; text-shadow: 0 1px 0 #000, 0 0 10px rgba(0, 0, 0, 0.9);
-  padding: 6px 10px 7px; border-radius: 8px; background: var(--panel); border: 1px solid rgba(255, 211, 106, 0.45); }
+/* a boss: her name, her bar with the marks where her phases turn, and her crystals (or a treasure ship's hull) */
+#sky-boss { position: fixed; left: 50%; top: calc(var(--top) + 78px); translate: -50% 0; width: min(520px, 50vw); pointer-events: none; text-shadow: 0 1px 0 #000, 0 0 10px rgba(0, 0, 0, 0.9); z-index: 2; }
 .sb-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-#sb-name { font: 400 18px/1.1 var(--body); color: #ffd36a; }
-#sb-phase { font-size: 13px; color: #ffb4a0; text-transform: uppercase; letter-spacing: 0.08em; }
+#sb-name { font: 700 18px/1.1 var(--display); color: #ffd36a; }
+#sb-phase { font-size: 12px; font-weight: 500; color: #ffb4a0; text-transform: uppercase; letter-spacing: 0.08em; }
 .sb-bar { position: relative; height: 12px; margin-top: 3px; border: 1px solid rgba(255, 211, 106, 0.8); border-radius: 3px; background: rgba(30, 10, 12, 0.75); box-shadow: 0 0 0 2px rgba(58, 22, 49, 0.9); overflow: hidden; }
 #sb-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(#ff9a6a, #c0412a); transition: width 0.2s; }
 #sky-boss.sails #sb-fill { background: linear-gradient(#fff3d8, #c8b48a); }
 #sky-boss.shield .sb-bar { border-color: #9fe7ff; }
 #sky-boss.shield #sb-fill { background: linear-gradient(#cfefff, #5a8aa8); }
 #sb-marks i { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: rgba(255, 243, 208, 0.85); }
-.sb-low { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 3px; font-size: 13.5px; color: var(--cream); }
-.sb-two { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 13px; }
+.sb-low { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 3px; font-size: 12.5px; color: var(--cream); }
+.sb-two { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; }
 .sb-two .meter { width: 90px; margin: 0; }
 .sb-two .meter i { background: #ff9f45; }
 #sky-boss.sails .sb-two .meter i { background: var(--gold); }
+/* (a boss's bar takes the guns' label's place under the compass while she's up) */
+body.boss-up:not(.touch) #sky #battery { top: calc(var(--top) + 128px); }
 /* the compass's arrow to the objective */
-#goal-dir { margin-left: 10px; font: 15px var(--body); color: #ffcf85; white-space: nowrap; }
+#goal-dir { font-size: 14px; font-weight: 500; color: #ffcf85; white-space: nowrap; }
 #goal-dir i { display: inline-block; font-style: normal; margin-right: 3px; color: #ffb347; }
-#goal-dir b { font-weight: 400; }
-/* a hit: a quick cross round the crosshair, coloured by what was hit */
-#hitmark { position: fixed; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; pointer-events: none; opacity: 0; }
-#hitmark svg { width: 100%; height: 100%; overflow: visible; stroke: #ffd27a; }
-#hitmark.sails svg { stroke: #fff3d8; }
-#hitmark.crystals svg { stroke: #ffb04a; }
-#hitmark.shield svg { stroke: #9fe7ff; }
-#hitmark.on { animation: hitmark 0.22s ease-out forwards; }
-@keyframes hitmark { 0% { opacity: 1; transform: scale(0.8); } 100% { opacity: 0; transform: scale(1.25); } }
-/* the four batteries: port and starboard either side, bow above stern; the one facing the aim lit gold */
-#gunboard { display: inline-grid; grid-template-columns: 8px 10px 8px; gap: 3px; height: 26px; margin-left: 8px; vertical-align: middle; }
-.gb { position: relative; display: block; border: 1px solid rgba(236, 220, 184, 0.45); border-radius: 2px; background: rgba(0, 0, 0, 0.35); overflow: hidden; }
-.gb i { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(236, 220, 184, 0.55); }
-.gb.ready i { background: #ffe9b0; }
-.gb.on { border-color: var(--gold); box-shadow: 0 0 6px rgba(226, 189, 103, 0.8); }
-.gb.on i { background: var(--gold); }
-.gb.none { opacity: 0.2; }
-.gb-mid { display: grid; grid-template-rows: 1fr 1fr; gap: 3px; }
-/* the locked target, under the crosshair */
-#target { position: fixed; left: 50%; top: calc(50% + 74px); translate: -50% 0; display: grid; grid-template-columns: auto auto; gap: 2px 8px; padding: 4px 8px 5px; font-size: 14px; pointer-events: none; }
-#tg-name { font-weight: 400; color: #ffb4a0; }
-#tg-d { color: var(--dim); text-align: right; }
-#target .meter { grid-column: 1 / -1; width: 130px; margin: 0; height: 4px; }
-.tag.friend { background: rgba(36, 14, 40, 0.75); border-color: #d7a0d0; }
-.tag.friend b { color: #f0c8e8; }
-.tag.boss { border-width: 2px; }
-#score.raid .wave-part { display: none; }
-
-/* touch controls, shown on phones and tablets */
-.touch-only { display: none; }
-body.touch #sky .touch-only { display: grid; }
-body.touch #sky .mouse-only { display: none !important; }
-#stick { position: fixed; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(236, 220, 184, 0.55);
-  background: rgba(24, 12, 30, 0.35); pointer-events: none; display: grid; place-items: center; }
-#stick i { width: 44px; height: 44px; border-radius: 50%; background: rgba(226, 189, 103, 0.75); box-shadow: 0 0 12px rgba(0, 0, 0, 0.5); }
-#touch-buttons { position: fixed; right: var(--gutter); bottom: calc(var(--bottom) + 64px); gap: 10px; justify-items: end; }
-#btn-fire { width: 86px; height: 86px; border-radius: 50%; border: 2px solid var(--cream); background: radial-gradient(circle at 50% 40%, #a33a2a, #5a1a20);
-  font: 400 20px/1 var(--body); color: var(--cream); box-shadow: 0 0 0 3px var(--plum), 0 6px 20px rgba(0, 0, 0, 0.5); touch-action: none; }
-#btn-fire.on { background: radial-gradient(circle at 50% 40%, #e2bd67, #a35a2a); color: var(--plum); }
-.fire-row { display: flex; gap: 12px; align-items: end; }
-#btn-surge { width: 58px; height: 58px; border-radius: 50%; border: 2px solid #9fe7ff; background: radial-gradient(circle at 50% 40%, #2a5a78, #12233a); color: #dff6ff; font-size: 14px; touch-action: none; }
-#btn-surge:disabled { opacity: 0.45; }
-.sail { display: flex; gap: 8px; }
-.sail button { width: 60px; height: 46px; border-radius: 8px; border: 1px solid rgba(236, 220, 184, 0.6); background: var(--panel); font-size: 15px; touch-action: none; }
-.sail button.on { border-color: var(--gold); color: var(--gold); }
-#touch-hint { position: fixed; left: var(--gutter); right: auto; bottom: calc(var(--bottom) + 190px); width: max-content; max-width: calc(100% - var(--gutter) - 170px); font-size: 15px; color: var(--ink); pointer-events: none; transition: opacity 0.6s;
-  padding: 4px 10px; border-radius: 8px; background: var(--panel); border: 1px solid rgba(236, 220, 184, 0.3); }
-#touch-hint.gone { opacity: 0; }
-
-#sky-loading { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font: 400 34px var(--display); color: var(--cream); background: rgba(8, 6, 16, 0.6); text-shadow: 0 2px 0 #000; }
-#error { position: fixed; inset: auto 16px 16px; padding: 12px; background: #3a0d18; border: 1px solid #ff7a8a; border-radius: 6px; }
+#goal-dir b { font-weight: 500; }
+/* the skies being made the first time they're opened */
+#sky-loading { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font: 600 24px var(--display); color: var(--cream); background: rgba(8, 6, 16, 0.6); text-shadow: 0 2px 0 #000; }
 
 @media (max-width: 700px) {
-  #title { align-content: end; background: linear-gradient(0deg, rgba(8, 6, 16, 0.92), rgba(8, 6, 16, 0.6) 62%, rgba(8, 6, 16, 0)); }
-  #skies button { padding: 8px 12px; }
-  #skies button b { font-size: 17px; }
-  .port-top h1 { font-size: 32px; }
-  #port-panel { top: 47vh; left: var(--gutter); right: var(--gutter); width: auto; bottom: calc(var(--bottom) + 62px); }
-  #port-ships { left: 50%; translate: -50% 0; }
-  #port-ships button b { font-size: 15px; }
-  #port-ships button { padding: 5px 8px 4px; }
-  #btn-pause { top: var(--top); left: 50%; right: auto; translate: -50% 0; }
-  #calm { top: 30%; }
-  #wind { display: none; }
-  #ship h1 { font: 400 17px/1.1 var(--body); }
-  #readout { font-size: 13px; }
-  #compass { top: calc(var(--top) + 97px); left: auto; right: var(--gutter); translate: none; min-width: 136px; max-width: calc(100vw - 2 * var(--gutter)); padding: 4px 8px; text-align: center; font-size: 15px; white-space: nowrap; overflow: hidden; }
-  #battery { top: auto; bottom: calc(var(--bottom) + 200px); right: var(--gutter); left: auto; translate: none; text-align: right; }
-  #port-mats { display: none; }
-  .swatch { padding: 8px 11px 8px 8px; font-size: 13px; }
-  .swatch i { width: 18px; height: 18px; }
-  #port .buy, .pp-tabs button { min-height: 40px; }
-  #port-panel { top: 41vh; }
-  /* a phone: the ship's panel compact on the left with the boss bar under it; the map, the compass, the score and
-     the objective in a column on the right; the pause button at the top in the middle */
-  #ship .cls, #readout, #ship > .meter, #crew-line { display: none; }
-  #objective { top: calc(var(--top) + 162px); width: 156px; padding: 4px 8px 6px; }
-  #obj-goal { font-size: 15px; }
-  #obj-sub, #obj-bars .ob { font-size: 12.5px; }
+  #objective { top: calc(var(--top) + var(--map-w) / 1.5 + 40px); width: 148px; min-width: 0; padding: 4px 8px 6px; }
+  #obj-goal { font-size: 13px; }
+  #obj-sub, #obj-bars .ob { font-size: 11.5px; }
   #obj-bars .ob { grid-template-columns: 3.6em 1fr; }
-  #sky-boss { left: var(--gutter); top: calc(var(--top) + 122px); translate: none; width: calc(100% - 2 * var(--gutter) - 148px); }
+  #sky-boss { left: var(--gutter); top: calc(var(--top) + 118px); translate: none; width: calc(100% - 2 * var(--gutter) - 160px); }
   #sb-name { font-size: 15px; }
   .sb-low { flex-wrap: wrap; gap: 2px 8px; }
-  .sb-two .meter { width: 60px; }
-  #target { top: calc(50% + 40px); }
-  #target .meter { width: 100px; }
-  #goal-dir { display: inline; margin: 0 0 0 6px; font-size: 14px; }
-  #minimap { width: 136px; }
-  #score { top: calc(var(--top) + 130px); }
-  #ship { padding: 5px 10px 7px; }
-  #health { font-size: 12.5px; gap: 1px 6px; grid-template-columns: auto 1fr; }
-  #health .meter { width: 46px; }
-  #health dd { display: none; }
-  #score { font-size: 13.5px; padding: 3px 8px; }
-  .wide { display: none; }
-  .narrow { display: inline; }
-  #toast { top: calc(var(--top) + 250px); font-size: 14px; }
-  #keys { justify-content: center; }
-  #touch-buttons { bottom: calc(var(--bottom) + 8px); }
-  #touch-hint { bottom: calc(var(--bottom) + 140px); }
+  .sb-two .meter { width: 56px; }
+  #crew-line { display: none; }
+  #port-mats { display: none; }
+  #btn-home { padding: 6px 9px; font-size: 13px; }
 }
-@media (prefers-reduced-motion: reduce) { #region.on, #banner.on, #toast.on { animation-duration: 0.01s; } }
-/* the Text size setting (Settings › Picture) reaches the skies' words too (--tz is set on #sky by settings.js) */
-/* (inside the HUD's fixed boxes, not on them, so they stay where they are) */
-#port-panel > :not(.sail-out), .title-card > :not(h1), .card > *, #objective > *, #help > *, #ship > *, #score > *, #compass > *, #sky-boss > *, #battery > *, #target > *, #port-ships button > * { zoom: var(--tz, 1); }
-#touch-hint { font-size: calc(15px * var(--tz, 1)); }
-/* touch screens: the Shipyard's tabs a thumb's height too */
-body.touch #sky .pp-tabs button, body.touch #sky .mod .buy, body.touch #sky #btn-home, body.touch #sky #btn-skies { min-height: 40px; }
+@media (max-height: 500px) {
+  #objective { top: auto; bottom: calc(var(--bottom) + 196px); }
+  #sky-boss { top: calc(var(--top) + 40px); width: min(420px, 44vw); }
+  #crew-line { display: none; }
+  #port-mats { display: none; }
+}
+/* the Text size setting (Settings › Picture) reaches the skies' words too (--tz is set on #sky by the claim's settings.js) */
+#port-panel > :not(.sail-out), .card > *, #objective > *, #help > *, #sky-boss > *, #port-ships button > * { zoom: var(--tz, 1); }

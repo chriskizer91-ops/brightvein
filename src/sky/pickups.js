@@ -1,6 +1,7 @@
 // pickups.js: Crystal Shards, Aethermoor's money. A raider brought down spills its shards, glowing amber, and they
 // drift down slowly; fly close and they're drawn to your ship. Left too long, they fall away into the clouds.
 import * as THREE from 'three';
+import { upload } from './guns.js';
 
 const MAX = 200, LIFE = 30, PULL = 140, PULL_SPEED = 120;
 export function makePickups(scene) {
@@ -20,6 +21,7 @@ export function makePickups(scene) {
   const glows = new THREE.Points(ggeo, gmat); glows.frustumCulled = false; glows.renderOrder = 3; scene.add(glows);
 
   const list = [], m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), one = new THREE.Vector3(1, 1, 1), to = new THREE.Vector3();
+  const taken = new Float32Array(MAX); // what each shard gathered this frame was worth (the first `api.taken` of them)
   let time = 0;
   // `total` shards, spilled from p as a handful of pieces
   function spill(p, vel, total) {
@@ -29,16 +31,17 @@ export function makePickups(scene) {
       list.push({ p: p.clone(), v, value: total / n, life: LIFE, spin: Math.random() * 6, pulled: false });
     }
   }
-  // move them; returns the shards the ship picked up this frame
+  // move them; returns the shards the ship picked up this frame (and api.taken says how many pieces, worth api.worth[i])
   function update(dt, ship, reach, camera) {
     time += dt;
     let got = 0;
+    api.taken = 0;
     for (let i = list.length - 1; i >= 0; i--) {
       const s = list[i];
       s.life -= dt; s.spin += dt * 2.5;
       to.copy(ship).sub(s.p);
       const d = to.length();
-      if (d < reach) { got += s.value; list.splice(i, 1); continue; }
+      if (d < reach) { got += s.value; taken[api.taken++] = s.value; list.splice(i, 1); continue; }
       if (d < PULL || s.pulled) {
         s.pulled = true;
         s.v.lerp(to.multiplyScalar(PULL_SPEED / Math.max(d, 1)), 1 - Math.exp(-dt * 4));
@@ -48,17 +51,18 @@ export function makePickups(scene) {
       s.p.addScaledVector(s.v, dt);
       if (s.life <= 0 && !s.pulled) list.splice(i, 1);
     }
-    list.forEach((s, i) => {
-      const k = Math.min(1, s.life / 3);
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i], k = Math.min(1, s.life / 3);
       q.setFromEuler(e.set(0.3, s.spin, 0)); m4.compose(s.p, q, one.setScalar(0.4 + 0.6 * Math.max(0, k)));
-      mesh.setMatrixAt(i, m4); gpos.set([s.p.x, s.p.y, s.p.z], i * 3);
-    });
-    mesh.count = list.length; mesh.instanceMatrix.needsUpdate = true;
-    ggeo.setDrawRange(0, list.length); ggeo.attributes.position.needsUpdate = true;
+      mesh.setMatrixAt(i, m4); gpos[i * 3] = s.p.x; gpos[i * 3 + 1] = s.p.y; gpos[i * 3 + 2] = s.p.z;
+    }
+    mesh.count = list.length; upload(mesh.instanceMatrix, list.length);
+    ggeo.setDrawRange(0, list.length); upload(ggeo.attributes.position, list.length);
     gmat.uniforms.uTime.value = time;
     if (camera) gmat.uniforms.uScale.value = camera.userData.pixelScale ?? 500;
     return got;
   }
   const clear = () => { list.length = 0; update(0, new THREE.Vector3(), 0); };
-  return { spill, update, clear, list };
+  const api = { spill, update, clear, list, taken: 0, worth: taken };
+  return api;
 }

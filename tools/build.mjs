@@ -47,7 +47,9 @@ const out = await build({
   loader: { '.webp': 'dataurl', '.avif': 'dataurl', '.png': 'dataurl', '.woff': 'dataurl', '.json': 'json' }, legalComments: 'none', logLevel: 'warning',
 });
 const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
-const font = (f) => 'data:font/woff;base64,' + fs.readFileSync(path.join(ROOT, 'assets/fonts', f)).toString('base64');
+const font = (f) => `data:font/${f.split('.').pop()};base64,` + fs.readFileSync(path.join(ROOT, 'assets/fonts', f)).toString('base64');
+// the skies' fonts (from the airship game's stage 4), each put in where src/sky/sky.css names it (/*FONT_CINZEL*/...)
+const SKY_FONTS = { CINZEL: 'cinzel.woff2', FIRA_400: 'fira-sans-400.woff2', FIRA_500: 'fira-sans-500.woff2', FIRA_600: 'fira-sans-600.woff2' };
 
 // Two stylesheets share the page: the claim's (src/style.css) inside #app, and the skies' (src/sky/sky.css) inside
 // #sky. Each rule is scoped to its own box so the two never touch: `.panel` becomes `#app .panel` and `#sky .panel`.
@@ -83,8 +85,9 @@ function scopeCss(css, box) {
   }
   return rules(css.replace(/\/\*(?!FONT_)[\s\S]*?\*\//g, ''));
 }
-const css = (scopeCss(rd('src/style.css'), '#app') + scopeCss(rd('src/sky/sky.css'), '#sky'))
+let css = (scopeCss(rd('src/style.css'), '#app') + scopeCss(rd('src/sky/sky.css'), '#sky'))
   .replaceAll('/*FONT_DISPLAY*/', font('jacquard-12.woff')).replaceAll('/*FONT_BODY*/', font('pixelify-sans.woff'));
+for (const [k, f] of Object.entries(SKY_FONTS)) css = css.replaceAll(`/*FONT_${k}*/`, font(f));
 const page = rd('src/shell.html').replace('/*__CSS__*/', () => css).replace('<!--__SKY__-->', () => rd('src/sky/sky.html')).replace('/*__JS__*/', () => js);
 fs.mkdirSync(path.join(ROOT, 'dist'), { recursive: true });
 const head = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">';

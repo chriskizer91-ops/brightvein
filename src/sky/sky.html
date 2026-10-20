@@ -1,54 +1,74 @@
-<!-- sky.html: the skies' screens (shipyard, choosing the skies, a voyage’s HUD), over the claim’s view. From the airship game. -->
+<!-- sky.html: the skies' screens over the claim's view: choosing the skies, the Shipyard, a voyage's HUD, the cards (between
+     waves, paused, how to fly, coming home, the Captain's log). From the airship game's stage 4 (demos/game.html), with
+     Brightvein's own pieces: the Shipyard's claim side (materials, the flagship, condition and repairs, the crew), a raid's
+     objective and its boss bar, the way to the objective on the compass. -->
 <div id="sky" hidden data-mode="off">
 <!-- choosing the skies: how hard the raiders fight, and how well they pay -->
 <section id="title" class="screen" hidden>
   <div class="title-card">
     <h1>The Skies</h1>
     <p class="lede">Raiders and claim-jumpers are loose over Aethermoor, Captain. Bring them down, gather the shards they spill, and bring them home to Brightvein.</p>
+    <p id="title-rank" class="shards" hidden></p>
     <h2>Choose your skies</h2>
     <div id="skies" role="radiogroup" aria-label="Skies"></div>
-    <button id="btn-to-port" class="big" type="button">To the shipyard</button>
+    <div class="title-go"><button id="btn-title-sail" class="big" type="button">Set sail</button><button id="btn-to-port" class="plain" type="button">To the Shipyard</button></div>
   </div>
 </section>
 
-<!-- the shipyard: the claim’s six ships, buying them, the flagship, refits, looks, repairs, and setting sail -->
+<!-- the Shipyard: the claim's six ships in the void, buying them, the flagship, her upgrades, shot, colours, crystal
+     power, her condition and repairs, and setting sail -->
 <section id="port" class="screen" hidden>
-  <header class="port-top"><button id="btn-home" class="panel" type="button" aria-label="Back to the claim">← Claim</button><h1>Shipyard</h1><span id="port-shards" class="panel shards">◆ 0</span><span id="port-mats" class="panel mats"></span><button id="btn-skies" class="panel" type="button">Skies</button></header>
+  <header class="port-top"><button id="btn-home" class="panel" type="button" aria-label="Back to the claim">← Claim</button><h1>Shipyard</h1><span id="port-shards" class="panel shards">◆ 0</span><span id="port-mats" class="panel"></span><button id="btn-log" class="panel" type="button" aria-label="Captain's log"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5.6C10.2 4.3 7.8 3.8 2.8 4v14.3c5-.2 7.4.3 9.2 1.6 1.8-1.3 4.2-1.8 9.2-1.6V4c-5-.2-7.4.3-9.2 1.6zm-1 11.7c-1.6-.8-3.7-1.2-6.4-1.2V6.1c2.9 0 5 .5 6.4 1.4zm8.4-1.2c-2.7 0-4.8.4-6.4 1.2V7.5c1.4-.9 3.5-1.4 6.4-1.4z"/></svg><span>New Captain</span></button><button id="btn-skies" class="panel" type="button">Skies</button><button id="btn-settings-port" class="panel gear" type="button" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M10.09 4.03 L10.54 1.10 L13.46 1.10 L13.91 4.03 L16.28 5.01 L18.67 3.26 L20.74 5.33 L18.99 7.72 L19.97 10.09 L22.90 10.54 L22.90 13.46 L19.97 13.91 L18.99 16.28 L20.74 18.67 L18.67 20.74 L16.28 18.99 L13.91 19.97 L13.46 22.90 L10.54 22.90 L10.09 19.97 L7.72 18.99 L5.33 20.74 L3.26 18.67 L5.01 16.28 L4.03 13.91 L1.10 13.46 L1.10 10.54 L4.03 10.09 L5.01 7.72 L3.26 5.33 L5.33 3.26 L7.72 5.01Z M12 8.4a3.6 3.6 0 1 0 0.001 0Z"/></svg></button></header>
   <p id="port-note" class="panel" aria-live="polite"></p>
+  <!-- (the quartermaster's advice: what's worth doing next; it makes way for the port's note while that shows) -->
+  <p id="pp-next" class="panel"></p>
   <div id="port-ships" class="panel" role="group" aria-label="Ships"></div>
-  <section id="port-panel" class="panel">
+  <section id="port-panel" class="panel" data-tab="ship">
     <h2 id="pp-name">Zephyr</h2>
     <p class="cls" id="pp-cls">Skiff · 8 m</p>
-    <div class="pp-tabs" role="group" aria-label="Show"><button type="button" data-tab="ship">Ship</button><button type="button" data-tab="refit">Refit</button><button type="button" data-tab="looks">Looks</button></div>
-    <div id="pp-ship">
+    <!-- (on a phone: the ship, her upgrades, or her colours) -->
+    <div id="pp-tabs" role="tablist" aria-label="Show"><button id="pp-tab-ship" type="button" role="tab" aria-selected="true">The ship</button><button id="pp-tab-upgrades" type="button" role="tab" aria-selected="false">Upgrades<i class="dot" hidden></i></button><button id="pp-tab-colours" type="button" role="tab" aria-selected="false">Colours</button></div>
+    <div id="pp-ship-part">
       <p id="pp-blurb"></p>
-      <div id="pp-buy"><button id="btn-buy" class="buy" type="button">Buy</button><p id="pp-need"></p></div>
-      <div id="pp-flag"><button id="btn-flag" class="buy" type="button">Make her the flagship</button></div>
       <h3>How she sails</h3>
       <div id="pp-stats"></div>
-      <div id="pp-own">
+      <!-- (Brightvein: a ship the claim owns, her condition and her crew from the claim) -->
+      <div id="pp-claim" hidden>
+        <div id="pp-flag" hidden><button id="btn-flag" class="buy" type="button">Make her the flagship</button></div>
         <h3>Condition</h3>
         <div id="pp-wear"></div>
         <div id="pp-repair"><button id="btn-repair" class="buy" type="button">Repair</button><p id="pp-repair-note"></p></div>
         <h3>Crew</h3>
-        <p id="pp-crew" class="small"></p>
+        <p id="pp-crew"></p>
+      </div>
+    </div>
+    <div id="pp-own">
+      <div id="pp-power-part">
         <h3>Crystal power</h3>
         <div class="power"><span>Sails</span><input id="pp-power" type="range" min="-2" max="2" step="1" value="0" aria-label="Crystal power, from sails to guns"><span>Guns</span></div>
         <p id="pp-power-note"></p>
       </div>
+      <div id="pp-mods-part">
+        <h3>Upgrades</h3>
+        <div id="pp-mods"></div>
+      </div>
+      <div id="pp-shot-part">
+        <h3>Shot <small>for all your ships</small></h3>
+        <div id="pp-shots"></div>
+      </div>
+      <div id="pp-colours-part">
+        <h3>Colours</h3>
+        <div class="swatch-row"><span>Sails</span><div id="pp-sails" class="swatches" role="radiogroup" aria-label="Sails"></div></div>
+        <div class="swatch-row"><span>Pennants</span><div id="pp-pennants" class="swatches" role="radiogroup" aria-label="Pennants"></div></div>
+      </div>
     </div>
-    <div id="pp-refit" hidden>
-      <p class="small">Each part has three levels. You can see them on her as they go on.</p>
-      <div id="pp-refit-list"></div>
+    <div class="sail-out">
+      <div id="pp-buy" hidden><button id="btn-buy" class="big" type="button"><span>Buy</span></button></div>
+      <!-- (a colour tried on her and not hers yet: the big button buys it, and setting sail is the plain line beside) -->
+      <div id="pp-dye-buy" hidden><p id="pp-dye-note"></p><button id="btn-dye" class="big" type="button"></button></div>
+      <p id="pp-need"></p>
+      <div class="sail-alts"><button id="btn-try" class="plain" type="button" hidden>Try her out</button><button id="btn-sail" class="big" type="button">Set sail</button></div>
     </div>
-    <div id="pp-looks" hidden>
-      <p id="pp-looks-note" class="small"></p>
-      <h3>Hull paint</h3><div id="pp-paint" class="swatches"></div>
-      <h3>Sails</h3><div id="pp-sailc" class="swatches"></div>
-      <h3>Figurehead</h3><div id="pp-fig" class="swatches figs"></div>
-      <div id="pp-looks-buy" hidden><button id="btn-looks" class="buy" type="button">Keep these looks</button><button id="btn-looks-undo" class="plain" type="button">Put them back</button></div>
-    </div>
-    <div class="sail-out"><button id="btn-sail" class="big" type="button">Set sail</button></div>
   </section>
 </section>
 
@@ -57,50 +77,57 @@
   <h1 id="ship-name">Tradewind</h1>
   <div class="cls" id="ship-cls">Brig</div>
   <dl id="readout">
-    <dt>Speed</dt><dd id="r-speed">0 km/h</dd>
-    <dt>Height</dt><dd id="r-height">0 m</dd>
-    <dt>Sail<span class="wide"> set</span></dt><dd id="r-sail">50%</dd>
+    <div class="rd-speed"><dt>Speed</dt><dd id="r-speed">0 km/h</dd></div>
+    <div class="rd-height"><dt>Height</dt><dd id="r-height">0 m</dd></div>
+    <div class="rd-sail"><dt>Sail<span class="wide"> set</span></dt><dd id="r-sail">50%</dd></div>
   </dl>
   <span class="meter" aria-hidden="true"><i id="sail-bar"></i></span>
   <dl id="health">
-    <div class="row" id="row-hull"><dt>Hull</dt><span class="meter hull"><i id="h-hull"></i></span><dd id="n-hull">0</dd></div>
-    <div class="row" id="row-sails"><dt>Sails</dt><span class="meter sails"><i id="h-sails"></i></span><dd id="n-sails">0</dd></div>
-    <div class="row" id="row-crystals"><dt>Crystals</dt><span class="meter crystals"><i id="h-crystals"></i></span><dd id="n-crystals">0</dd></div>
+    <div class="row" id="row-hull"><dt>Hull</dt><span class="meter hull"><b></b><i id="h-hull"></i></span><dd id="n-hull">0</dd></div>
+    <div class="row" id="row-sails"><dt>Sails</dt><span class="meter sails"><b></b><i id="h-sails"></i></span><dd id="n-sails">0</dd></div>
+    <div class="row" id="row-crystals"><dt>Crystals</dt><span class="meter crystals"><b></b><i id="h-crystals"></i></span><dd id="n-crystals">0</dd></div>
     <div class="row" id="row-surge"><dt>Surge</dt><span class="meter surge"><i id="h-surge"></i></span><dd class="mouse-only">R</dd></div>
-    <div class="row" id="row-crew"><dt>Crew</dt><span class="meter crew"><i id="h-crew"></i></span><dd id="n-crew">0</dd></div>
+    <div class="row mouse-only" id="row-patch"><dt>Patch</dt><span class="meter patch"><i id="h-patch"></i></span><dd>X</dd></div>
   </dl>
   <p id="crew-line"></p>
 </section>
-<!-- a raid’s objective and its progress -->
-<section id="objective" class="panel" hidden><b id="obj-goal"></b><span id="obj-sub"></span><div id="obj-bars"></div><span class="meter" id="obj-meter" hidden><i></i></span></section>
-<!-- a boss: its name, its health and the phases it turns at -->
-<section id="sky-boss" hidden><div class="sb-top"><b id="sb-name"></b><span id="sb-phase"></span></div><div class="sb-bar"><i id="sb-fill"></i><span id="sb-marks"></span></div><div class="sb-low"><span id="sb-sub"></span><span class="sb-two"><span id="sb-label2">Crystals</span><span class="meter"><i id="sb-fill2"></i></span></span></div></section>
-<div id="compass" class="panel" aria-live="off"><span id="heading">N</span><span id="wind" title="The wind: up the arrow is the way it blows, against your heading"><i id="wind-arrow">↑</i><b id="wind-n">0%</b></span><span id="goal-dir" hidden title="The way to the objective"><i id="goal-arrow">▲</i><b id="goal-d"></b></span></div>
-<button id="btn-pause" class="panel" type="button" aria-label="Pause">❚❚</button>
+<!-- the heading, and the wind: in words, and an arrow showing the way it blows (up: the way you're heading); on a raid,
+     the way to the objective -->
+<div id="compass" class="panel" aria-live="off"><span id="heading">N</span><span id="wind" title="The wind, against your heading"><i id="wind-arrow">↑</i><span class="wide" id="wind-words">Wind across:</span> <b id="wind-n">no help</b></span><span id="goal-dir" hidden title="The way to the objective"><i id="goal-arrow">▲</i><b id="goal-d"></b></span></div>
+<button id="btn-pause" class="panel" type="button" aria-label="Pause (P)"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="3.6" height="12" rx="1" fill="currentColor"/><rect x="9.4" y="2" width="3.6" height="12" rx="1" fill="currentColor"/></svg></button>
+<div id="map-dim" hidden></div>
 <canvas id="minimap" aria-label="The map of Aethermoor: tap to make it bigger"></canvas>
-<div id="score" class="panel"><span class="wide">Raiders downed</span><span class="narrow">Downed</span>: <b id="score-n">0</b><span class="wave-part"> · Wave <b id="wave-n">1</b></span> · <span class="shards">◆ <b id="voyage-n">0</b></span></div>
+<button id="map-close" class="panel" type="button" aria-label="Close the map (M)" hidden>✕</button>
+<div id="score" class="panel"><span class="sc-down"><b id="score-n">0</b> <span class="wide" id="score-raiders">raiders </span>downed</span><span class="sc-wave"><span id="wave-word">Wave </span><b id="wave-n">1</b></span><span class="sc-shards shards">◆ <b id="voyage-n">0</b></span></div>
+<!-- a raid's objective and its progress, and its boss -->
+<section id="objective" class="panel" hidden><b id="obj-goal"></b><span id="obj-sub"></span><div id="obj-bars"></div><span class="meter" id="obj-meter" hidden><i></i></span></section>
+<section id="sky-boss" hidden><div class="sb-top"><b id="sb-name"></b><span id="sb-phase"></span></div><div class="sb-bar"><i id="sb-fill"></i><span id="sb-marks"></span></div><div class="sb-low"><span id="sb-sub"></span><span class="sb-two"><span id="sb-label2">Crystals</span><span class="meter"><i id="sb-fill2"></i></span></span></div></section>
 <div id="tags" aria-hidden="true"></div>
 <div id="hurt" aria-hidden="true"></div>
+<div id="incoming" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 <div id="banner" aria-live="polite"><p id="banner-title"></p><p id="banner-line"></p></div>
 <p id="toast" class="panel" aria-live="polite"></p>
-<p id="region" aria-live="polite"></p>
+<p id="region" aria-live="polite"><span id="region-name"></span><small id="region-air"></small></p>
+<!-- (after the banner, so a bounty rising as a banner shows is drawn over it) -->
+<div id="bounties" aria-hidden="true"><p class="bounty" hidden><small></small><b><i>◆</i> <span></span></b></p><p class="bounty" hidden><small></small><b><i>◆</i> <span></span></b></p><p class="bounty" hidden><small></small><b><i>◆</i> <span></span></b></p><p class="bounty" hidden><small></small><b><i>◆</i> <span></span></b></p><p class="bounty" hidden><small></small><b><i>◆</i> <span></span></b></p><p class="bounty" hidden><small></small><b><i>◆</i> <span></span></b></p></div>
 <div id="aim" aria-hidden="true"><svg viewBox="-23 -23 46 46">
-  <circle r="14" fill="none" stroke="#ecdcb8" stroke-width="2" opacity="0.85"/><circle r="2.2" fill="#e2bd67"/>
-  <path d="M-22 0h6M16 0h6M0 -22v6M0 16v6" stroke="#ecdcb8" stroke-width="2" opacity="0.85"/></svg></div>
-<div id="hitmark" aria-hidden="true"><svg viewBox="-20 -20 40 40"><path d="M-14 -14l7 7M14 -14l-7 7M-14 14l7 -7M14 14l-7 -7" stroke-width="3" stroke-linecap="round"/></svg></div>
-<!-- the guns: the battery facing the aim, and how ready each of the four is -->
-<div id="battery" class="shadow"><b id="battery-name">Bow guns</b> · <span id="battery-count">2</span>
-  <div id="gunboard" aria-hidden="true"><span id="gb-port" class="gb side"><i></i></span><span class="gb-mid"><span id="gb-bow" class="gb end"><i></i></span><span id="gb-stern" class="gb end"><i></i></span></span><span id="gb-starboard" class="gb side"><i></i></span></div></div>
-<!-- the ship the guns are locked on to -->
-<div id="target" class="panel" hidden><b id="tg-name"></b> <span id="tg-d"></span><span class="meter hull"><i id="tg-hull"></i></span><span class="meter sails"><i id="tg-sails"></i></span><span class="meter crystals"><i id="tg-crystals"></i></span></div>
+  <circle class="cross" r="14" fill="none" stroke="#ecdcb8" stroke-width="2" opacity="0.85"/><circle r="2.2" fill="#e2bd67"/>
+  <path class="cross" d="M-22 0h6M16 0h6M0 -22v6M0 16v6" stroke="#ecdcb8" stroke-width="2" opacity="0.85"/>
+  <g id="hitmark" stroke="#e2bd67" stroke-width="2.6" stroke-linecap="round" fill="none"><path d="M8.5 8.5L13.4 13.4M-8.5 8.5L-13.4 13.4M8.5 -8.5L13.4 -13.4M-8.5 -8.5L-13.4 -13.4"/>
+    <path id="hitgem" d="M0 -5L3.4 0L0 5L-3.4 0Z" fill="#ffd27a" stroke-width="1.2" visibility="hidden"/></g>
+  <circle id="killring" r="16" fill="none" stroke="#ff4636" stroke-width="2.4"/></svg></div>
+<div id="battery" class="shadow"><span class="pill"><b id="battery-name">Bow guns</b> · <span id="battery-count">2</span><span id="battery-shot"></span></span><span class="meter"><i id="reload-bar"></i></span></div>
+<!-- (your broadside raking a raider: by the crosshair, voyage.js) -->
+<b id="raked" aria-hidden="true">Raked!</b>
 <p id="warn" class="panel" hidden></p>
 <div id="stick" hidden><i></i></div>
 <div id="touch-buttons" class="touch-only">
-  <div class="fire-row"><button id="btn-surge" type="button">Surge</button><button id="btn-fire" type="button" aria-label="Fire">Fire</button></div>
-  <div class="sail"><button id="btn-sail-down" type="button">Sail −</button><button id="btn-sail-up" type="button">Sail +</button></div>
+  <div class="fire-row"><div class="fire-col"><button id="btn-shot" type="button" aria-label="Change shot" hidden></button><button id="btn-surge" type="button">Surge</button></div><button id="btn-fire" type="button" aria-label="Fire">Fire</button></div>
+  <div class="sail"><button id="btn-patch" type="button" aria-label="Patch her up" hidden>Patch</button><button id="btn-sail-down" type="button">Sail −</button><button id="btn-sail-up" type="button">Sail +</button></div>
 </div>
-<p id="touch-hint" class="touch-only shadow">Left thumb: steer and climb · drag on the right: aim</p>
-<div id="keys">
+<!-- (with Fire on the left, the thumbs swap: voyage.js puts in the words in data-left) -->
+<p id="touch-hint" class="touch-only" data-left="Right thumb: steer and climb. Drag on the left to aim. Hold Fire, and slide off it to aim as you fire.">Left thumb: steer and climb. Drag on the right to aim. Hold Fire, and slide off it to aim as you fire.</p>
+<div id="dock">
   <section id="help" class="panel mouse-only">
     <h2>Flying</h2>
     <dl>
@@ -109,20 +136,22 @@
       <dt>Space / E or ↑</dt><dd>climb</dd>
       <dt>Shift / Q or ↓</dt><dd>dive</dd>
       <dt>Mouse</dt><dd>aim: the guns facing that way fire</dd>
-      <dt>On a raider</dt><dd>the guns lock on and aim ahead of it</dd>
+      <dt>On a raider</dt><dd>the guns lock on and aim ahead of her</dd>
       <dt>Left click or F</dt><dd>fire</dd>
-      <dt>R</dt><dd>surge: a burst of speed</dd>
+      <dt>R</dt><dd>Surge: a burst of speed</dd>
+      <dt>1 2 3 · V · X</dt><dd>shot · the next shot · patch her up</dd>
       <dt>C · M · P · H</dt><dd>look ahead · map · pause · hide this</dd>
     </dl>
     <p id="lock-hint">Click the sky to aim with the mouse. Esc lets go.</p>
   </section>
   <button id="btn-help" class="panel mouse-only" type="button" hidden>Keys (H)</button>
+  <!-- (a new Captain's tip, one at a time: coach.js; on a phone it takes the hint's place) -->
+  <p id="tip" aria-live="polite" hidden></p>
 </div>
-<!-- between waves: sail on, or go back to port and keep the shards -->
-<section id="calm" class="panel card" hidden>
-  <h2 id="calm-title">Wave 1 beaten</h2>
-  <p id="calm-line"></p>
-  <div class="choices"><button id="btn-sail-on" class="big" type="button">Sail on</button><button id="btn-go-port" class="plain" type="button">Home to Brightvein</button></div>
+<!-- between waves: sail on, or go home to Brightvein and keep the shards -->
+<section id="calm" class="panel" hidden>
+  <div><h2 id="calm-title">Wave 1 beaten</h2><p id="calm-line"></p></div>
+  <div class="choices"><button id="btn-sail-on" class="big" type="button"><span id="sail-on-text">Sail on</span><kbd class="mouse-only">Enter</kbd></button><button id="btn-road" class="road" type="button" hidden></button><button id="btn-go-port" class="plain" type="button"><span id="go-port-text">Home to Brightvein</span><kbd class="mouse-only">B</kbd></button></div>
 </section>
 </div>
 <!-- paused, or the ship lost -->
@@ -130,8 +159,68 @@
   <div class="panel card">
     <h2 id="paused-title">Paused</h2>
     <p id="paused-line"></p>
-    <div class="choices"><button id="btn-resume" class="big" type="button">Resume</button><button id="btn-abandon" class="plain" type="button">Home to Brightvein</button></div>
+    <div class="choices"><button id="btn-resume" class="big" type="button">Resume</button><button id="btn-abandon" class="plain" type="button">Home to Brightvein</button><button id="btn-howto" class="plain" type="button">How to fly</button><button id="btn-settings-pause" class="plain gear-text" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M10.09 4.03 L10.54 1.10 L13.46 1.10 L13.91 4.03 L16.28 5.01 L18.67 3.26 L20.74 5.33 L18.99 7.72 L19.97 10.09 L22.90 10.54 L22.90 13.46 L19.97 13.91 L18.99 16.28 L20.74 18.67 L18.67 20.74 L16.28 18.99 L13.91 19.97 L13.46 22.90 L10.54 22.90 L10.09 19.97 L7.72 18.99 L5.33 20.74 L3.26 18.67 L5.01 16.28 L4.03 13.91 L1.10 13.46 L1.10 10.54 L4.03 10.09 L5.01 7.72 L3.26 5.33 L5.33 3.26 L7.72 5.01Z M12 8.4a3.6 3.6 0 1 0 0.001 0Z"/></svg>Settings</button></div>
   </div>
 </section>
+<!-- how to fly: the touch controls on a phone, the keys on a laptop (from the pause card) -->
+<section id="howto" class="screen dim" hidden>
+  <div class="panel card" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+    <h2 id="howto-title">How to fly</h2>
+    <dl class="touch-only">
+      <dt data-left="Right thumb">Left thumb</dt><dd data-left="Put it down anywhere on the right and push: left or right to turn, up to climb, down to dive.">Put it down anywhere on the left and push: left or right to turn, up to climb, down to dive.</dd>
+      <dt data-left="Left thumb">Right thumb</dt><dd>Drag to look round your ship. The guns facing where you look are the ones that fire.</dd>
+      <dt>The ring</dt><dd>Put it on a raider and it turns red: your gunners lock on and aim ahead of her.</dd>
+      <dt>Fire</dt><dd>Hold it to keep firing. Slide your thumb off it to aim as you fire.</dd>
+      <dt>Broadsides</dt><dd>Look to her side for your side guns: they hit hardest.</dd>
+      <dt>Surge</dt><dd>A burst of speed, to run or to catch her. It fills up again.</dd>
+      <dt>Shot</dt><dd>Over Surge, once you have chain shot or crystal breakers: tap it to load the next kind of shot.</dd>
+      <dt>Patch</dt><dd>Shows by the sail buttons when she's hurt: the crew patch her up, while the guns reload slower. Its ring fills as they get ready again. They can only patch her so far: the rest waits for the dock.</dd>
+      <dt>Red fan</dt><dd>A raider about to fire her broadside: climb out of it and she misses. Diving works about half the time; turning away, only in a small ship.</dd>
+      <dt>Sail − / +</dt><dd>Less or more sail: slower or faster.</dd>
+      <dt>The map</dt><dd>Tap the corner map to make it big.</dd>
+    </dl>
+    <dl class="mouse-only">
+      <dt>W / S</dt><dd>More sail / less sail: faster or slower.</dd>
+      <dt>A / D</dt><dd>Turn (or the arrow keys).</dd>
+      <dt>Space / Shift</dt><dd>Climb / dive (or E / Q).</dd>
+      <dt>Mouse</dt><dd>Click the sky, then move the mouse to look round your ship. The guns facing where you look are the ones that fire. Esc lets go of the mouse.</dd>
+      <dt>The ring</dt><dd>Put it on a raider and it turns red: your gunners lock on and aim ahead of her.</dd>
+      <dt>Left click or F</dt><dd>Fire. Look to her side for your side guns: they hit hardest.</dd>
+      <dt>R</dt><dd>Surge: a burst of speed.</dd>
+      <dt>1 · 2 · 3</dt><dd>Round shot, chain shot, crystal breakers, once you have them.</dd>
+      <dt>V</dt><dd>The next kind of shot you have (or right-click).</dd>
+      <dt>X</dt><dd>The crew patch her up, while the guns reload slower. They can only patch her so far: the rest waits for the dock.</dd>
+      <dt>Red fan</dt><dd>A raider about to fire her broadside: climb out of it and she misses. Diving works about half the time; turning away, only in a small ship.</dd>
+      <dt>Wheel</dt><dd>Closer or further.</dd>
+      <dt>C · M · P · H</dt><dd>Look ahead · the big map · pause · the keys.</dd>
+      <dt>Enter · B</dt><dd>Between waves: sail on, or home to Brightvein.</dd>
+    </dl>
+    <div class="choices"><button id="btn-howto-done" class="big" type="button">Got it</button></div>
+  </div>
+</section>
+<!-- home from a voyage: what it did, what it won, and Sail again (record.js) -->
+<section id="homecoming" class="screen dim" hidden>
+  <div class="panel card" role="dialog" aria-modal="true" aria-labelledby="hc-title">
+    <header class="card-head"><h2 id="hc-title">Home from the voyage</h2><p id="hc-sub"></p></header>
+    <div class="card-body">
+      <dl id="hc-rows"></dl>
+      <div id="hc-ribbons" class="ribbons" hidden></div>
+      <div id="hc-rank"></div>
+      <p id="hc-next"></p>
+    </div>
+    <footer class="card-foot"><p class="hc-purse">The claim's purse: <span class="shards">◆ <b id="hc-purse">0</b></span></p>
+      <div class="choices"><button id="btn-again" class="big" type="button">Sail again</button><button id="btn-hc-port" class="plain" type="button">Home to Brightvein</button></div></footer>
+  </div>
+</section>
+<!-- the Captain's log: orders and commendations, records, voyages (record.js) -->
+<section id="log" class="screen dim" hidden>
+  <div class="panel card" role="dialog" aria-modal="true" aria-labelledby="log-title">
+    <header class="card-head"><h2 id="log-title">Captain's log</h2><div id="log-rank"></div>
+      <div class="log-tabs" role="tablist" aria-label="Show"><button id="log-tab-deeds" type="button" role="tab" aria-selected="true">Commendations</button><button id="log-tab-records" type="button" role="tab" aria-selected="false">Records</button><button id="log-tab-voyages" type="button" role="tab" aria-selected="false">Voyages</button></div></header>
+    <div id="log-body" class="card-body"></div>
+    <footer class="card-foot"><div class="choices"><button id="btn-log-done" class="big" type="button">Done</button></div></footer>
+  </div>
+</section>
+<div id="veil" aria-hidden="true"></div>
 <p id="sky-loading" hidden>Raising the sails…</p>
 </div>

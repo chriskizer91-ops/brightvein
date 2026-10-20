@@ -501,6 +501,7 @@ const AUDIO = (() => {
   } catch (e) { }
   let ctx = null, E = null, failed = false, timer = null, errs = 0, rainK = 0, ambT = 0;
   const last = {};
+  const skyTell = id => { try { if (typeof SKY !== 'undefined' && SKY) SKY.settings.changed(id); } catch (e) { } };
   const curve = v => v * v;   // the sliders feel even: half way is about half as loud
   function applyVol() {
     if (!E) return;
@@ -581,7 +582,8 @@ const AUDIO = (() => {
   function state() {
     const sky = typeof SKY !== 'undefined' && SKY && SKY.on, mode = typeof VIEW !== 'undefined' ? VIEW.mode : 'town';
     const st = { sky, out: !sky && mode === 'town', mine: !sky && mode === 'mine', keep: !sky && mode === 'keep', day: 0, night: 0, rain: rainK, hum: 0, builders: false, buildPan: 0, miners: false, speed: 0, paused: false };
-    if (sky) { st.speed = SKY.player && SKY.mode === 'voyage' ? Math.abs(SKY.player.speed || 0) : 0; return st; }
+    // (in the skies the claim's ambience falls quiet: the skies have their own wind, rain and creaks, src/sky/sound.js)
+    if (sky) { st.sky = false; st.rain = 0; return st; }
     st.night = TOD.night; st.day = 1 - TOD.night; st.paused = !!GAME.paused;
     const b = BUILDINGS.find(x => x.building); st.builders = !!b;
     if (b && b.group) { const P = placeOf(b.group.position, {}); st.buildPan = P.pan || 0; }
@@ -625,9 +627,12 @@ const AUDIO = (() => {
       } catch (e) { if (errs++ < 3) console.warn('ambience', e); }
     },
     get on() { return !S.muted; },
-    set(v) { S.muted = !v; try { localStorage.setItem('bv-sound', v ? 'on' : 'off'); } catch (e) { } applyVol(); },
+    // (the Sound switch and the two sliders govern the skies' sound too: told to them as it changes, src/sky/settings.js)
+    set(v) { S.muted = !v; try { localStorage.setItem('bv-sound', v ? 'on' : 'off'); } catch (e) { } applyVol(); skyTell('sound'); },
     get vols() { return { music: S.music, sfx: S.sfx, muted: S.muted }; },
-    vol(which, v) { S[which] = Math.max(0, Math.min(1, +v)); try { localStorage.setItem(which === 'music' ? 'bv-music' : 'bv-sfx', S[which].toFixed(2)); } catch (e) { } applyVol(); },
+    vol(which, v) { S[which] = Math.max(0, Math.min(1, +v)); try { localStorage.setItem(which === 'music' ? 'bv-music' : 'bv-sfx', S[which].toFixed(2)); } catch (e) { } applyVol(); skyTell(which === 'music' ? 'music' : 'effects'); },
+    // the claim's audio context, once the first touch has made it: the skies make their sound in it too
+    get ctx() { return ctx; },
     get ready() { return !!E && ctx.state === 'running'; },
     get missing() { return failed; },
     // for tests and the music box: what's playing, and how many voices are sounding

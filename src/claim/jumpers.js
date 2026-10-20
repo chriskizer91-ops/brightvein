@@ -22,7 +22,8 @@ class Jumper {
   constructor(kind, k, n) {
     this.air = true; this.kind = kind; this.dead = false; this.hp = this.max = JUMP_HP[kind] * (1 + Math.max(0, STORY.ch - 2) * 0.12);
     const R = SHIPS.find(s => s.id === kind);
-    this.silver = exchangeCrews(); this.ship = buildShipAt(R, 'middle', jumperArt(this.silver)); this.root = this.ship.root; this.root.userData.jumper = this;
+    // (on Light, a jumper small on a phone's screen: her far model, a fraction of the draws)
+    this.silver = exchangeCrews(); this.ship = buildShipAt(R, QUALITY.level === 'light' ? 'far' : 'middle', jumperArt(this.silver)); this.root = this.ship.root; this.root.userData.jumper = this;
     if (this.silver) lookSilverGlows(this.ship);
     scene.add(this.root);
     this.ang = Math.random() * TAU + k * (TAU / n); this.r = 36 + k * 4; this.h = 15 + k * 3;

@@ -263,7 +263,7 @@ function visitShip(kind, quiet) {
   if (kind === 'faire') { M.hull.color.set(0x5f9aa0); M.canvas.color.set(0xe0a0dc); M.canvas.emissive.set(0x5a2050); }
   else if (kind === 'exchange') { M.hull.color.set(0x5c626c); M.canvas.color.set(0xaab6c6); M.canvas.emissive.set(0x1c2a3a); }
   else { M.hull.color.set(0x4a4048); }
-  const R = SHIPS.find(x => x.id === (kind === 'magpie' ? 'cutter' : 'brig')), s = buildShipAt(R, 'middle', { ...A, M });
+  const R = SHIPS.find(x => x.id === (kind === 'magpie' ? 'cutter' : 'brig')), s = buildShipAt(R, QUALITY.level === 'light' ? 'far' : 'middle', { ...A, M });   // (Light: her far model)
   const D = LAYOUT.dock, at = kind === 'faire' ? new THREE.Vector3(D.x - 34, 9, D.z - 18) : kind === 'exchange' ? new THREE.Vector3(D.x - 16, 10, D.z - 24) : new THREE.Vector3(D.x + 30, 7, D.z - 13);
   s.root.position.copy(at); s.root.rotation.y = kind === 'magpie' ? Math.PI / 2 : -Math.PI / 2;
   scene.add(s.root);

@@ -8,6 +8,7 @@ import deckUrl from '../../assets/ships/deck.webp';
 import bandUrl from '../../assets/ships/band.webp';
 import partsUrl from '../../assets/ships/parts.webp';
 import partsInfo from '../../assets/ships/parts.json';
+import { WTIME } from './dress.js';
 
 const loadImage = (url) => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; });
 
@@ -87,6 +88,9 @@ export async function loadShipArt(renderer) {
     band: std({ map: T.band, normalMap: T.bandN, metalnessMap: T.bandORM, roughnessMap: T.bandORM, metalness: 1, roughness: 1, emissive: 0xffffff, emissiveMap: T.band, emissiveIntensity: 0.05 }),
     brass: std({ color: 0xd9a743, metalness: 0.92, roughness: 0.3 }),
     bronze: std({ color: 0xa06a2e, metalness: 0.82, roughness: 0.4 }),
+    // the metal that moves (the guns, their lids' trims and the yards' spikes: src/ship/dress.js): brass or bronze by each
+    // corner's colour, in the colours its userData names (a raider captain's black iron, a treasure ship's gold)
+    rigMetal: std({ vertexColors: true, metalness: 0.87, roughness: 0.35 }),
     wood: std({ map: T.deck, color: 0xc49a74, normalMap: T.deckN, roughness: 0.78, emissive: 0xffffff, emissiveMap: T.deck, emissiveIntensity: 0.05 }),
     rope: std({ color: 0x5e432a, roughness: 0.95 }),
     dark: std({ color: 0x140b06, roughness: 1 }),
@@ -99,8 +103,10 @@ export async function loadShipArt(renderer) {
     // pennants: the Captain's plum with a gold hoist, streaming from every mast top
     flag: std({ vertexColors: true, roughness: 0.85, emissive: 0x2a0a20, emissiveIntensity: 0.4 }),
   };
-  // the sails ripple a little in the wind
-  M.canvas.userData.time = { value: 0 };
+  Object.assign(M.rigMetal.userData, { brass: 0xd9a743, bronze: 0xa06a2e });
+  // the sails ripple a little in the wind, and the pennants stream, on the clock every ship shares (dress.js; a ship's
+  // own copy of the canvas ripples there too, harder when it's torn)
+  M.canvas.userData.time = WTIME;
   M.canvas.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = M.canvas.userData.time;
     sh.vertexShader = 'attribute float billow;\nuniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>',
@@ -136,6 +142,7 @@ export function silverArt(art, hull = 0xb4b8bc) {
   M.band = art.M.band.clone(); M.band.map = band; M.band.emissiveMap = band; M.band.color.set(0xe2e6ec);   // her wales: steel, not gilt
   M.brass = art.M.brass.clone(); M.brass.color.set(0xb4bac4); M.brass.roughness = 0.4;
   M.bronze = art.M.bronze.clone(); M.bronze.color.set(0x8a929c);
+  M.rigMetal = art.M.rigMetal.clone(); Object.assign(M.rigMetal.userData, { brass: 0xb4bac4, bronze: 0x8a929c }); M.rigMetal.roughness = 0.4;   // (her guns and spikes: steel too)
   M.crystal = art.M.crystal.clone(); M.crystal.color.set(0x9fc8ff); M.crystal.emissive.set(0x3a6aff); M.crystal.emissiveIntensity = 0.9;
   M.gem = art.M.gem.clone(); M.gem.map = null; M.gem.emissiveMap = null; M.gem.color.set(0x9fc8ff); M.gem.emissive.set(0x3a6aff); M.gem.emissiveIntensity = 0.7;
   return { ...art, M };

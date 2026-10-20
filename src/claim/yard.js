@@ -71,7 +71,9 @@ function yardCrewLines(id) {
   const C = yardCrewFx(id, yardCrewFor(id)), pct = x => `${Math.round(Math.abs(x) * 100)}%`, out = [];
   if (C.reload < 0.995) out.push(`guns reload ${pct(1 - C.reload)} faster and aim ${pct(1 - C.aim)} truer`); else if (C.reload > 1.005) out.push(`guns reload ${pct(C.reload - 1)} slower`);
   if (C.turn > 1.005) out.push(`she turns ${pct(C.turn - 1)} sharper`);
+  if (C.surge >= 0.5) out.push(`the Surge is back ${Math.round(C.surge)} second${Math.round(C.surge) === 1 ? '' : 's'} sooner`);
   if (C.guard < 0.995) out.push(`the hull takes ${pct(1 - C.guard)} less harm`);
+  if (C.patch > 0.005) out.push(`the crew patch her ${pct(C.patch)} further at sea`);
   if (C.repair < 0.995) out.push(`repairs ${pct(1 - C.repair)} quicker`);
   return { C, lines: out };
 }

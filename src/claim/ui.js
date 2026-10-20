@@ -572,7 +572,7 @@ const UI = {
 };
 function upgrade(b) {
   const lv = b.level, cost = b.def.cost[lv + 1];
-  if (GAME.shards < cost || b.building) return;
+  if (!(cost >= 0) || GAME.shards < cost || b.building) return;   // (no next level: shards minus nothing was NaN, and saved as none)
   GAME.shards -= cost;
   if (b === WALLB) {
     TOWN.wallLevel = lv + 1; wallSetLevel(TOWN.wallLevel, true);

@@ -158,7 +158,7 @@ function openClaims() {
     inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
     for (const b of row.querySelectorAll('[data-act]')) b.onclick = () => {
       const a = b.dataset.act;
-      if (a === 'play') { if (n === SLOTS.active) { sheetClose(); if (!started) begin(false); } else reloadInto(n, 'continue'); }
+      if (a === 'play') { if (n === SLOTS.active && !SAFE.broken) { sheetClose(); if (!started) begin(false); } else reloadInto(n, 'continue'); }   // (a claim that couldn't be opened is tried again)
       if (a === 'new') { if (!started && TITLE.showcase.length && !slotRaw(SLOTS.active)) { SLOTS.active = n; slotsKeep(); sheetClose(); begin(true); } else reloadInto(n, 'new'); }
       if (a === 'del') row.querySelector('.confirm').hidden = false;
       if (a === 'keep') row.querySelector('.confirm').hidden = true;

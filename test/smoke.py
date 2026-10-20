@@ -4,6 +4,7 @@ import sys, json, os
 from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 errors = []
+LONG = 900000   # waits return as soon as what they wait for happens; a loaded machine can take minutes over a page
 def check(name, ok, detail=''):
     print(('ok   ' if ok else 'FAIL ') + name + (f'  {detail}' if detail else ''))
     if not ok: errors.append(name)
@@ -13,8 +14,8 @@ with sync_playwright() as p:
     pg.on('pageerror', lambda e: errors.append('page error: ' + str(e)) or print('PAGE ERROR', e))
     pg.on('console', lambda m: print('console error:', m.text[:300]) if m.type == 'error' else None)
     pg.route('**/fonts.g*/**', lambda r: r.fulfill(body='', content_type='text/css'))
-    pg.goto('file://' + ROOT + '/dist/test.html', timeout=120000)
-    pg.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=60000)
+    pg.goto('file://' + ROOT + '/dist/test.html', timeout=LONG)
+    pg.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=LONG)
     # the title screen comes up over the claim; with nothing saved there's nothing to continue, and a new claim begins
     r = pg.evaluate('''(() => { const B = __bv, T = document.getElementById('front');
       return { title: !T.hidden && B.TITLE.on, cont: document.getElementById('tt-continue').hidden, started: B.started, showcase: B.TITLE.showcase.length }; })()''')
@@ -94,13 +95,21 @@ with sync_playwright() as p:
     check('an exported code imports to the same claim, with all its numbers', r['same'] and r['head'].startswith('BV1') and not r['fields'], json.dumps({k: r[k] for k in ('len', 'head', 'same', 'fields')}))
     check('a broken code is refused, with a plain reason', 'broken' in r['bad'] and 'Brightvein code' in r['junk'] and 'broken' in r['cut'], json.dumps({k: r[k] for k in ('bad', 'junk', 'cut')}))
     check('the three claims are kept apart', r['active'] == 1 and r['two'] == r['one'] + 39 and r['cleared'], json.dumps(r))
+    # a claim brought in from a code is checked person by person: one who can't be read is left out, not the claim
+    r = pg.evaluate('''(async () => { const B = __bv, out = {}, s = JSON.parse(localStorage.getItem('brightvein-keep-v1')), n = s.people.length;
+      delete s.people[0].stats; delete s.people[1].look; s.shards = null;
+      const back = await B.importCode(JSON.stringify(s)); out.people = [n, back.people.length]; out.look = !!back.people[0].look; out.shards = back.shards;
+      for (const p of s.people) delete p.stats;
+      try { await B.importCode(JSON.stringify(s)); out.nobody = 'accepted'; } catch (e) { out.nobody = B.codeWhy(e); }
+      return out; })()''')
+    check('a code is checked person by person, and one with nobody readable is refused', r['people'][1] == r['people'][0] - 1 and r['look'] and isinstance(r['shards'], (int, float)) and 'no claim' in r['nobody'], json.dumps(r))
 
     # the story: the prologue opened when the claim started, and closes after the first night; the settlers came off
     # the roll, so each has a portrait to match their sprite
     # the first frame after a simulated night compiles a lot of shaders, which is slow in software: wait for it
-    pg.wait_for_function('__bv.STORY.started', timeout=240000)
+    pg.wait_for_function('__bv.STORY.started', timeout=LONG)
     r = pg.evaluate('''(async () => { const B = __bv, out = { ch0: B.STORY.ch, shown: !!B.STORY.shown };
-      const until = Date.now() + 180000;  // by the clock, not a count of tries: a loaded machine draws few frames
+      const until = Date.now() + 600000;  // by the clock, not a count of tries: a loaded machine draws few frames
       while (Date.now() < until && B.STORY.ch === 0) { while (B.STORY.shown) B.talkNext(); await new Promise(r => setTimeout(r, 700)); }
       out.ch = B.STORY.ch; out.title = B.CHAPTERS[B.STORY.ch].title;
       out.rolled = B.GAME.villagers.filter(v => v.d.portrait).length; out.people = B.GAME.villagers.length;
@@ -114,21 +123,22 @@ with sync_playwright() as p:
       clear();
       B.TOASTS.q.length = 0; for (const t of B.TOASTS.live.slice()) t.el.remove(); B.TOASTS.live.length = 0;
       for (let i = 0; i < 9; i++) B.toast('Test toast number ' + i);
-      clear(); await new Promise(r => setTimeout(r, 350));
+      const until = async f => { const t = Date.now(); while (!f() && Date.now() - t < 60000) await new Promise(r => setTimeout(r, 50)); };   // the pump runs every 100 ms, later on a busy machine
+      clear(); await until(() => box.querySelector('.toast:not(.out)'));
       out.shown = box.querySelectorAll('.toast:not(.out)').length; out.waiting = B.TOASTS.q.length; out.max = B.TOASTS.max();
-      B.eventFire('courier'); await new Promise(r => setTimeout(r, 350));
+      B.eventFire('courier'); await until(() => box.classList.contains('held'));
       out.held = box.classList.contains('held') && getComputedStyle(box).visibility === 'hidden';
-      B.eventClose(); clear(); await new Promise(r => setTimeout(r, 350)); out.back = !box.classList.contains('held') || !!B.STORY.shown;
+      B.eventClose(); clear(); await until(() => !box.classList.contains('held') || B.STORY.shown); out.back = !box.classList.contains('held') || !!B.STORY.shown;
       return out; })()''')
     check("toasts queue, never more than the cap at once, and hold while a card is up", 0 < r['shown'] <= r['max'] <= 3 and r['waiting'] >= 9 - r['max'] - 1 and r['held'] and r['back'], json.dumps(r))
 
 
     # the skies: the ship moors at the Sky Dock, sets sail, beats a wave, sails on, sinks, and the crew bring half home
-    pg.wait_for_function('__bv.DOCK.ship && __bv.DOCK.ship.root.parent', timeout=60000)
+    pg.wait_for_function('__bv.DOCK.ship && __bv.DOCK.ship.root.parent', timeout=LONG)
     check('a ship moored at the Sky Dock', pg.evaluate('__bv.DOCK.ship.recipe.id') == 'skiff')
     pg.evaluate('__bv.GAME.shards = 1000; __bv.openSky("voyage")')
-    pg.wait_for_function('__bv.SKY.mode === "voyage"', timeout=120000)
-    pg.wait_for_function('BV_AUDIO.AUDIO.status().theme === "skies"', timeout=30000)
+    pg.wait_for_function('__bv.SKY.mode === "voyage"', timeout=LONG)
+    pg.wait_for_function('BV_AUDIO.AUDIO.status().theme === "skies"', timeout=LONG)
     r = pg.evaluate('''(() => {
       const B = __bv, g = B.SKY, P = g.player, out = { t0: B.GAME.t, shards0: Math.round(B.GAME.shards) };
       g.wind.strength = 0;
@@ -161,7 +171,7 @@ with sync_playwright() as p:
     check('the music sails with her, and a fight brings in the drums', r.get('fightWant', {}).get('theme') == 'skies' and r['fightWant'].get('i') == 2, json.dumps(r.get('fightWant')))
     check('lost the ship, and the crew got her home with half', r['sunk'] and r['home'] and abs(r['banked'] - r['half']) <= 1)
     check("the claim's time stood still while she was away", r['claimStill'] and r['voyages'] == 1)
-    pg.wait_for_function('__bv.DOCK.ship.root.parent === __bv.scene', timeout=20000)
+    pg.wait_for_function('__bv.DOCK.ship.root.parent === __bv.scene', timeout=LONG)
     r = pg.evaluate('''(() => { const B = __bv; B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
       return { saved: !!s.sky && s.sky.voyages === 1 && !('shards' in s.sky), moored: B.DOCK.ship.root.parent === B.scene }; })()''')
     check('the fleet is saved with the claim, and she is moored again', r['saved'] and r['moored'], json.dumps(r))
@@ -171,18 +181,18 @@ with sync_playwright() as p:
     src = open(os.path.join(ROOT, 'test', 'raid.py')).read()
     pg.evaluate(src.split("AUTOPILOT = '''")[1].split("'''")[0])
     pg.evaluate('__bv.openSky("port")')
-    pg.wait_for_function('__bv.SKY.mode === "port"', timeout=60000)
+    pg.wait_for_function('__bv.SKY.mode === "port"', timeout=LONG)
     r = pg.evaluate('__raidPilot("camp", "skiff", 300)')
     check('raided the prospect camp and took it', r['state'] == 'taken', json.dumps({k: r[k] for k in ('t', 'state', 'downed', 'card')}))
     before = pg.evaluate('__bv.GAME.stash.length')
     pg.evaluate('document.getElementById("btn-go-port").click()')
-    pg.wait_for_timeout(1200)
+    pg.wait_for_function('__bv.UI.cur && __bv.UI.cur.kind === "haul"', timeout=LONG)
     r = pg.evaluate('({ stash: __bv.GAME.stash.length, won: __bv.FLEET.data.raids.camp.won, panel: __bv.UI.cur && __bv.UI.cur.kind })')
     check("the camp's crates opened at home", r['stash'] >= before + 2 and r['won'] == 1 and r['panel'] == 'haul', json.dumps(r))
     # the Shipyard: a ship bought with shards and materials, a refit that raises her numbers and rebuilds her model,
     # crew from the claim who make the guns reload faster (in the Shipyard's numbers and in the air), and repairs
     pg.evaluate('__bv.UI.close(); __bv.openSky("port")')
-    pg.wait_for_function('__bv.SKY.mode === "port"', timeout=120000)
+    pg.wait_for_function('__bv.SKY.mode === "port"', timeout=LONG)
     r = pg.evaluate('''(() => { const B = __bv, g = B.SKY, d = B.FLEET.data, out = {};
       B.STORY.ch = Math.max(B.STORY.ch, 2); B.GAME.shards = 3000; Object.assign(B.GAME.mats, { brass: 10, glass: 10, heartstone: 10 });
       const c = d.ships.cutter; c.owned = false; c.refit = { hull: 0, sails: 0, guns: 0, crystals: 0 }; c.wear = { hull: 1, sails: 1, crystals: 1 }; c.repair = null;
@@ -215,7 +225,7 @@ with sync_playwright() as p:
     check('the crew go aboard, and come home down the boarding bridge', r['aboard'] == 2 and r['home'], json.dumps({k: r[k] for k in ('aboard', 'home')}))
     check('a ship brought home hurt is repaired at the dock for shards and time', r['repair']['paid'] > 0 and (r['repair']['until'] or 0) >= 1, json.dumps(r['repair']))
     pg.evaluate('__bv.SKY.on || __bv.openSky("port")')
-    pg.wait_for_function('__bv.SKY.mode === "port"', timeout=120000)
+    pg.wait_for_function('__bv.SKY.mode === "port"', timeout=LONG)
     # a boss raid: the Chandlery's guns and guards, then Tallow's flagship rising from the rock, brought down in her
     # phases; at home its crates hold a Lark part or a module for certain
     r = pg.evaluate('''(() => { const B = __bv, d = B.FLEET.data; d.skies = 'fair'; const b = d.ships.brig; b.wear = { hull: 1, sails: 1, crystals: 1 }; b.repair = null;
@@ -225,7 +235,7 @@ with sync_playwright() as p:
     check('a boss raid: the Black Candle rises from the Chandlery, and is brought down', r['state'] == 'taken' and r['boss'] == 'candle' and r['bossDown'], json.dumps(r))
     before = pg.evaluate('__bv.GAME.stash.length')
     pg.evaluate('document.getElementById("btn-go-port").click()')
-    pg.wait_for_timeout(1200)
+    pg.wait_for_function('__bv.UI.cur && __bv.UI.cur.kind === "haul"', timeout=LONG)
     r = pg.evaluate('({ stash: __bv.GAME.stash.length, won: __bv.FLEET.data.raids.citadel.won, best: __bv.FLEET.data.raids.citadel.best, lark: __bv.GAME.stash.slice(0, 8).some(it => it.type === "lark" || it.type === "module"), panel: __bv.UI.cur && __bv.UI.cur.kind })')
     check("the boss's crates come home: five, and a Lark part or module", r['stash'] >= before + 6 and r['won'] == 1 and r['best'] > 0 and r['lark'], json.dumps(r) + f' before {before}')
     # a repeat raid: the camp, taken before, is manned again after a day, and pays half
@@ -269,6 +279,14 @@ with sync_playwright() as p:
     check('two of a kind side by side merge', r['merged'] and r['upgraded'])
     check('a cave-in, dug clear by the crew', r['cave'] and r['caveCleared'])
     check('Wildlight out of the deep seam, fought off or gone', r['seam'] and r['breach'] and r['wild'] >= 2 and r['breachOver'])
+    # rebuilding the dig's look (a dig ordered, then called off) frees what it takes down: the count of geometries on the
+    # graphics card doesn't grow (it grew by about sixteen a time)
+    r = pg.evaluate('''(() => { const B = __bv, R = B.renderer, G = B.GAME, draw = () => { B.setView('mine'); if (B.VIEW.tween) B.VIEW.tween.t = 0.999; B.frame(); };
+      G.shards += 5000; let cell = null; for (let r = 0; r < 6 && !cell; r++) for (let c = 0; c < 10 && !cell; c++) if (!B.digWhyNot(r, c)) cell = [r, c];
+      draw(); draw(); const g = [R.info.memory.geometries];
+      for (let i = 0; i < 3 && cell; i++) { const d = B.digOrder(cell[0], cell[1], 'face'); draw(); if (d) B.digCancel(d); draw(); g.push(R.info.memory.geometries); }
+      B.setView('town'); return { cell, g }; })()''')
+    check("rebuilding the dig doesn't leak geometry", bool(r['cell']) and r['g'][-1] <= r['g'][0] + 2, json.dumps(r))
     # the Keep: each study is furnished from its room's panel (and fitted out in front of you), a student goes in,
     # walks up the stair to their place, and is shown at work there; the empty room has its sign; nothing new is saved
     r = pg.evaluate('''(() => { const B = __bv, out = { rooms: {} }, kinds = 'GEARS';
@@ -298,6 +316,19 @@ with sync_playwright() as p:
       return out; })()''')
     check('each study can be furnished from its panel, and is fitted out', r['sign'] and r['fit'] and all(v['kind'] == k and v['spots'] >= 4 for k, v in r['rooms'].items()), json.dumps(r))
     check('students walk in and are shown at work in their study', all(v['n'] >= 1 and v['at'] == v['n'] for v in r['rooms'].values()), json.dumps(r['rooms']) + ' late: ' + json.dumps(r['late']))
+    # a night saved while Wildlight are on the plateau keeps them (and the lamps they put out): when the claim opens
+    # again they climb back over the rim (they used to vanish: 3 became 0)
+    r = pg.evaluate('''(async () => { const B = __bv, out = {};
+      if (B.GAME.t > 0.6 || B.GAME.t < 0.05 || B.WL.night) B.skipTo(0.3);
+      B.NIGHT.grudge = null; B.forceWeather('clear', 'clear'); B.skipTo(0.7);
+      const alive = () => B.WL.list.filter(f => !f.dead && !f.boss && !f.air && !f.mine && !f.leaving).length;
+      for (let i = 0; i < 150 && alive() < 2; i++) B.simulate(1, 0.1);
+      const L = B.DECOR.lamps.find(l => l.lit); if (L) B.snuffLamp(L);
+      out.n = alive(); B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
+      out.saved = s.night && s.night.on ? [s.night.on.live.length, s.night.on.snuffed.length] : null;
+      if (L) L.lit = true; B.safeNightLoad(s); await new Promise(r => setTimeout(r, 100)); out.back = alive() - out.n; out.unlit = !!L && !L.lit;
+      return out; })()''')
+    check('a night saved with Wildlight on the plateau keeps them, and the lamps they put out', r['n'] >= 1 and r['saved'] and r['saved'][0] == r['n'] and r['saved'][1] >= 1 and r['back'] == r['n'] and r['unlit'], json.dumps(r))
     # nights: a Bright Night brings a boss with a health bar, and it can be brought down; dawn brings the report
     r = pg.evaluate('''(() => { const B = __bv, out = {};
       if (B.GAME.t > 0.6 || B.GAME.t < 0.05 || B.WL.night) B.skipTo(0.3);   // a slow run can leave a night under way: see it out first
@@ -336,12 +367,13 @@ with sync_playwright() as p:
     check('fog closes in', r['fogFar'] < 400 < r['clearFar'], json.dumps(r))
     # an Aether storm: a Lightning Rod catches a bolt and turns it into shards
     r = pg.evaluate('''(() => { const B = __bv; B.forceWeather('storm'); B.GAME.shards += 100; const rod = B.addBuilding('rod', null, null, 1, { hint: [0, 10] }); const s0 = B.GAME.shards;
-      const hit = B.lightningStrike(new B.THREE.Vector3(rod.L.x + 4, 0, rod.L.z + 2)); return { kind: hit.kind, gain: Math.round(B.GAME.shards - s0), caught: rod.caught || 0 }; })()''')
+      const hit = B.lightningStrike(B.camera.position.clone().set(rod.L.x + 4, 0, rod.L.z + 2)); return { kind: hit.kind, gain: Math.round(B.GAME.shards - s0), caught: rod.caught || 0 }; })()''')
     check('a Lightning Rod catches a bolt and turns it into shards', r['kind'] == 'rod' and r['gain'] >= 12 and r['caught'] == 1, json.dumps(r))
-    r = pg.evaluate('''(async () => { const B = __bv, A = BV_AUDIO.AUDIO, out = { before: A.status().theme };
-      B.GAME.t = 0.8;
-      const until = Date.now() + 90000;   // the dawn cue (18 s) may still be playing from the nights check before this
-      while (Date.now() < until && A.status().theme !== 'night') { while (B.STORY.shown) B.talkNext(); B.GAME.t = 0.8; B.applyTimeOfDay(0.8, 0); await new Promise(r => setTimeout(r, 400)); }
+    before = pg.evaluate('BV_AUDIO.AUDIO.status().theme')
+    # the dawn cue (18 s) may still be playing from the nights check before this: the night comes in on a bar line after it
+    try: pg.wait_for_function('''(() => { const B = __bv; while (B.STORY.shown) B.talkNext(); B.GAME.t = 0.8; B.applyTimeOfDay(0.8, 0); return BV_AUDIO.AUDIO.status().theme === 'night'; })()''', polling=400, timeout=LONG)
+    except Exception as e: print('  (the music never turned:', str(e)[:80] + ')')
+    r = pg.evaluate('''(async () => { const B = __bv, A = BV_AUDIO.AUDIO, out = { before: ''' + json.dumps(before) + ''' };
       out.night = A.status().theme; out.want = BV_AUDIO.MUSIC.want().theme;
       B.simulate(60); await new Promise(r => setTimeout(r, 4000));
       const s = A.status(); out.voices = s.voices; out.persist = s.persist; out.state = s.state; out.dropped = s.dropped;
@@ -362,6 +394,17 @@ with sync_playwright() as p:
       out.speakers = [...new Set(out.speakers)].join(', ');
       return out; })()''')
     check('act two begins after the Chandlery', r['closing'] and r['ch'] == 9 and r['started'] and 'Act two' in (r['title'] or '') and 'Silver Sails' in r['journal'] and 'Marchbank' in r['speakers'], json.dumps(r))
+    # saved while a chapter's opening scene is up, it's told again when the claim opens; saved while a day's card is up
+    # with no choice made, the card comes again and its cooldown isn't spent
+    r = pg.evaluate('''(() => { const B = __bv, out = {}, C = B.CHAPTERS[B.STORY.ch], was = B.STORY.shown, q = B.STORY.queue.length;
+      B.STORY.shown = { lines: C.open, title: C.title, chapter: B.STORY.ch }; B.saveGame(); B.STORY.shown = was;
+      const s = JSON.parse(localStorage.getItem('brightvein-keep-v1')); out.opening = s.story.opening === true;
+      B.safeStoryLoad(s.story); out.queued = B.STORY.queue.length === q + 1 && B.STORY.queue[0].lines === C.open; B.STORY.queue.shift();
+      B.eventClose(); const seen = B.EVT.seen.courier; out.fired = B.eventFire('courier'); B.saveGame();
+      const e = JSON.parse(localStorage.getItem('brightvein-keep-v1')).story.events; out.card = { today: e.today, seen: e.seen.courier ?? null };
+      B.eventClose(); B.EVT.seen.courier = seen; B.saveGame();
+      return out; })()''')
+    check("an opening scene or a day's card that's up when the claim is saved comes back", r['opening'] and r['queued'] and r['fired'] and r['card']['today'] and r['card']['today']['id'] == 'courier' and not r['card']['today'].get('fired') and r['card']['seen'] is None, json.dumps(r))
     # a day event: its card comes up (time waits), a choice does what it says, and it goes in the journal's days
     r = pg.evaluate('''(() => { const B = __bv, out = {}; B.eventClose();
       B.GAME.shards += 500; const s0 = B.GAME.shards, n0 = B.GAME.stash.length;
@@ -404,6 +447,8 @@ with sync_playwright() as p:
     check("guests don't take a settler's bunk in the Keep", r['beds'], r['bedsN'])
     check("a cast member's story: a step completes, and the last pays off", r['ready'] and r['atKeep'] and r['on'] == 'on' and r['step1'] == 1 and r['gave'] and r['state'] == 'done' and r['mw'] == 'Pike’s Answer' and r['journal'], json.dumps(r))
     check('act two, the stories, the days and the mood are saved', r['saved'], json.dumps(r))
+    r = pg.evaluate('__bv.SAFE.faults')
+    check('no faults caught while playing (frame() catches them, so they are not page errors)', not r, json.dumps(r))
     # a claim saved before the dig, with the deep seam open: its miners keep their places in the matching rooms
     pg.evaluate('''(() => { const B = __bv; B.saveGame(); const s = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
       delete s.dig; for (const b of s.buildings) if (b.type === 'head') b.level = 2;
@@ -415,8 +460,8 @@ with sync_playwright() as p:
       const ps = s.people.filter(p => !p.exp); ps[0].job = { bid: 'head', slot: 1 }; ps[1].job = { bid: 'head', slot: 5 }; ps[0].name = 'Upper Test'; ps[1].name = 'Lower Test';
       const set = Storage.prototype.setItem; localStorage.setItem('brightvein-keep-v1', JSON.stringify(s));
       Storage.prototype.setItem = function (k, v) { if (k === 'brightvein-keep-v1') return; return set.call(this, k, v); }; })()''')
-    pg.goto('file://' + ROOT + '/dist/test.html', wait_until='domcontentloaded', timeout=400000)
-    pg.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=400000)
+    pg.goto('file://' + ROOT + '/dist/test.html', wait_until='domcontentloaded', timeout=LONG)
+    pg.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=LONG)
     # with a claim saved, the title offers to continue it (its day, chapter and people), and Continue opens it
     r = pg.evaluate('''(() => { const B = __bv, c = document.getElementById('tt-continue'), s = B.loadSave(), out = {};
       out.title = B.TITLE.on && !document.getElementById('front').hidden && !c.hidden; out.meta = c.textContent; out.day = s.day;
@@ -452,8 +497,8 @@ with sync_playwright() as p:
     quiet = []
     pg2.on('pageerror', lambda e: quiet.append(str(e)))
     pg2.route('**/fonts.g*/**', lambda r: r.fulfill(body='', content_type='text/css'))
-    pg2.goto('file://' + ROOT + '/dist/test.html', timeout=300000)
-    pg2.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=240000)
+    pg2.goto('file://' + ROOT + '/dist/test.html', timeout=LONG)
+    pg2.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=LONG)
     r = pg2.evaluate('''(async () => { const B = __bv, A = BV_AUDIO.AUDIO; B.begin(false); B.exitBuild(); B.simulate(30, 0.1);
       const old = { stash: B.GAME.stash.length, pick: B.GAME.stash.some(it => it.uid === 'oldgear1'), sockets: typeof B.GAME.sockets === 'object', bench: !B.GAME.bench.job };
       B.UI.tab = 'stash'; B.UI.open('roster'); B.UI.open('bench', { tab: 'salvage' }); B.UI.close();
@@ -463,6 +508,59 @@ with sync_playwright() as p:
     check('a claim saved before the bench still loads, stash and all', r['old']['pick'] and r['old']['stash'] >= old_n and r['old']['sockets'] and not quiet, json.dumps(r['old']) + f' saved {old_n}')
     check('with no sound in the browser, nothing breaks', not quiet and r['missing'] and r['render'] is None, json.dumps(r) + ' ' + '; '.join(quiet))
     pg2.close()
+
+    # Saves from four older builds, a damaged save that can be mended, and one that can't be opened at all. Each opens
+    # in a page of its own with only that save in storage (test/saves/: real saves kept from those builds).
+    def open_with(save, label):
+        px = b.new_page(viewport={'width': 480, 'height': 360})
+        px.add_init_script('delete window.AudioContext; delete window.webkitAudioContext; delete window.OfflineAudioContext; delete window.webkitOfflineAudioContext;')
+        px.add_init_script('if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.clear(); localStorage.setItem("brightvein-keep-v1", ' + json.dumps(save) + '); localStorage.setItem("bv-settings", JSON.stringify({ hints: false })); }')
+        errs = []
+        px.on('pageerror', lambda e: errs.append(label + ': ' + str(e)[:300]))
+        px.route('**/fonts.g*/**', lambda r: r.fulfill(body='', content_type='text/css'))
+        px.goto('file://' + ROOT + '/dist/test.html', timeout=LONG)
+        for i in range(4):   # a claim that won't open puts itself aside and opens the page again: wait through that
+            try: px.wait_for_function('window.__bv && (document.querySelector("#loading").hidden || document.querySelector("#loading").classList.contains("failed"))', timeout=LONG, polling=500); break
+            except Exception as e:
+                if i == 3 or not any(w in str(e) for w in ('context', 'navigat', 'destroyed')): raise
+        px.evaluate('__bv.renderer.setAnimationLoop(null)')
+        return px, errs
+    PLAY = '''(() => { const B = __bv, G = B.GAME, s = B.loadSave(), out = {};
+      out.failed = document.querySelector('#loading').classList.contains('failed'); B.begin(false); out.started = B.started; out.people = [s.people.length, G.villagers.length];
+      for (const m of ['town', 'keep', 'mine', 'town']) { B.setView(m); if (B.VIEW.tween) B.VIEW.tween.t = 0.999; B.frame(); }
+      B.simulate(30, 0.1); for (const k of ['roster', 'dock', 'journal']) B.UI.open(k); B.UI.close();
+      out.nan = ['ore', 'shards', 'food', 't', 'day', 'nights', 'nextId'].filter(k => !Number.isFinite(G[k]));
+      out.night = !!B.WL.night; out.saved = B.saveGame(true) && JSON.parse(localStorage.getItem('brightvein-keep-v1')).v === 2;
+      out.faults = B.SAFE.faults.map(f => f.where + ': ' + f.msg); out.notes = B.SAFE.notes;
+      return out; })()'''
+    import time
+    for name in ['3fcaf46-day', 'd510ad5-night', '10b9c62-night', 'e87bf98-night']:
+        sv = json.loads(open(os.path.join(ROOT, 'test', 'saves', name + '.json')).read()); sv['savedAt'] = int(time.time() * 1000) - 600000   # ten minutes away
+        px, errs = open_with(json.dumps(sv), name)
+        r = px.evaluate(PLAY); px.close()
+        check(f'a save from an older build ({name}) opens and plays', not r['failed'] and r['started'] and r['people'][1] >= r['people'][0] and not r['nan'] and r['saved'] and not r['faults'] and not errs, json.dumps(r) + ' ' + '; '.join(errs))
+    # damaged, but it can be mended: a person with no abilities is left out (and said so), one with no look gets one,
+    # missing numbers take their starting values (not NaN, which would save as nothing and lose the shards), a study
+    # in a room that isn't furnished ends; the save as it was is kept aside
+    sv = json.loads(open(os.path.join(ROOT, 'test', 'saves', 'e87bf98-day.json')).read()); sv['savedAt'] = int(time.time() * 1000)
+    n = len(sv['people']); del sv['people'][0]['stats']; del sv['people'][1]['look']; del sv['ore']; del sv['t']; sv['shards'] = None
+    sv['people'][2]['study'] = {'room': 0, 'role': 'student', 'prog': 0}; sv['rooms'] = []
+    px, errs = open_with(json.dumps(sv), 'mended')
+    r = px.evaluate(PLAY)
+    r['kept'] = px.evaluate('Object.keys(localStorage).filter(k => k.startsWith("brightvein-keep-v1-broken-")).length'); px.close()
+    check('a damaged save is mended as it opens: nobody unreadable, no NaN, the original kept aside', not r['failed'] and r['started'] and r['people'] == [n, n - 1] and not r['nan'] and r['saved']
+          and any('left out' in x for x in r['notes']) and any('shards' in x for x in r['notes']) and r['kept'] == 1 and not errs, json.dumps(r) + ' ' + '; '.join(errs))
+    # one that can't be opened at all: it's put aside, and the title says so with three ways on; Start fresh works
+    sv = json.loads(open(os.path.join(ROOT, 'test', 'saves', 'e87bf98-day.json')).read()); sv['dig']['rooms'] = [None]
+    px, errs = open_with(json.dumps(sv), 'broken')
+    r = px.evaluate('''(() => { const B = __bv, sh = document.getElementById('fd-sheet'), out = {};
+      out.failed = document.querySelector('#loading').classList.contains('failed'); out.title = B.TITLE.on; out.sheet = !sh.hidden && sh.textContent.includes('couldn’t be opened');
+      out.buttons = ['#bk-code', '#bk-claims', '#bk-fresh'].filter(id => sh.querySelector(id)).length;
+      out.kept = Object.keys(localStorage).filter(k => k.startsWith('brightvein-keep-v1-broken-')).length; out.still = !!localStorage.getItem('brightvein-keep-v1');
+      const f = sh.querySelector('#bk-fresh'); f.click(); f.click(); out.started = B.started && !B.BUILD.setupDone; out.cleared = !B.loadSave();
+      return out; })()''')
+    px.close()
+    check("a save that can't be opened doesn't lock the player out: the title offers three ways on", not r['failed'] and r['title'] and r['sheet'] and r['buttons'] == 3 and r['kept'] == 1 and r['still'] and r['started'] and r['cleared'] and not errs, json.dumps(r) + ' ' + '; '.join(errs))
     b.close()
 for e in errors: print('  -', e)
 print('all good' if not errors else f'{len(errors)} problem(s)')

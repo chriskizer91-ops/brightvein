@@ -599,7 +599,7 @@ Object.assign(window.__bv, { TITLE, titleShow, titleHide, toTitle, SLOTS, slotRe
   SETTINGS, setSpeed, applyLookSettings, HINTS, hintShow, hintClose, hintsReset, TOASTS, toast, bedsUsed, guestCount, openMenu, closeMenu, openExport, openImport, openClaims, openAbout,
   newClaimAsk, introShow, introClose, sheetClose, LOADING, frontOpen, drawOnly, frame, QUALITY, applyQuality, CROWD, crowdDraw, TMERGE, townMerge });
 // mending saves, faults while playing, freeing what's taken down, for tests (saves.js, kit.js)
-Object.assign(window.__bv, { SAFE, safeMend, safeFault, safeBackup, safeFree, buildDigLook, castLeave, slotRaw });
+Object.assign(window.__bv, { SAFE, safeMend, safeFault, safeBackup, safeFree, safeNightLoad, safeStoryLoad, buildDigLook, castLeave, slotRaw });
 Object.defineProperty(window.__bv, 'started', { get: () => started });
 // a claim that won't open is put aside, and the page opens again without it (safeBroken, saves.js): never a dead end
 boot().catch(e => { console.error(e); if (SAFE.opening && safeBroken(SLOTS.active, e)) return; clearInterval(LOADING.t); $('#ld-line').textContent = 'The claim could not be built: ' + e.message + '. Try opening the page again.'; $('#loading').classList.add('failed'); });

@@ -91,7 +91,7 @@ function itemNumbers(it, v) {
     add('hit', 'Damage a hit', hit, '', { dec: 1 });
     add('dpsW', 'A second, against Wildlight', itemDps(it, 'flarehound', v), '', { dec: 1, note: v ? `at ${v.d.name.split(' ')[0]}'s ${STAT_NAMES[w.stat]}` : `at ${STAT_NAMES[w.stat]} 7` });
     add('dpsJ', 'A second, against claim-jumpers', itemDps(it, 'jumper', v), '', { dec: 1 });
-    add('reach', 'Reach', w.range, ' m', { dec: 1 });
+    add('reach', 'Reach', reachOf(w), ' m', { dec: 1 });   // as far as it reaches in a fight (gear.js)
   }
   if (s.guard) add('guard', 'Guard', s.guard, '%');
   if (s.hp) add('hp', 'Health', s.hp);
@@ -203,7 +203,10 @@ UI.item = function (body, { it, back, buy }) {
   if (it.attuned) body.append(this.h(`<p class="small"><b>${esc(D.ATTUNE[it.attuned].name)}.</b> ${esc(D.ATTUNE[it.attuned].text)} ${esc(isModuleItem(it) ? '' : statWords(isWeaponItem(it) ? D.ATTUNE[it.attuned].hand : D.ATTUNE[it.attuned].other))}</p>`));
   // the maker's mark
   if (it.rarity === 'signed') {
-    if (it.unassayed) { const a = this.h(`<div class="power mark">The maker’s mark is there, but nobody has read it. Its power won’t work until Absalom assays it. <button type="button" class="btn" style="margin-top:6px">Ask Absalom to assay it · ${SHARD} ${WS.assay}</button></div>`); a.querySelector('button').onclick = () => { benchAssay(it); UI.refresh(); }; body.append(a); }
+    if (it.unassayed) {   // the button on a line of its own, under the words
+      const can = GAME.shards >= WS.assay, a = this.h(`<div class="power mark"><p style="margin:0">The maker’s mark is there, but nobody has read it. Its power won’t work until Absalom assays it.</p><div class="stats-row"><button type="button" class="btn" ${can ? '' : 'disabled'}>Ask Absalom to assay it · <span class="cost">${SHARD} ${WS.assay}</span></button></div>${can ? '' : `<p class="small why" style="margin:4px 0 0">Needs ${esc(shortOf({ shards: WS.assay }))}.</p>`}</div>`);
+      a.querySelector('button').onclick = () => { benchAssay(it); UI.refresh(); }; body.append(a);
+    }
     else body.append(this.h(`<div class="mark-line"><span class="small">Maker’s mark</span> <b>${esc(it.name)}</b></div>`));
   }
   // what it's best for
@@ -294,9 +297,10 @@ UI.stashTab = function (body, list) {
   body.append(acts);
   // the filters
   const count = k => k === 'all' ? GAME.stash.length : GAME.stash.filter(it => it.slot === k).length;
+  // one row that scrolls sideways: the slots, then the grade, then the order
   const fl = this.h(`<div class="stash-f"><div class="tabs chips" role="group" aria-label="Show">${STASH_SLOTS.filter(([k]) => k === 'all' || count(k)).map(([k, n]) => `<button type="button" data-s="${k}" aria-pressed="${F.slot === k}">${n} <em>${count(k)}</em></button>`).join('')}</div>
-    <div class="stash-row"><span class="sg"><span class="small">Grade</span><span class="seg mini" role="group" aria-label="Grade">${['Any', 'Tuned+', 'Calibrated+', 'Signed+'].map((n, i) => `<button type="button" data-r="${i}" aria-pressed="${F.rar === i}">${n}</button>`).join('')}</span></span>
-    <span class="sg"><span class="small">Sort</span><span class="seg mini" role="group" aria-label="Sort">${[['new', 'Newest'], ['grade', 'Grade'], ['level', 'Level'], ['slot', 'Slot']].map(([k, n]) => `<button type="button" data-o="${k}" aria-pressed="${F.sort === k}">${n}</button>`).join('')}</span></span></div></div>`);
+    <span class="sg"><span class="small">Grade</span><span class="seg mini" role="group" aria-label="Grade">${['Any', 'Tuned+', 'Calibrated+', 'Signed+'].map((n, i) => `<button type="button" data-r="${i}" aria-pressed="${F.rar === i}">${n}</button>`).join('')}</span></span>
+    <span class="sg"><span class="small">Sort</span><span class="seg mini" role="group" aria-label="Sort">${[['new', 'Newest'], ['grade', 'Grade'], ['level', 'Level'], ['slot', 'Slot']].map(([k, n]) => `<button type="button" data-o="${k}" aria-pressed="${F.sort === k}">${n}</button>`).join('')}</span></span></div>`);
   for (const b of fl.querySelectorAll('[data-s]')) b.onclick = () => { F.slot = b.dataset.s; UI.refresh(); };
   for (const b of fl.querySelectorAll('[data-r]')) b.onclick = () => { F.rar = +b.dataset.r; UI.refresh(); };
   for (const b of fl.querySelectorAll('[data-o]')) b.onclick = () => { F.sort = b.dataset.o; UI.refresh(); };

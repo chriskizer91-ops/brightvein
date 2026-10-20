@@ -19,6 +19,7 @@ function applyLookSettings() {
   reducedMotion = SETTINGS.calm == null ? DEVICE_CALM : !!SETTINGS.calm;
   const app = $('#app'); app.classList.toggle('calm', reducedMotion);
   app.style.setProperty('--tz', String(SETTINGS.text || 1));
+  const sky = document.getElementById('sky'); if (sky) sky.style.setProperty('--tz', String(SETTINGS.text || 1));   // the skies' words too (sky.css)
 }
 applyLookSettings();
 function applyCamSettings() {

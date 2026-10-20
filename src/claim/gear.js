@@ -74,8 +74,10 @@ function fightOf(v, foe = 'glimmer') {
   // suits them better than that fights with its own numbers. Salvage gets no such help.
   const rank = LOOT.rankOf(g.weapon.rarity), floor = rank >= 1 ? bare * (1.06 + 0.04 * Math.min(rank, 6)) * ohK(g.weapon) * edge : 0;
   const d = Math.max(own, floor);
-  return w.range > 3 ? { dps: d, range: Math.min(w.range, 16), cd: w.cd, ranged: true, aspect: g.weapon.aspect || w.aspect } : { dps: Math.max(bare, d), range: Math.max(1.6, w.range * 0.8) };
+  return w.range > 3 ? { dps: d, range: reachOf(w), cd: w.cd, ranged: true, aspect: g.weapon.aspect || w.aspect } : { dps: Math.max(bare, d), range: Math.max(1.6, w.range * 0.8) };
 }
+// how far a weapon reaches in a fight: a shooting weapon reaches 16 m at most (the item's line says the same: itemLines)
+const reachOf = w => w.range > 3 ? Math.min(w.range, 16) : w.range;
 function maxHpOf(v) { const g = gearOf(v); return Math.round(50 + statOf(v, 'G') * 5 + g.hp); }
 function equip(v, it) {
   if (!wearable(it)) return false;
@@ -131,7 +133,7 @@ function itemIcon(it, size = 64) { const c = icon(it.kind, { aspect: it.aspect, 
 function itemLines(it) {
   const out = [], { relic, base } = itemBase(it), s = itemStats(it), w = itemWeapon(it), mult = rarityOf(it).statMult;
   if (isModuleItem(it)) { out.push(moduleEffect(it)); return out; }
-  if (w) out.push(`${Math.round(w.dmg * mult * ohK(it))} ${D.ASPECTS[it.aspect || w.aspect]?.name || ''} damage every ${w.cd}s · reach ${w.range} m · scales with ${STAT_NAMES[w.stat]}`);
+  if (w) out.push(`${Math.round(w.dmg * mult * ohK(it))} ${D.ASPECTS[it.aspect || w.aspect]?.name || ''} damage every ${w.cd}s · reach ${+reachOf(w).toFixed(1)} m · scales with ${STAT_NAMES[w.stat]}`);
   if (s.guard) out.push(`${s.guard}% guard`);
   if (s.hp) out.push(`+${s.hp} health`);
   if (s.out) out.push(`+${s.out}% output${s.outJob ? ' as ' + (DEFS[s.outJob === 'hall' ? 'keep' : s.outJob]?.job?.title || DEFS[s.outJob]?.name || s.outJob).toLowerCase() : ''}`);

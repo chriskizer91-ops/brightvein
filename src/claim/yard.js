@@ -214,10 +214,11 @@ UI.dock = function (body, ref) {
   const C = yardCrewFx(id, yardCrewFor(id)), cost = yardRepairCost(id, cfg), hours = yardRepairHours(id, cfg, C.repair);
   if (left) body.append(this.h(`<p class="small">Under repair at the dock: ${left.hours < 1 ? 'nearly done' : `about ${Math.ceil(left.hours)} hour${Math.ceil(left.hours) === 1 ? '' : 's'} to go`}. She can’t sail till she’s done.</p><div class="hp"><i style="width:${Math.max(3, left.frac * 100)}%"></i></div>`));
   else if (hours) {
-    const r = this.h(`<div class="stats-row"><button type="button" class="btn">Repair her: ${SHARD} ${cost} · ${hours} hour${hours === 1 ? '' : 's'}</button></div>`), b = r.querySelector('button');
+    const r = this.h(`<div class="stats-row"><button type="button" class="btn">Repair her: <span class="cost">${SHARD} ${cost}</span> · ${hours} hour${hours === 1 ? '' : 's'}</button></div>`), b = r.querySelector('button');
     b.disabled = GAME.shards < cost;
     b.onclick = () => { const x = yardStartRepair(id, cfg, yardNow(), C.repair, c => { if (GAME.shards < c.shards) return false; GAME.shards -= c.shards; return true; }); if (x) { FLEET.save(); AUDIO.play('build'); toast(`The yard hands start on the <b>${esc(yardName(id))}</b>: ${x.hours} hour${x.hours === 1 ? '' : 's'}.`); } UI.refresh(); };
     body.append(r);
+    if (GAME.shards < cost) body.append(this.h(`<p class="small why">Needs ${esc(shortOf({ shards: cost }))}.</p>`));   // why the button is off
   } else body.append(this.h(`<p class="small">Sound from keel to masthead.</p>`));
   // who sails
   const crew = yardAboard(id);
@@ -232,11 +233,11 @@ UI.dock = function (body, ref) {
     `<span class="chip">${owned} ship${owned > 1 ? 's' : ''} of ${YARD_FLEET.length}</span>`];
   if (d.voyages) chips.push(`<span class="chip">${d.voyages} voyage${d.voyages > 1 ? 's' : ''} · ${d.downed} raiders downed</span>`);
   body.append(this.h(`<div class="stats-row">${chips.join('')}</div>`));
-  const acts = this.h(`<div class="stats-row"><button type="button" class="btn primary" id="dk-sail">Set sail</button><button type="button" class="btn" id="dk-yard">Shipyard</button><button type="button" class="btn" id="dk-raids">Raids</button><button type="button" class="btn" id="dk-skies">Skies</button></div>`);
+  // (the raids are the Raids tab above)
+  const acts = this.h(`<div class="stats-row"><button type="button" class="btn primary" id="dk-sail">Set sail</button><button type="button" class="btn" id="dk-yard">Shipyard</button><button type="button" class="btn" id="dk-skies">Skies</button></div>`);
   const sailB = acts.querySelector('#dk-sail'); sailB.disabled = !!left;
   sailB.onclick = () => openSky('voyage');
   acts.querySelector('#dk-yard').onclick = () => openSky('port');
-  acts.querySelector('#dk-raids').onclick = () => { YARD.tab = 'raids'; UI.refresh(); };
   acts.querySelector('#dk-skies').onclick = () => openSky('title');
   body.append(acts);
   body.append(this.h(`<p class="small">On patrol, raiders come in waves; after each one, sail on or come home with the shards. While she’s out, the claim waits: nobody works and night won’t fall until she’s home. Whatever harm she takes comes home with her.</p>`));

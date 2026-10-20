@@ -35,13 +35,13 @@ const RARITY_ORDER = ["salvage", "tooled", "tuned", "calibrated", "signed", "mas
 const RANDOM_RARITIES = ["salvage", "tooled", "tuned", "calibrated", "signed"];
 const RARITY = {
   salvage:    { rank: 0, name: "Salvage",    color: "#8b8b8b", affixes: 0, statMult: 1.00, cells: 0, dropWeight: 100, text: "Scavenged and patched. Base stats only." },
-  tooled:     { rank: 1, name: "Tooled",     color: "#f1e4c6", affixes: 1, statMult: 1.00, cells: 0, dropWeight: 55,  text: "Workshop-made. One trait." },
+  tooled:     { rank: 1, name: "Tooled",     color: "#bfd2df", affixes: 1, statMult: 1.00, cells: 0, dropWeight: 55,  text: "Workshop-made. One trait." },
   tuned:      { rank: 2, name: "Tuned",      color: "#7cc95a", affixes: 2, statMult: 1.10, cells: 0, dropWeight: 22,  text: "Set up by someone who cared. Two traits." },
   calibrated: { rank: 3, name: "Calibrated", color: "#4f9be8", affixes: 3, statMult: 1.20, cells: 1, dropWeight: 7,   text: "Three traits and a cell socket." },
-  signed:     { rank: 4, name: "Signed",     color: "#a866e8", affixes: 3, statMult: 1.35, cells: 1, dropWeight: 1.5, unassayed: true, text: "A maker’s mark, a serial number and a logbook line. A minor power. Arrives unassayed until Absalom reads the mark." },
+  signed:     { rank: 4, name: "Signed",     color: "#c290f2", affixes: 3, statMult: 1.35, cells: 1, dropWeight: 1.5, unassayed: true, text: "A maker’s mark, a serial number and a logbook line. A minor power. Arrives unassayed until Absalom reads the mark." },
   masterwork: { rank: 5, name: "Masterwork", color: "#e6b955", affixes: 0, statMult: 1.50, cells: 2, dropWeight: 0,   handmade: true, text: "Named, one of a kind. A signature power, and often a town power." },
   guild:      { rank: 6, name: "Guild",      color: "#2fb8a6", affixes: 0, statMult: 1.50, cells: 1, dropWeight: 0,   handmade: true, set: true, text: "Guild-issue sets. Wear more of the set for set bonuses." },
-  sunforged:  { rank: 7, name: "Sunforged",  color: "#fff6dc", affixes: 0, statMult: 1.80, cells: 3, dropWeight: 0,   handmade: true, text: "Old-age Aethermoor relics dug out of the deep seam and refitted with sunstone. White flame." },
+  sunforged:  { rank: 7, name: "Sunforged",  color: "#ffe66b", affixes: 0, statMult: 1.80, cells: 3, dropWeight: 0,   handmade: true, text: "Old-age Aethermoor relics dug out of the deep seam and refitted with sunstone. White flame." },
 };
 
 // ---------------------------------------------------------------- base items (random drops, craftable once the blueprint is found)

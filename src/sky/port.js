@@ -16,7 +16,7 @@ import { PARTS, MAX, POWER, SHIPYARD, PAINTS, SAILS, FIGURES, refitCost, lookCos
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Math.round(n).toLocaleString('en');
-const MATS = { brass: 'Brass', glass: 'Glass', heartstone: 'Heartstone' };
+const MATS = { brass: 'Brass Scrap', glass: 'Cut Glass', heartstone: 'Heartstone' };   // as the claim names them (src/claim/loot.js)
 // a cost in words: ◆ 120 · 2 Brass · 1 Glass
 export const costText = (c) => [c.shards ? `◆ ${fmt(c.shards)}` : '', ...Object.keys(MATS).filter((k) => c[k]).map((k) => `${c[k]} ${MATS[k]}`)].filter(Boolean).join(' · ') || 'Free';
 const hex = (c) => `#${c.toString(16).padStart(6, '0')}`;

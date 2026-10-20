@@ -171,8 +171,15 @@ const UI = {
   open(kind, ref) {
     const panel = $('#panel'), a = document.activeElement;
     if (panel.hidden) this.opener = a && a !== document.body && !panel.contains(a) && a.closest('button,[role=button],[tabindex]') ? a : null;
+    if (!['villager', 'jobs', 'equip', 'prep', 'exp', 'studyRooms', 'item'].includes(kind)) SEL.villager = null;   // no name tag left over someone whose card is gone
+    const was = this.cur;
     this.cur = { kind, ref }; panel.hidden = false; this.render(); AUDIO.play('open');
     if (!panel.contains(document.activeElement) || document.activeElement === panel) panel.focus({ preventScroll: true });
+    // a room in the Keep or the dig, newly shown: bring it clear of the panel (keep.js, mine.js)
+    if (!was || was.kind !== kind || was.ref !== ref) {
+      if (kind === 'room' && VIEW.mode === 'keep') keepFocusRoom(ref);
+      if (kind === 'dig' && VIEW.mode === 'mine') digShowRoom(ref);
+    }
   },
   close() {
     const panel = $('#panel'), inside = panel.contains(document.activeElement), o = this.opener;
@@ -358,8 +365,8 @@ const UI = {
       const list = document.createElement('div'); list.className = 'list';
       for (const k of 'GEARS') {
         const S = STUDY[k], built = GAME.rooms.some(x => x.type === k), cost = ROOM_COST[1], can = !built && GAME.shards >= cost;
-        const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; el.style.gridTemplateColumns = '1fr auto'; if (!can) { el.disabled = true; el.style.opacity = 0.5; }
-        el.append(this.h(`<span><span class="nm">${esc(S.name)} · ${STAT_NAMES[k]}</span><span class="jb">${built ? 'Already furnished' : esc(S.blurb)}</span></span><span class="fit">${SHARD} ${cost}</span>`));
+        const el = document.createElement('button'); el.type = 'button'; el.className = 'li' + (can ? '' : ' off'); el.style.gridTemplateColumns = '1fr auto'; if (!can) el.disabled = true;
+        el.append(this.h(`<span><span class="nm">${esc(S.name)} · ${STAT_NAMES[k]}</span><span class="jb">${built ? '<span class="why">Already furnished: one of each kind</span>' : `${esc(S.blurb)}${can ? '' : ` <span class="why">Needs ${esc(shortOf({ shards: cost }))}.</span>`}`}</span></span><span class="fit">${SHARD} ${cost}</span>`));
         el.onclick = () => { if (!can) return; GAME.shards -= cost; r.type = k; r.level = 1; buildInterior(); AUDIO.play('build'); toast(`The <b>${esc(S.name)}</b> is furnished. ${esc(S.tutor.split(' ')[0])} would make a fine tutor.`); UI.open('room', i); };
         list.append(el);
       }
@@ -387,7 +394,7 @@ const UI = {
     body.append(box);
     if (lv < 3) {
       const cost = ROOM_COST[lv + 1], can = GAME.shards >= cost;
-      const u = this.h(`<div class="upgrade"><p><b>Level ${lv + 1}:</b> ${ROOM_SEATS[lv + 1]} seats and learning ×${ROOM_SPEED[lv + 1]}.</p><button type="button" class="btn primary" ${can ? '' : 'disabled'}>Upgrade · <span class="cost">${SHARD} ${cost}</span></button></div>`);
+      const u = this.h(`<div class="upgrade"><p><b>Level ${lv + 1}:</b> ${ROOM_SEATS[lv + 1]} seats and learning ×${ROOM_SPEED[lv + 1]}.</p><button type="button" class="btn primary" ${can ? '' : 'disabled'}>Upgrade · <span class="cost">${SHARD} ${cost}</span></button>${can ? '' : `<p class="small why">Needs ${esc(shortOf({ shards: cost }))}.</p>`}</div>`);
       u.querySelector('button').onclick = () => { if (GAME.shards < cost) return; GAME.shards -= cost; r.level++; buildInterior(); AUDIO.play('build'); toast(`The <b>${esc(S.name)}</b> is now level ${r.level}.`); UI.refresh(); };
       body.append(u);
     } else body.append(this.h(`<p class="small" style="margin-top:12px">Fully furnished.</p>`));
@@ -399,11 +406,12 @@ const UI = {
     const ok = v => role === 'tutor' ? canTutor(v, i) : canStudent(v, i);
     const people = GAME.villagers.filter(v => !v.d.exp && !(v.d.study && v.d.study.room === i)).sort((a, b) => (ok(b) - ok(a)) || (role === 'tutor' ? statOf(b, k) - statOf(a, k) : b.d.stats[k] - a.d.stats[k]));
     for (const v of people) {
-      const can = ok(v), s = v.d.stats[k], el = document.createElement('button'); el.type = 'button'; el.className = 'li'; if (!can) { el.disabled = true; el.style.opacity = 0.45; }
+      const can = ok(v), s = v.d.stats[k], el = document.createElement('button'); el.type = 'button'; el.className = 'li' + (can ? '' : ' off'); if (!can) el.disabled = true;
       const now = v.d.study ? `${v.d.study.role === 'tutor' ? 'Teaching' : 'Studying'} · ${STUDY[GAME.rooms[v.d.study.room].type].name}` : v.jobB ? v.jobB.def.job.title + ', ' + (v.jobB.name || v.jobB.def.name) : 'No job';
+      const why = can ? '' : role === 'tutor' ? (roomTutor(i) ? 'There’s a tutor already' : `Needs ${STAT_NAMES[k]} 7 to teach`) : s >= STAT_MAX ? 'Mastered already' : 'The room is full';
       const side = role === 'tutor' ? `${stars(statOf(v, k))} <em>${STAT_NAMES[k]} ${statOf(v, k)}</em>` : s >= STAT_MAX ? '<em>Mastered</em>' : `<em>${s}→${s + 1} · ${fmtReal(pointTime(s) / studyRate(i))}</em>`;
       el.append(faceOf(v));
-      el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${esc(now)}</span></span><span class="fit">${side}</span>`));
+      el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${esc(now)}${why ? ` · <span class="why">${esc(why)}</span>` : ''}</span></span><span class="fit">${side}</span>`));
       el.onclick = () => { if (!can) return; if (startStudy(v, i, role)) { toast(`<b>${esc(v.d.name.split(' ')[0])}</b> heads into the Keep to ${role === 'tutor' ? 'teach' : 'study'} in the ${esc(S.name)}.`); AUDIO.play('tap'); } UI.open('room', i); };
       list.append(el);
     }
@@ -418,9 +426,9 @@ const UI = {
       if (!r.type || !slotOpen(i)) return; any = true;
       const k = r.type, s = v.d.stats[k], canS = canStudent(v, i), canT = canTutor(v, i);
       const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; el.style.gridTemplateColumns = '1fr auto';
-      if (!canS && !canT) { el.disabled = true; el.style.opacity = 0.45; }
+      if (!canS && !canT) { el.disabled = true; el.classList.add('off'); }
       const note = s >= STAT_MAX ? (canT ? 'Mastered: could teach here' : 'Mastered') : !canS ? (canT ? 'Room full: could teach here' : 'Room full') : `${s} → ${s + 1} in about ${fmtReal(pointTime(s) / studyRate(i))}${canT ? ' · or teach' : ''}`;
-      el.append(this.h(`<span><span class="nm">${esc(STUDY[k].name)} · ${STAT_NAMES[k]}</span><span class="jb">${esc(note)}</span></span><span class="fit"><em>${roomStudents(i).length}/${ROOM_SEATS[r.level]}</em></span>`));
+      el.append(this.h(`<span><span class="nm">${esc(STUDY[k].name)} · ${STAT_NAMES[k]}</span><span class="jb${!canS && !canT ? ' why' : ''}">${esc(note)}</span></span><span class="fit"><em>${roomStudents(i).length}/${ROOM_SEATS[r.level]}</em></span>`));
       el.onclick = () => { if (canS ? startStudy(v, i, 'student') : canT && startStudy(v, i, 'tutor')) { toast(`<b>${esc(v.d.name.split(' ')[0])}</b> heads into the Keep.`); AUDIO.play('tap'); UI.open('villager', v); } };
       list.append(el);
     });
@@ -561,9 +569,9 @@ const UI = {
     for (const b of opts) {
       const s = statOf(v, b.def.job.stat), n = slotsOf(b), used = workersOf(b.id).length, mine = v.d.job && v.d.job.bid === b.id;
       const full = used >= n && !mine;
-      const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; if (full) el.disabled = true;
-      el.style.gridTemplateColumns = '1fr auto'; el.style.opacity = full ? 0.5 : 1;
-      el.append(this.h(`<span><span class="nm">${esc(b.def.job.title)} · ${esc(b.name || b.def.name)}</span><span class="jb">${mine ? 'Current job' : full ? 'Full' : `${used} of ${n} places taken`}${b.def.job.night ? ' · works nights' : ''}</span></span><span class="fit">${stars(s)} <em>${STAT_NAMES[b.def.job.stat]} ${s}</em></span>`));
+      const el = document.createElement('button'); el.type = 'button'; el.className = 'li' + (full ? ' off' : ''); if (full) el.disabled = true;
+      el.style.gridTemplateColumns = '1fr auto';
+      el.append(this.h(`<span><span class="nm">${esc(b.def.job.title)} · ${esc(b.name || b.def.name)}</span><span class="jb">${mine ? 'Current job' : full ? `<span class="why">Full: all ${n} places taken</span>` : `${used} of ${n} places taken`}${b.def.job.night ? ' · works nights' : ''}</span></span><span class="fit">${stars(s)} <em>${STAT_NAMES[b.def.job.stat]} ${s}</em></span>`));
       el.onclick = () => { if (mine) return UI.open('villager', v); if (v.d.study) endStudy(v); if (assignJob(v, b.id)) { if (!b.isDig) v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now ${aJob(b.def.job.title)}.`); AUDIO.play('tap'); } UI.open('villager', v); };
       list.append(el);
     }
@@ -576,15 +584,15 @@ const UI = {
     const n = GAME.villagers.length, idle = GAME.villagers.filter(v => !v.d.job && !v.d.exp).length, out = expOut();
     const gs = guestCount();
     body.append(this.h(`<h2>The crew</h2><p class="sub">${n} people · ${bedsUsed()} of ${totalBeds()} beds taken${gs ? ` · ${gs} guest${gs > 1 ? 's' : ''}` : ''} · ${idle ? idle + ' without work' : 'everyone busy'}</p>`));
-    if (BUILD.setupDone) {   // the claim's mood, and what's moving it (mood.js)
-      const mb = moodBand(), m = this.h(`<button type="button" class="linkrow"><svg viewBox="0 0 20 20" aria-hidden="true">${moodFace(mb)}</svg><span>Mood ${Math.round(MOOD.v)} · ${esc(mb.name)}</span><em>What’s moving it ›</em></button>`);
-      m.querySelector('button').onclick = () => UI.open('journal', { tab: 'days' }); body.append(m);
-    }
     const tabs = this.h(`<div class="tabs" role="group" aria-label="Show"><button type="button" data-t="crew">Crew</button><button type="button" data-t="wilds">Wilds · ${out.length}/${expLimit()}</button><button type="button" data-t="stash">Stash · ${GAME.stash.length}</button></div>`);
     for (const bt of tabs.querySelectorAll('button')) { bt.setAttribute('aria-pressed', bt.dataset.t === this.tab); bt.onclick = () => { this.tab = bt.dataset.t; this.refresh(); }; }
     body.append(tabs);
     const list = document.createElement('div'); list.className = 'list';
     if (this.tab === 'crew') {
+      if (BUILD.setupDone) {   // the claim's mood, and what's moving it (mood.js): on a phone the people pill opens this page
+        const mb = moodBand(), m = this.h(`<button type="button" class="linkrow"><svg viewBox="0 0 20 20" aria-hidden="true">${moodFace(mb)}</svg><span>Mood ${Math.round(MOOD.v)} · ${esc(mb.name)}</span><em>What’s moving it ›</em></button>`);
+        m.querySelector('button').onclick = () => UI.open('journal', { tab: 'days' }); list.append(m);
+      }
       const order = v => v.d.exp ? 'zzz' : v.d.job && v.jobB ? (v.jobB.name || v.jobB.def.name) : 'zz';
       for (const v of [...GAME.villagers].sort((a, b) => order(a).localeCompare(order(b)))) {
         const b = v.jobB, top = Object.entries(v.d.stats).sort((x, y) => statOf(v, y[0]) - statOf(v, x[0]))[0][0];

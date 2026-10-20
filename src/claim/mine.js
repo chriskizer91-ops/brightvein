@@ -560,7 +560,8 @@ function digView() {
 function digClamp() {
   const C = DIGCAM, t = camT(), a = innerWidth / innerHeight;
   C.wd = clamp(C.wd, 8, digMaxDist());
-  const hh = C.wd * t, hw = hh * a, x0 = MINE.x0 - 2, x1 = MINE.shaft.x1 + 4 + (innerWidth >= 900 ? hw * 0.5 : 0), y0 = rowY0(MINE.rows - 1) - 3, y1 = 6;
+  // on a wide screen with a panel open, room to slide what you tapped clear of it, to the left (digShowRoom)
+  const hh = C.wd * t, hw = hh * a, x0 = MINE.x0 - 2, x1 = MINE.shaft.x1 + 4 + (innerWidth >= 900 ? hw * (UI.cur ? 1.2 : 0.5) : 0), y0 = rowY0(MINE.rows - 1) - 3, y1 = 6;
   C.wx = x1 - x0 < hw * 2 ? (x0 + x1) / 2 : clamp(C.wx, x0 + hw * 0.6, x1 - hw * 0.6);
   C.wy = y1 - y0 < hh * 2 ? clamp(C.wy, y1 - hh, y0 + hh) : clamp(C.wy, y0 + hh * 0.6, y1 - hh * 0.6);
 }
@@ -619,13 +620,22 @@ function pickDig(x, y, maxDist = Infinity) {
   const ref = u.cell ? { cell: true, r: u.r, c: u.c, id: `c:${u.r}.${u.c}` } : DIG.byId[u.id];
   if (!ref) return false;
   SEL.building = ref; SEL.villager = null; FOLLOW.v = null; DIG.sel = ref;
-  UI.open('dig', ref); AUDIO.play('tap');
-  // phones held upright: the panel covers the bottom of the screen, so bring the room up above it
-  if (VIEW.mode === 'mine' && innerHeight > innerWidth) {
-    const c = ref.cell || ref.isDig ? ref.c : ref.c0, w = ref.cell || ref.isDig ? 1 : ref.w, r = ref.r;
-    DIGCAM.wx = MINE.colX0(c) + w * MINE.cw / 2; DIGCAM.wd = Math.min(DIGCAM.wd, 34); DIGCAM.wy = (rowY0(r) + rowY1(r)) / 2 - DIGCAM.wd * camT() * 0.42;
-  }
+  UI.open('dig', ref); AUDIO.play('tap');   // UI.open brings the room clear of the panel (digShowRoom)
   return true;
+}
+// bring a room clear of the panel: on a phone held upright, up above it; on a wide screen, if it's under the panel on the
+// right, slide the dig left until the room is in the middle of the rest (as dockView does for the ship, keepFocus for the Keep)
+function digShowRoom(ref) {
+  if (VIEW.mode !== 'mine' || !ref) return;
+  const c = ref.cell || ref.isDig ? ref.c : ref.c0, w = ref.cell || ref.isDig ? 1 : ref.w, r = ref.r;
+  if (c == null || r == null) return;
+  const cx = MINE.colX0(c) + w * MINE.cw / 2, cy = (rowY0(r) + rowY1(r)) / 2;
+  if (innerHeight > innerWidth) { DIGCAM.wx = cx; DIGCAM.wd = Math.min(DIGCAM.wd, 34); DIGCAM.wy = cy - DIGCAM.wd * camT() * 0.42; return; }
+  if (innerWidth < 900) return;
+  const el = $('#panel'), left = el && !el.hidden ? el.getBoundingClientRect().left : innerWidth - 400;
+  const hw = DIGCAM.wd * camT() * innerWidth / innerHeight, edge = (left - 20) / innerWidth * 2 - 1;
+  if ((cx + w * MINE.cw / 2 - DIGCAM.wx) / hw > edge || (cx - w * MINE.cw / 2 - DIGCAM.wx) / hw < -1) DIGCAM.wx = cx - ((left / 2) / innerWidth * 2 - 1) * hw;
+  DIGCAM.wy = clamp(DIGCAM.wy, cy - DIGCAM.wd * camT() * 0.6, cy + DIGCAM.wd * camT() * 0.6);
 }
 
 // ----------------------------------------------------------------- panels
@@ -660,7 +670,7 @@ UI.dig = function (body, ref) {
   this.crew(body, R);
   if (!K.fixed && lv < 3) {
     const cost = digUpCost(R), can = GAME.shards >= cost;
-    const u = this.h(`<div class="upgrade"><p><b>Level ${lv + 1}:</b> ${esc(K.levels[lv])}. Works ${Math.round((DIGR.lvl[lv + 1] / DIGR.lvl[lv] - 1) * 100)}% better.</p><button type="button" class="btn primary" ${can ? '' : 'disabled'}>Upgrade · <span class="cost">${SHARD} ${cost}</span></button>${can ? '' : `<p class="small">Needs ${cost - Math.floor(GAME.shards)} more shards.</p>`}</div>`);
+    const u = this.h(`<div class="upgrade"><p><b>Level ${lv + 1}:</b> ${esc(K.levels[lv])}. Works ${Math.round((DIGR.lvl[lv + 1] / DIGR.lvl[lv] - 1) * 100)}% better.</p><button type="button" class="btn primary" ${can ? '' : 'disabled'}>Upgrade · <span class="cost">${SHARD} ${cost}</span></button>${can ? '' : `<p class="small why">Needs ${esc(shortOf({ shards: cost }))}.</p>`}</div>`);
     u.querySelector('button').onclick = () => digUpgrade(R);
     body.append(u);
   } else if (!K.fixed) body.append(this.h(`<p class="small" style="margin-top:12px">Fully fitted out.</p>`));
@@ -689,9 +699,9 @@ function digCellPanel(body, ref) {
     const K = ROOMK[kind], cost = digCost(r, kind), no = digKindWhyNot(r, kind), poor = GAME.shards < cost;
     const N = [roomAt(r, c - 1), roomAt(r, c + 1)].find(R => R && R.kind === kind && R.lv === 1 && R.w < 3);
     const el = document.createElement('button'); el.type = 'button'; el.className = 'li dk'; el.style.gridTemplateColumns = '40px 1fr auto';
-    if (no || poor) { el.disabled = true; el.style.opacity = 0.5; }
+    if (no || poor) { el.disabled = true; el.classList.add('off'); }   // dimmed, but the reason stays readable (style.css)
     el.append(digKindIcon(kind));
-    el.append(this.h(`<span><span class="nm">${esc(K.name)}</span><span class="jb">${esc(no || K.short)}${N ? ' · joins the one next door' : ''}</span></span><span class="fit">${SHARD} ${cost}</span>`));
+    el.append(this.h(`<span><span class="nm">${esc(K.name)}</span><span class="jb">${no ? `<span class="why">${esc(no)}</span>` : esc(K.short)}${N ? ' · joins the one next door' : ''}${!no && poor ? ` <span class="why">Needs ${esc(shortOf({ shards: cost }))}.</span>` : ''}</span></span><span class="fit">${SHARD} ${cost}</span>`));
     el.onclick = () => { if (no || poor) return; const d = digOrder(r, c, kind); if (d) { DIG.sel = d; UI.open('dig', d); } };
     list.append(el);
   }

@@ -432,7 +432,7 @@ function journalHUD() {
   if (C && STORY.started) html = `<b>${STORY.ch ? `Chapter ${STORY.ch}` : 'Prologue'} · ${esc(C.title)}</b>` + C.goals.map(g => {
     const ok = STORY.ready || g.done(), p = g.prog && g.prog(), note = !ok && g.note && g.note(), pay = !ok && g.cost && canGive(g.cost);
     if (ok && g.seen === false && !g.rang) { g.rang = true; AUDIO.play('goal'); } g.seen = ok;
-    return `<span class="${ok ? 'ok' : pay ? 'q ready' : ''}"><i>${ok ? '✓' : pay ? '◆' : '◇'}</i>${esc(g.text)}${p && !ok ? ` <em>${Math.floor(p[0])}/${p[1]}</em>` : ''}${note ? ` <em>${esc(note)}</em>` : ''}${pay ? ' <em>(tap to pay)</em>' : ''}</span>`; }).join('');
+    return `<span class="${ok ? 'ok' : pay ? 'q ready' : ''}"><i>${ok ? '✓' : pay ? '◆' : '◇'}</i>${esc(g.text)}${p && !ok ? ` <em>${Math.floor(p[0])}/${p[1]}</em>` : ''}${note ? ` <em>${esc(note)}</em>` : ''}${pay ? ' <em>(tap to pay)</em>' : g.cost && !ok ? ' <em>(paid from the journal)</em>' : ''}</span>`; }).join('');
   html += questsHUD(!!html);
   if (!html) { el.hidden = true; return; }
   if (el.innerHTML !== html) el.innerHTML = html;
@@ -457,6 +457,14 @@ UI.journal = function (body, ref) {
     for (const k of [...STORY.codex].reverse()) if (CODEX[k]) body.append(this.h(`<p><b>${esc(CODEX[k].title)}.</b> ${esc(CODEX[k].text)}</p>`));
     return;
   }
+  // a goal paid for from here (the filing fee, food for Hollowcrest's people: pace.js), at the top, so it's in reach
+  { const C = STORY.started && !STORY.ready && CHAPTERS[STORY.ch];
+    if (C) C.goals.forEach((g, gi) => {
+      if (!g.cost || g.done()) return;
+      const can = canGive(g.cost), row = this.h(`<div class="upgrade jr-pay"><p><b>${STORY.ch ? `Chapter ${STORY.ch}` : 'Prologue'} · ${esc(C.title)}.</b> ${esc(g.text)}.</p><button type="button" class="btn${can ? ' primary' : ''}" ${can ? '' : 'disabled'}>Pay ${esc(giveText(g.cost))}</button>${can ? '' : `<p class="small">Not enough in the stores yet.</p>`}</div>`);
+      row.querySelector('button').onclick = () => { storyPay(gi); this.refresh(); };
+      body.append(row);
+    }); }
   let act = null;
   CHAPTERS.forEach((C, i) => {
     if (i > STORY.ch) return;
@@ -464,15 +472,7 @@ UI.journal = function (body, ref) {
     const cur = i === STORY.ch;
     body.append(this.h(`<h3>${i ? `Chapter ${i}` : 'Prologue'} · ${esc(C.title)}${cur ? '' : ' ✓'}</h3><p class="small">${esc(C.line)}</p>`));
     if (cur && STORY.started) {
-      const ul = this.h(`<ul class="traits">${C.goals.map(g => { const p = g.prog && g.prog(), ok = STORY.ready || g.done(), note = !ok && g.note && g.note(); return `<li>${ok ? '✓ ' : ''}${esc(g.text)}${p && !ok ? ` (${Math.floor(p[0])} of ${p[1]})` : ''}${note ? ` · ${esc(note)}` : ''}</li>`; }).join('')}</ul>`).firstElementChild;
-      // a goal paid for from here: the filing fee, food for Hollowcrest's people (pace.js)
-      C.goals.forEach((g, gi) => {
-        if (!g.cost || STORY.ready || g.done()) return;
-        const can = canGive(g.cost), bt = document.createElement('button'); bt.type = 'button'; bt.className = 'btn' + (can ? ' primary' : '');
-        bt.disabled = !can; bt.textContent = `Pay ${giveText(g.cost)}`; bt.onclick = () => { storyPay(gi); this.refresh(); };
-        ul.children[gi].append(' ', bt);
-      });
-      body.append(ul);
+      body.append(this.h(`<ul class="traits">${C.goals.map(g => { const p = g.prog && g.prog(), ok = STORY.ready || g.done(), note = !ok && g.note && g.note(); return `<li>${ok ? '✓ ' : ''}${esc(g.text)}${p && !ok ? ` (${Math.floor(p[0])} of ${p[1]})` : ''}${note ? ` · ${esc(note)}` : ''}${g.cost && !ok ? ' (at the top of this page)' : ''}</li>`; }).join('')}</ul>`));
     }
   });
   if (STORY.ch >= CHAPTERS.length) body.append(this.h(`<p class="small jr-end">The story so far ends here: Brightvein is a free town, with a heart under it, asleep. More chapters are coming. Days on the claim go on, and so do the cast’s own stories.</p>`));

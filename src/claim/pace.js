@@ -9,7 +9,7 @@
 // Hollowcrest who come over in chapter 13 (as guests on bedrolls until a bunk is free), and what act two's chapters
 // give besides shards (materials, gear, modules, Lark parts).
 const PACE = {
-  eventDays: 0.34,   // the chance a morning rolls a day event (one that gives way to a chapter or a Bright Night waits for a free day)
+  eventDays: 0.38,   // the chance a morning rolls a day event (one that gives way to a chapter or a Bright Night waits for a free day)
   roll: 0.04,        // names on the charter roll for each clerk's worth of work a second (chapter 9)
   afterEvent: 0.08,  // a chapter scene waits this long (in days) after a day event's card, so they don't come back to back
   richAt: 4000,      // from chapter 8: how much wealth over 1,500 makes the nights a step harder (paceThreat)

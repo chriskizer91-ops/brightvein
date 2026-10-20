@@ -86,7 +86,7 @@ CHAPTERS.push(
       ['absalom', 'It needs a Parlour to meet in, enough people to count as a town, and a filing fee. The fee is large. Lawyers are expensive. I have met several.'],
     ],
     goals: [GOAL.roll(24, 'Gather 24 names for the charter roll: clerks at work in the Keep'), GOAL.room('R', 'Furnish a Parlour in the Keep to meet in (Keep › an empty room)'),
-      GOAL.pay({ shards: 600 }, 'Pay the 600-shard filing fee (tap the journal)', null, 'Paid the charter’s filing fee: 600 shards.')],
+      GOAL.pay({ shards: 600 }, 'Pay the 600-shard filing fee', null, 'Paid the charter’s filing fee: 600 shards.')],
     close: [
       ['absalom', 'The charter. Drafted, stamped, and stamped again for luck. Now the whole claim has to vote on it.'],
       ['ledger', 'A vote. How charming. Do let me know how it turns out. I shall be counting. — L. M., for the Gilded Exchange'],
@@ -178,7 +178,7 @@ CHAPTERS.push(
       // Hollowcrest's people wait at the Sky Dock for the claim to take them in: the third goal, paid from the journal
     },
     goals: [GOAL.build('rod', 2, 'Build two Lightning Rods'), GOAL.bolts(6, 'Catch six bolts of lightning with the rods'),
-      GOAL.pay({ food: 60 }, 'Take in four of Hollowcrest’s people, waiting at the Sky Dock: soup and blankets (60 food, tap the journal)', () => ({
+      GOAL.pay({ food: 60 }, 'Take in Hollowcrest’s four, waiting at the Sky Dock: soup and blankets (60 food)', () => ({
         lines: [
           ['juno', 'Four of mine. Two miners, a cook, and a lad who says he can fix anything. He can’t.'],
           ['marigold', 'Soup first. Then blankets. Then we’ll see about anything.'],

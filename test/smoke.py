@@ -350,6 +350,8 @@ with sync_playwright() as p:
     check('the dawn report comes up', bool(r['dawn']) and r['last'], json.dumps({k: r[k] for k in ('dawn', 'last')}))
     # the wall: a section knocked down shows a gap, is saved, and the watch mends it by day
     r = pg.evaluate('''(() => { const B = __bv, s = B.WALL.segs[10], out = {};
+      for (const q of B.WALL.segs) if (q !== s) { q.hp = 1; q.broken = false; }   // the nights before left other sections to mend first (the watch takes the nearest bad one)
+      for (const v of B.workersOf('wall')) { v.repairSeg = null; v.replan = true; }
       B.wallHit(s, 2); out.broken = s.broken; B.saveGame(); const sv = JSON.parse(localStorage.getItem('brightvein-keep-v1'));
       out.saved = sv.night && sv.night.broken[10] === 1 && sv.night.wall[10] < 0.5;
       B.GAME.shards = Math.max(B.GAME.shards, 300); if (!B.workersOf('wall').length) { const v = B.GAME.villagers.find(x => !x.d.exp); B.assignJob(v, 'wall'); }

@@ -173,7 +173,6 @@ function keepWalk(v, K, dt) {
   if (!K.path.length && K.goal) K.at = true;
 }
 // in place: sitting, lying, climbing the wall, working; the sprite takes the room's light
-const _kt = new THREE.Vector3();
 function keepPose(v, K, rdt) {
   const s = K.at ? K.goal : null, spr = v.isprite;
   spr.visible = true;

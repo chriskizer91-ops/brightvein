@@ -8,7 +8,6 @@ const DEVICE_CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const SETTINGS = { text: 1, cam: 1, calm: null, autosave: true, every: 1, fastest: 4, nightSlow: false, hints: true };
 try { const s = JSON.parse(localStorage.getItem('bv-settings')); if (s && typeof s === 'object') for (const k of Object.keys(SETTINGS)) if (k in s) SETTINGS[k] = s[k]; } catch (e) { }
 function settingsKeep() { try { localStorage.setItem('bv-settings', JSON.stringify(SETTINGS)); } catch (e) { } }
-const TEXT_SIZES = [[0.9, 'Small'], [1, 'Normal'], [1.12, 'Large'], [1.25, 'Larger']];
 const QUALITY_TEXT = {
   light: 'For phones and older computers: no glow or soft focus, simpler shadows, fewer raindrops and sparks, drawn at the screen’s plain sharpness.',
   balanced: 'Glow on the lamps and crystal, the soft-focus lens, soft shadows, drawn a little sharper. Good for most computers and newer phones.',
@@ -23,7 +22,7 @@ function applyLookSettings() {
 applyLookSettings();
 function applyCamSettings() {
   const k = clamp(+SETTINGS.cam || 1, 0.4, 2.5);
-  for (const c of [controls, kcontrols]) { c.rotateSpeed = k; c.zoomSpeed = k; c.panSpeed = k; }
+  controls.rotateSpeed = k; controls.zoomSpeed = k; controls.panSpeed = k;
 }
 const camK = () => clamp(+SETTINGS.cam || 1, 0.4, 2.5);
 // the game speed: the fast-forward button steps up to the fastest allowed, then back to 1×
@@ -78,7 +77,7 @@ $('#tips-again').onclick = () => { hintsReset(); SETTINGS.hints = true; settings
 function flash(sel, text) { const b = $(sel); if (!b._was) b._was = b.textContent; b.textContent = text; clearTimeout(b._t); b._t = setTimeout(() => { b.textContent = b._was; b._was = null; }, 1800); }
 for (const b of document.querySelectorAll('#as-seg button')) b.onclick = () => { const a = b.dataset.a; SETTINGS.autosave = a !== 'off'; if (a !== 'off') SETTINGS.every = +a; settingsKeep(); autosaveT = autosaveEvery(); syncMenu(); };
 $('#b-sound').onclick = () => { AUDIO.start(); AUDIO.set(!AUDIO.on); syncMenu(); };
-$('#b-save-now').onclick = () => { if (!started) return; saveGame(true); menuSaveLine(); flash('#b-save-now', 'Saved ✓'); };
+$('#b-save-now').onclick = () => { if (!started) return; const ok = saveGame(true); menuSaveLine(); flash('#b-save-now', ok ? 'Saved ✓' : 'Not saved'); };
 $('#b-export').onclick = () => openExport();
 $('#b-import').onclick = () => openImport();
 $('#b-help').onclick = () => { closeMenu(); introShow(true); };

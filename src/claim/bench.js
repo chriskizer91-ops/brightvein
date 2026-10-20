@@ -78,7 +78,6 @@ function craftOdds() { const o = LOOT.rarityOdds(craftLuck()), keep = ['tooled',
 
 // ---- jobs: one at a time, paid when they start
 const jobTime = s => s / benchSpeed();
-function benchBusy() { return !!GAME.bench.job; }
 function startJob(job) {
   if (GAME.bench.job) { toast('The bench is busy. One job at a time.'); return false; }
   if (!benchShop()) { toast('Build the Lens Workshop first: the bench is in it.'); return false; }

@@ -6,7 +6,7 @@
 # Pass character ids (io sol halcyon ...) after the file name to draw only those.
 #
 #   python3 test/cast.py --portraits
-# (Re)makes the dialogue portraits assets/cast/<id>.png (112 x 112) from reference/cast (needs Pillow):
+# (Re)makes the dialogue portraits assets/cast/<id>.webp (112 x 112, lossless) from reference/cast (needs Pillow):
 #   Envoi's own pixel portraits, cropped or padded to 112 (centred, standing on the bottom edge);
 #   Io's head and shoulders, cropped from her cast pose at full size;
 #   the Moon Faire four, cropped from their HD frames and reduced to 112: smooth downscale, a light sharpen,
@@ -42,7 +42,7 @@ def make_portraits():
         crop = Image.new('RGBA', (S, S), (0, 0, 0, 0)); crop.alpha_composite(im.crop((x0, y0, x0 + S, y0 + S)))
         done[id] = pixelise(crop.resize((112, 112), Image.LANCZOS))
     for id, im in done.items():
-        assert im.size == (112, 112); im.save(os.path.join(dst, id + '.png'), optimize=True); print('wrote assets/cast/' + id + '.png')
+        assert im.size == (112, 112); im.save(os.path.join(dst, id + '.webp'), 'WEBP', lossless=True, method=6); print('wrote assets/cast/' + id + '.webp')
 
 if __name__ == '__main__' and '--portraits' in sys.argv:
     make_portraits(); sys.exit(0)
@@ -85,7 +85,7 @@ for refs in REFS.values():
 cast_src = rd('src/claim/cast.js') if os.path.exists(os.path.join(ROOT, 'src/claim/cast.js')) else 'const HERO_LOOKS = {};'
 portraits = os.path.join(ROOT, 'assets/cast')
 for f in sorted(os.listdir(portraits)) if os.path.isdir(portraits) else []:
-    if f.endswith('.png'): imgs['assets/cast/' + f] = data_url('assets/cast/' + f)
+    if f.endswith('.webp'): imgs['assets/cast/' + f] = data_url('assets/cast/' + f)
 
 # the claim's own code: mulberry from core.js, then pixel.js and cast.js, as they are joined in the build
 core = rd('src/claim/core.js')
@@ -123,7 +123,7 @@ JS = r'''async ([IMGS, REFS, ONLY]) => {
       ctx.drawImage(p, bx, by, bw, bh, x, y, w, SH); x += w + PAD;
     }
     ctx.imageSmoothingEnabled = false;
-    const por = pics['assets/cast/' + id + '.png'];
+    const por = pics['assets/cast/' + id + '.webp'];
     if (por) ctx.drawImage(por, x, y + (SH - por.height * 3) / 2, por.width * 3, por.height * 3);
   });
   const review = cv.toDataURL('image/png');

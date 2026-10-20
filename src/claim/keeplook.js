@@ -1481,7 +1481,7 @@ function keepLookUpdate(rdt, gdt) {
   KM.crystal.emissiveIntensity = 0.7 + night * 0.5 + Math.sin(now * 1.2) * 0.15;
   // the faked lamplight: the lights nearest the middle of the view lend their light to the shaders
   kcam.updateMatrixWorld();
-  const max = light ? 10 : KGLOW_MAX, tgt = kcontrols.target, cand = _kgl; cand.length = 0;
+  const max = light ? 10 : KGLOW_MAX, tgt = KCAM.at, cand = _kgl; cand.length = 0;
   for (const g of KEEPV.lights) { g.dd = (g.x - tgt.x) ** 2 + (g.y - tgt.y) ** 2 * 1.3; cand.push(g); }
   cand.sort((a, b) => a.dd - b.dd);
   let k = 0;

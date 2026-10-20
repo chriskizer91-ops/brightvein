@@ -357,8 +357,6 @@ function climbRoute(i) {
   pts.inward = new THREE.Vector3(-nx, 0, -nz);
   return pts;
 }
-// the old way up, for anything that asks for a cliff at random
-function cliffRoute() { return climbRoute(8 + Math.random() * (OUTLINE.length - 17)); }
 function startNight() {
   GAME.nights++;
   nightBegin();

@@ -196,6 +196,18 @@ function mergeStatic(root, skip = () => false) {
   return merged;
 }
 
+// Free what something taken out of the scene held on the graphics card: its geometries, and its materials when asked
+// (not their textures, which are shared). Anything the claim's scenes still use is left alone.
+function safeFree(root, mats = false) {
+  if (!root) return;
+  const used = new Set();
+  for (const S of [scene, KSCENE]) S.traverse(o => { if (o.geometry) used.add(o.geometry); if (mats && o.material) for (const m of [].concat(o.material)) used.add(m); });
+  const done = new Set();
+  root.traverse(o => {
+    if (o.geometry && !used.has(o.geometry) && !done.has(o.geometry)) { done.add(o.geometry); o.geometry.dispose(); }
+    if (mats && o.material) for (const m of [].concat(o.material)) if (!used.has(m) && !done.has(m)) { done.add(m); m.dispose(); }
+  });
+}
 // the turning heads of turrets and lens towers cast no shadow on Light: about thirty fewer draws in the sun's shadow
 function lightCasts() {
   for (const b of BUILDINGS) for (const m of b.merged || []) if ('rigidCast' in m.userData) m.castShadow = m.userData.rigidCast && QUALITY.level !== 'light';
@@ -252,7 +264,6 @@ function townMerge() {
 }
 
 // scaffolding: poles and planks around a footprint while it is being built
-const SCAF = { pool: [] };
 function scaffoldOn(b) {
   const L = b.L, w = (L.w || 6) / 2 + 0.6, d = (L.d || 6) / 2 + 0.6, h = 3 + b.level * 3.2;
   const grp = new THREE.Group(); grp.position.copy(b.group.position); grp.rotation.y = b.group.rotation.y;
@@ -265,7 +276,7 @@ function scaffoldOn(b) {
   }
   scene.add(grp); b.scaffold = grp;
 }
-function scaffoldOff(b) { if (b.scaffold) { scene.remove(b.scaffold); b.scaffold = null; } }
+function scaffoldOff(b) { if (b.scaffold) { scene.remove(b.scaffold); b.scaffold.traverse(o => { if (o.geometry) o.geometry.dispose(); }); b.scaffold = null; } }
 
 // windows and doors on a wall plane. dir: which way the wall faces, in the building's local frame
 function windowAt(b, x, y, z, w, h, ry = 0, lvl = 1, o = {}) {

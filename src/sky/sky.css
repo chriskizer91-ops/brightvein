@@ -359,4 +359,8 @@ body.touch #sky .mouse-only { display: none !important; }
 }
 @media (prefers-reduced-motion: reduce) { #region.on, #banner.on, #toast.on { animation-duration: 0.01s; } }
 /* the Text size setting (Settings › Picture) reaches the skies' words too (--tz is set on #sky by settings.js) */
-#port-panel > :not(.sail-out), #port-note, .title-card > :not(h1), .card > *, #objective > *, #help > *, #ship > *, #score, #compass, #sky-boss > *, #battery, #touch-hint, #target, #port-ships button > * { zoom: var(--tz, 1); }
+/* (inside the HUD's fixed boxes, not on them, so they stay where they are) */
+#port-panel > :not(.sail-out), .title-card > :not(h1), .card > *, #objective > *, #help > *, #ship > *, #score > *, #compass > *, #sky-boss > *, #battery > *, #target > *, #port-ships button > * { zoom: var(--tz, 1); }
+#touch-hint { font-size: calc(15px * var(--tz, 1)); }
+/* touch screens: the Shipyard's tabs a thumb's height too */
+body.touch #sky .pp-tabs button, body.touch #sky .mod .buy, body.touch #sky #btn-home, body.touch #sky #btn-skies { min-height: 40px; }

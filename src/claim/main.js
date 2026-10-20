@@ -610,6 +610,7 @@ Object.assign(window.__bv, { BENCH_T: { benchSalvage, benchOverhaul, benchRetune
 // the front door, saves, settings, tips and toasts, for tests (title.js, saves.js, settings.js, hints.js, ui.js)
 Object.assign(window.__bv, { TITLE, titleShow, titleHide, toTitle, SLOTS, slotRead, slotWrite, slotClear, slotSummary, slotName, exportCode, importCode, codeWhy, reloadInto,
   SETTINGS, setSpeed, applyLookSettings, HINTS, hintShow, hintClose, hintsReset, TOASTS, toast, bedsUsed, guestCount, openMenu, closeMenu, openExport, openImport, openClaims, openAbout,
-  newClaimAsk, introShow, introClose, sheetClose, LOADING, frontOpen, drawOnly, frame, QUALITY, applyQuality, CROWD, crowdDraw, TMERGE, townMerge });
+  newClaimAsk, introShow, introClose, sheetClose, LOADING, frontOpen, drawOnly, frame, QUALITY, applyQuality, CROWD, crowdDraw, TMERGE, townMerge,
+  playScene, endScene, eventFire, eventChoose, uiMorph });   // the panels: put aside for a scene, brought up to date in place (ui.js)
 Object.defineProperty(window.__bv, 'started', { get: () => started });
 boot().catch(e => { console.error(e); clearInterval(LOADING.t); $('#ld-line').textContent = 'The claim could not be built: ' + e.message + '. Try opening the page again.'; $('#loading').classList.add('failed'); });

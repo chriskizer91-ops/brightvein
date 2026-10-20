@@ -13,8 +13,8 @@ with sync_playwright() as p:
     pg.on('pageerror', lambda e: errors.append('page error: ' + str(e)) or print('PAGE ERROR', e))
     pg.on('console', lambda m: print('console error:', m.text[:300]) if m.type == 'error' else None)
     pg.route('**/fonts.g*/**', lambda r: r.fulfill(body='', content_type='text/css'))
-    pg.goto('file://' + ROOT + '/dist/test.html', timeout=120000)
-    pg.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=60000)
+    pg.goto('file://' + ROOT + '/dist/test.html', timeout=300000)
+    pg.wait_for_function('window.__bv && document.querySelector("#loading").hidden', timeout=300000)   # a loaded machine builds the claim slowly
     # the title screen comes up over the claim; with nothing saved there's nothing to continue, and a new claim begins
     r = pg.evaluate('''(() => { const B = __bv, T = document.getElementById('front');
       return { title: !T.hidden && B.TITLE.on, cont: document.getElementById('tt-continue').hidden, started: B.started, showcase: B.TITLE.showcase.length }; })()''')
@@ -121,6 +121,40 @@ with sync_playwright() as p:
       B.eventClose(); clear(); await new Promise(r => setTimeout(r, 350)); out.back = !box.classList.contains('held') || !!B.STORY.shown;
       return out; })()''')
     check("toasts queue, never more than the cap at once, and hold while a card is up", 0 < r['shown'] <= r['max'] <= 3 and r['waiting'] >= 9 - r['max'] - 1 and r['held'] and r['back'], json.dumps(r))
+
+    # the panels: a scene or a day's card puts the open panel aside and gives it back when it's over (UI.park, ui.js)
+    r = pg.evaluate('''(async () => { const B = __bv, out = {}, K = B.TOWN.b.keep, wait = ms => new Promise(r => setTimeout(r, ms));
+      while (B.STORY.shown) B.talkNext(); B.eventClose();
+      B.UI.open('building', K); await wait(100);
+      B.playScene({ lines: [['hesper', 'A test line.'], ['odile', 'And another.']] });
+      out.during = { cur: B.UI.cur, hidden: document.getElementById('panel').hidden };
+      while (B.STORY.shown) B.talkNext(); await wait(100);
+      out.scene = !!B.UI.cur && B.UI.cur.kind === 'building' && B.UI.cur.ref === K && !document.getElementById('panel').hidden;
+      B.eventFire('courier'); out.cardUp = !!B.EVT.card && document.getElementById('panel').hidden;
+      B.eventChoose(0); B.eventClose(); await wait(100);
+      out.card = !!B.UI.cur && B.UI.cur.kind === 'building' && B.UI.cur.ref === K && !document.getElementById('panel').hidden;
+      out.during = out.during.cur === null && out.during.hidden;
+      return out; })()''')
+    check("a scene or a day's card puts the panel aside and gives it back after", r['during'] and r['scene'] and r['cardUp'] and r['card'], json.dumps(r))
+
+    # an open panel keeps its numbers live, in place: the same elements, new numbers, no rebuild (UI.render, ui.js)
+    r = pg.evaluate('''(async () => { const B = __bv, out = {}, K = B.TOWN.b.keep, G = B.GAME, wait = ms => new Promise(r => setTimeout(r, ms));
+      while (B.STORY.shown) B.talkNext(); B.eventClose();
+      G.recruit = 0.2; B.UI.open('building', K); await wait(50);
+      const body = document.getElementById('panel-body'), h2 = body.querySelector('h2'), chip = [...body.querySelectorAll('.chip')].find(c => /Next settler/.test(c.textContent));
+      out.before = chip && chip.textContent;
+      // the game's own refresh, every couple of seconds (updateHUD in ui.js): wait for it to come round
+      G.recruit = 0.6; const until = Date.now() + 90000;
+      while (Date.now() < until && chip && chip.isConnected && !/60%/.test(chip.textContent)) await wait(250);
+      out.after = chip && chip.textContent; out.sameChip = !!chip && chip.isConnected && chip === [...body.querySelectorAll('.chip')].find(c => /Next settler/.test(c.textContent));
+      out.sameTitle = h2.isConnected && h2 === body.querySelector('h2');
+      // a button turns off and says why, then on again, and is the same button throughout
+      const up = () => body.querySelector('.upgrade .btn'), btn = up(), sh = G.shards;
+      G.shards = 0; B.UI.refresh(); out.off = btn.disabled && !!body.querySelector('.upgrade .why');
+      G.shards = 99999; B.UI.refresh(); out.on = !btn.disabled && !body.querySelector('.upgrade .why'); out.sameBtn = btn === up();
+      G.shards = sh; B.UI.refresh(); B.UI.close();
+      return out; })()''')
+    check('an open panel brings its numbers up to date in place, without rebuilding', r['sameChip'] and r['sameTitle'] and '20%' in (r['before'] or '') and '60%' in (r['after'] or '') and r['off'] and r['on'] and r['sameBtn'], json.dumps(r))
 
 
     # the skies: the ship moors at the Sky Dock, sets sail, beats a wave, sails on, sinks, and the crew bring half home

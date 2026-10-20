@@ -134,7 +134,7 @@ export function silverArt(art, hull = 0xb4b8bc) {
   const M = { ...art.M }, planks = greyed('planks', art.T.planks), band = greyed('band', art.T.band);
   M.hull = art.M.hull.clone(); M.hull.map = planks; M.hull.emissiveMap = planks; M.hull.color.set(hull);
   M.band = art.M.band.clone(); M.band.map = band; M.band.emissiveMap = band; M.band.color.set(0xe2e6ec);   // her wales: steel, not gilt
-  M.brass = art.M.brass.clone(); M.brass.color.set(0xc9ced6); M.brass.roughness = 0.34;
+  M.brass = art.M.brass.clone(); M.brass.color.set(0xb4bac4); M.brass.roughness = 0.4;
   M.bronze = art.M.bronze.clone(); M.bronze.color.set(0x8a929c);
   M.crystal = art.M.crystal.clone(); M.crystal.color.set(0x9fc8ff); M.crystal.emissive.set(0x3a6aff); M.crystal.emissiveIntensity = 0.9;
   M.gem = art.M.gem.clone(); M.gem.map = null; M.gem.emissiveMap = null; M.gem.color.set(0x9fc8ff); M.gem.emissive.set(0x3a6aff); M.gem.emissiveIntensity = 0.7;

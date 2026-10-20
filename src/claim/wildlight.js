@@ -1,7 +1,7 @@
 // ===================================================================== WILDLIGHT: creatures of loose sunstone light
 // Each one is a fox drawn in a few hundred jittering strokes that "boil" a few times a second,
 // rendered as screen-space ribbons and added onto the scene as light.
-const WL = { list: [], uniforms: { uRes: { value: new THREE.Vector2(1, 1) }, uFrame: { value: 0 }, uPx: { value: 1 } }, night: null, flow: null, flowT: 0 };
+const WL = { list: [], uniforms: { uRes: { value: new THREE.Vector2(1, 1) }, uFrame: { value: 0 }, uPx: { value: 1 }, uSat: { value: 1 } }, night: null, flow: null, flowT: 0 };
 const STROKE_VS = `
   uniform vec2 uRes; uniform float uFrame; uniform float uPx; uniform float uWidth;
   attribute vec3 aPrev; attribute vec3 aNext; attribute vec3 aInfo;
@@ -23,7 +23,7 @@ const STROKE_VS = `
     vU = u; vSide = side; vSeed = seed;
   }`;
 const STROKE_FS = `
-  uniform vec3 uCol; uniform float uAlpha; uniform float uDissolve;
+  uniform vec3 uCol; uniform float uAlpha; uniform float uDissolve; uniform float uSat;
   varying float vU; varying float vSide; varying float vSeed;
   void main(){
     float edge = 1.0 - abs(vSide); edge = smoothstep(0.0, 0.9, edge);
@@ -31,6 +31,7 @@ const STROKE_FS = `
     // screened, not added: where strokes cross they brighten toward the creature's own amber, not to white. An
     // over-bright colour is scaled down rather than clipped, so it keeps its hue
     vec3 c = uCol / max(1.0, max(uCol.r, max(uCol.g, uCol.b)));
+    c = clamp(mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, uSat), 0.0, 1.0);   // (richer where the picture's tone mapping and bloom would wash it out)
     float a = edge * uAlpha * cut;
     gl_FragColor = vec4(c * (0.72 + 0.28*edge) * a, a);
   }`;
@@ -560,6 +561,7 @@ function updateWildlight(dt, time) {
   WL.uniforms.uFrame.value = Math.floor(time * 8);
   WL.uniforms.uRes.value.set(renderer.domElement.width, renderer.domElement.height);
   WL.uniforms.uPx.value = renderer.getPixelRatio();
+  WL.uniforms.uSat.value = composer ? 1.45 : 1;   // Balanced and High: the bloom and the tone mapping after it whiten bright strokes
   const N = WL.night;
   if (N) nightWaves(N, dt);   // the waves: warnings, then each one up its cliff (nights.js)
   if (WL.list.length) {

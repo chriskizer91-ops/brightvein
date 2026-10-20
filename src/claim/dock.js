@@ -140,7 +140,7 @@ function dockUpdate(dt) {
     s.glow.material.uniforms.uScale.value = 0.6 * (0.3 + 0.45 * n) * renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
     // her lamps (set afresh by s.update every frame, here and in the skies) light her own sails: turned well down here
     if (!s.dockLamps) { s.dockLamps = []; s.body.traverse(o => { if (o.isPointLight) s.dockLamps.push(o); }); }
-    for (const L of s.dockLamps) L.intensity *= 0.3;
+    for (const L of s.dockLamps) L.intensity *= 0.12;
     (s.M || A.M).canvas.emissiveIntensity = 0.02 + n * 0.1 + (s.paint && s.paint.glowSails ? 0.08 : 0);
     A.M.canvas.userData.time.value += dt;
     A.M.gem.emissiveIntensity = 0.45 + n * 0.3 + Math.sin(DOCK.t * 2.4) * 0.08;

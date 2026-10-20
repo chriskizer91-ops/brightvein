@@ -458,7 +458,7 @@ function dressScene(rdt, gdt) {
   worldMats.mineCrystal.emissiveIntensity = 1.3 + Math.sin(elapsed * 1.3) * 0.25;
   if (worldMats.faceCrystal) worldMats.faceCrystal.emissiveIntensity = 0.9 + night * 1.1 + Math.sin(elapsed * 1.1 + 2) * 0.2;
   faceMat.emissiveIntensity = 0.22 + night * 0.5;
-  faceMat.color.setScalar(1 + night * 1.2);   // the face's beds stay faintly readable by night
+  faceMat.color.setScalar(1 + night * 0.5);   // the face's beds stay faintly readable by night
   // chimney smoke
   smokeT -= rdt;
   if (smokeT <= 0) { smokeT = 0.28; for (const b of BUILDINGS) { for (const p of b.smoke) if (Math.random() < 0.7) FX.smoke(p); if (b.smoke2 && b.level >= 2 && b.busy) FX.smoke(b.smoke2, 0x8a8a8a); } }

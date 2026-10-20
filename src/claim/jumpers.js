@@ -12,7 +12,7 @@ const JUMP_HP = { skiff: 260, cutter: 420 };
 function jumperArt(silver = false) {
   const key = silver ? 'silverArt' : 'art';
   if (JUMP[key] || !SKY || !SKY.shipArt) return JUMP[key];
-  const A = silver ? lookSilverArt(SKY.shipArt, 0x9aa0a8) : SKY.shipArt, M = { ...A.M, hull: A.M.hull.clone(), canvas: A.M.canvas.clone() };   // the Exchange's: steel, blue crystal, grey planks
+  const A = silver ? lookSilverArt(SKY.shipArt) : SKY.shipArt, M = { ...A.M, hull: A.M.hull.clone(), canvas: A.M.canvas.clone() };   // the Exchange's: steel, blue crystal, grey planks
   M.canvas.onBeforeCompile = A.M.canvas.onBeforeCompile; M.canvas.customProgramCacheKey = A.M.canvas.customProgramCacheKey;
   if (silver) { M.canvas.color.set(0xaab6c6); M.canvas.emissive.set(0x1c2a3a); M.crystal.emissiveIntensity = 0.4; M.gem.emissiveIntensity = 0.4; }   // (lit as the claim's daylight lights the docked ship's)
   else { M.hull.color.set(0x9a8781); M.canvas.color.set(0xc8735c); M.canvas.emissive.set(0x7a3020); }

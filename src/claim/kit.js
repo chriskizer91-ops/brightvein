@@ -12,7 +12,7 @@ function makeMaterials() {
   MAT.copper = std({ map: tex('copper'), roughness: 0.5, metalness: 0.4 }, 0.9);
   MAT.brass = std({ map: tex('brass'), color: 0xd8c8b0, roughness: 0.38, metalness: 0.85 }, 0.85);
   MAT.iron = std({ map: tex('iron'), roughness: 0.48, metalness: 0.7 }, 0.7);
-  MAT.mirror = std({ map: tex('brass'), color: 0xd0c8b8, roughness: 0.5, metalness: 0.7 }, 0.35);   // the yards' sun mirrors: weathered, so they don't shine white in every weather
+  MAT.mirror = std({ map: tex('brass'), color: 0xe4ddd0, roughness: 0.44, metalness: 0.75 }, 0.55);   // the yards' sun mirrors: weathered, so they don't shine white in every weather (and less under cloud: applyTimeOfDay)
   MAT.canvas = std({ map: tex('canvas'), roughness: 0.95, side: THREE.DoubleSide }, 0.25);
   MAT.wool = std({ map: tex('wool'), roughness: 1, side: THREE.DoubleSide }, 0.15);
   MAT.teal = std({ color: 0x2f5d62, roughness: 0.9, side: THREE.DoubleSide }, 0.15);

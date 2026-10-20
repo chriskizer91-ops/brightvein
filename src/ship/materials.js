@@ -118,17 +118,22 @@ export async function loadShipArt(renderer) {
 
 // ---------- the Gilded Exchange's ships ----------
 // Steel where other ships carry brass, cool blue sunstone, and grey, weathered planks. `art` is the ship art from
-// loadShipArt; this returns a copy with its own hull, steel and crystal (the sails and pennants are the caller's).
+// loadShipArt; this returns a copy with its own hull, wales, steel and crystal (the sails and pennants are the caller's).
 // Used by the raiders in the skies (raiders.js) and the claim-jumpers over the claim (jumpers.js).
-let greyPlanks = null;
-export function silverArt(art, hull = 0xb4b8bc) {
-  if (!greyPlanks) {
-    const P = pixels(art.T.planks.image), a = P.data;
-    for (let i = 0; i < a.length; i += 4) { const l = a[i] * 0.3 + a[i + 1] * 0.59 + a[i + 2] * 0.11; a[i] = l * 0.95; a[i + 1] = l * 0.98; a[i + 2] = l * 1.04; }
-    greyPlanks = toTexture(P.data, P.width, P.height, true, true, art.T.planks.anisotropy);
+const GREY = {};
+// a painting with its colour taken out, a little cool (made once per picture)
+function greyed(key, t) {
+  if (!GREY[key]) {
+    const P = pixels(t.image), a = P.data;
+    for (let i = 0; i < a.length; i += 4) { const l = a[i] * 0.3 + a[i + 1] * 0.59 + a[i + 2] * 0.11; a[i] = l * 0.95; a[i + 1] = l * 0.98; a[i + 2] = Math.min(255, l * 1.04); }
+    GREY[key] = toTexture(P.data, P.width, P.height, true, true, t.anisotropy);
   }
-  const M = { ...art.M };
-  M.hull = art.M.hull.clone(); M.hull.map = greyPlanks; M.hull.emissiveMap = greyPlanks; M.hull.color.set(hull);
+  return GREY[key];
+}
+export function silverArt(art, hull = 0xb4b8bc) {
+  const M = { ...art.M }, planks = greyed('planks', art.T.planks), band = greyed('band', art.T.band);
+  M.hull = art.M.hull.clone(); M.hull.map = planks; M.hull.emissiveMap = planks; M.hull.color.set(hull);
+  M.band = art.M.band.clone(); M.band.map = band; M.band.emissiveMap = band; M.band.color.set(0xe2e6ec);   // her wales: steel, not gilt
   M.brass = art.M.brass.clone(); M.brass.color.set(0xc9ced6); M.brass.roughness = 0.34;
   M.bronze = art.M.bronze.clone(); M.bronze.color.set(0x8a929c);
   M.crystal = art.M.crystal.clone(); M.crystal.color.set(0x9fc8ff); M.crystal.emissive.set(0x3a6aff); M.crystal.emissiveIntensity = 0.9;

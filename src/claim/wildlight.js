@@ -28,9 +28,11 @@ const STROKE_FS = `
   void main(){
     float edge = 1.0 - abs(vSide); edge = smoothstep(0.0, 0.9, edge);
     float cut = step(fract(vSeed*7.31), 1.0 - uDissolve);
-    // screened, not added: where strokes cross they brighten toward the creature's own amber, not to white
+    // screened, not added: where strokes cross they brighten toward the creature's own amber, not to white. An
+    // over-bright colour is scaled down rather than clipped, so it keeps its hue
+    vec3 c = uCol / max(1.0, max(uCol.r, max(uCol.g, uCol.b)));
     float a = edge * uAlpha * cut;
-    gl_FragColor = vec4(min(uCol * (0.55 + 0.45*edge), vec3(1.0)) * a, a);
+    gl_FragColor = vec4(c * (0.72 + 0.28*edge) * a, a);
   }`;
 // fox anatomy: capsules [bone, a, b, ra, rb]; nose toward +x, ground at y = 0
 const FOX_PARTS = [
@@ -242,9 +244,10 @@ class Wildlight {
     let dy = yaw - this.root.rotation.y; while (dy > Math.PI) dy -= TAU; while (dy < -Math.PI) dy += TAU;
     this.root.rotation.y += dy * Math.min(1, dt * 8);
     this.root.position.copy(this.pos);
-    // a big one is drawn with the same light per stroke, so its glow is kept low or it would bloom into a blob
+    // a big one is drawn with the same light per stroke, so its glow is kept low or it would bloom into a blob (its
+    // strokes are screened, so they no longer pile up to white: they're only a little dimmer)
     const bright = 1 + (this.charge || 0) * 0.5, big = this.root.scale.x > 1.5 ? 0.3 : 1;
-    if (this.flash > 0) { this.flash -= dt; this.uni.uCol.value.setRGB(1.8, 1.4, 1.0).multiplyScalar(big < 1 ? 0.7 : 1); } else this.uni.uCol.value.copy(this.baseCol).multiplyScalar(bright * (big < 1 ? 0.62 : 1));
+    if (this.flash > 0) { this.flash -= dt; this.uni.uCol.value.setRGB(1.8, 1.4, 1.0).multiplyScalar(big < 1 ? 0.7 : 1); } else this.uni.uCol.value.copy(this.baseCol).multiplyScalar(bright * (big < 1 ? 0.85 : 1));
     this.glow.material.opacity = (0.32 + Math.sin(s * 3) * 0.06) * bright * big;
     this.pool.material.opacity = 0.35 * (big < 1 ? 0.6 : 1);
     if (this.core) this.core.material.opacity = (0.5 + Math.sin(s * 2.3) * 0.15 + (this.charge || 0) * 0.35) * (big < 1 ? 0.6 : 1);

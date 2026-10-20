@@ -1460,6 +1460,9 @@ function keepLookUpdate(rdt, gdt) {
   KEEPV.hemi.color.set(0xfff0dc).lerp(_klc.setRGB(0.55, 0.62, 0.95), night * 0.6);
   KEEPV.sun.intensity = lerp(0.85, 0.16, night) * (1 - 0.3 * cover * day);
   renderer.toneMappingExposure = lerp(1.02, 1.0, night) + WEATHER.flash * 0.2;
+  // the room's reflected sky fades at night too, so the rooms fall dim between the lamps
+  if (!KEEPV.envMats) KEEPV.envMats = Object.values(KM).filter(m => m && m.isMeshStandardMaterial && m.envMap).map(m => { m.userData.env0 = m.envMapIntensity; return m; });
+  for (const m of KEEPV.envMats) m.envMapIntensity = m.userData.env0 * lerp(1, 0.3, night);
   if (bloom) { bloom.strength = lerp(0.4, 0.55, night); bloom.threshold = lerp(0.92, 0.84, night); bloom.radius = 0.5; }
   // the far ground fades into the horizon
   KSCENE.fog.color.copy(skyU.uHor.value).lerp(scene.fog.color, 0.5); KSCENE.fog.near = KCAM.d + 12; KSCENE.fog.far = KCAM.d + 95;

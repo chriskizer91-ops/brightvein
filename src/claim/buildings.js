@@ -155,7 +155,7 @@ function modelKeep(b) {
   b.spin.push({ obj: orr, axis: 'y', speed: 0.25 });
   // its light hangs well above the roof, so it lights the claim round the Keep rather than the Keep's own roof
   const L = new THREE.PointLight(0xffb25a, 0, 70, 1.4); L.position.set(0, by + 8, Z); b.group.add(L); b.lights.push({ light: L, lvl: 3, power: 130 });
-  const L1 = new THREE.PointLight(0xffb870, 0, 26, 1.6); L1.position.set(0, 3.6, FZ + 2.4); b.group.add(L1); b.lights.push({ light: L1, lvl: 1, power: 40 });
+  const L1 = new THREE.PointLight(0xffb870, 0, 26, 1.6); L1.position.set(0, 3.6, FZ + 2.4); b.group.add(L1); b.lights.push({ light: L1, lvl: 1, power: 30 });
 }
 
 // ----------------------------------------------------------------- the headframe over the shaft

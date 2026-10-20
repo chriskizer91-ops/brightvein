@@ -20,6 +20,7 @@ body { font-family: var(--f-body); color: var(--cream); -webkit-tap-highlight-co
   background: radial-gradient(92% 78% at 50% 50%, rgba(18,6,22,0) 41%, rgba(18,6,22,.05) 55%, rgba(18,6,22,.16) 70%, rgba(18,6,22,.26) 85%, rgba(18,6,22,.32) 100%); }
 #app.look-light #lookfx { display: block; }
 button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }   /* as claude.ai's page has it, so the standalone page hides the same things */
 :focus-visible { outline: 2px solid var(--amber-2); outline-offset: 2px; }
 
 /* ---------- top bar */
@@ -54,6 +55,7 @@ button { font: inherit; color: inherit; }
 #b-pause .ir { display: none; } #b-pause.paused .ip { display: none; } #b-pause.paused .ir { display: block; }
 #b-pause svg path { stroke: none; }
 .btn.primary { background: linear-gradient(180deg, #ffbe62, #e8922e); color: #2a140a; border-color: #ffe0a8; }
+.btn.primary svg path { fill: #2a140a; stroke: #2a140a; }   /* the shard in a cost: dark on the orange, not orange on orange */
 .btn.danger { border-color: color-mix(in srgb, var(--bad) 70%, transparent); color: #ffd2c8; }
 .btn.wide { width: 100%; }
 .btn[disabled] { opacity: .45; cursor: default; }
@@ -113,7 +115,7 @@ button { font: inherit; color: inherit; }
 .sidemark span { position: absolute; left: 0; top: 14px; transform: translateX(-50%); font-size: 11.5px; font-weight: 600; color: #ffe0a8; white-space: nowrap; text-shadow: 0 1px 2px #000, 0 0 8px rgba(0,0,0,.8); }
 .sidemark:not(.off) span { top: -30px; }
 @keyframes smk { 50% { opacity: .55; } }
-#dawn { position: absolute; z-index: 8; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); width: min(calc(100vw - 32px), 460px); cursor: pointer; animation: pin .35s ease-out; }
+#dawn { position: absolute; z-index: 8; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); width: min(calc(100vw - 32px), 460px); animation: pin .35s ease-out; }
 .dawn-card { background: linear-gradient(180deg, #4a3242, var(--plum) 60%); border: 1.5px solid var(--cream); border-radius: 16px; padding: 16px 18px 14px;
   box-shadow: 0 18px 50px rgba(0,0,0,.6), inset 0 0 0 4px rgba(42,27,47,.9), inset 0 0 0 5px rgba(241,228,198,.18), inset 0 40px 60px -40px rgba(255,190,110,.25); }
 .dawn-card .eyebrow { margin: 0 0 4px; }
@@ -131,6 +133,12 @@ button { font: inherit; color: inherit; }
 .dawn-lines .dk { width: 8px; height: 8px; transform: rotate(45deg) translateY(-1px); display: block; background: var(--amber); }
 .dawn-lines .dk.sh { background: #ffb347; } .dawn-lines .dk.lp { background: #f0a35a; } .dawn-lines .dk.wa { background: #b9ad98; } .dawn-lines .dk.hu { background: var(--bad); } .dawn-lines .dk.fd { background: var(--good); }
 .dawn-card .btn { width: 100%; }
+/* a piece named on a card: it opens the piece */
+button.itag { all: unset; display: inline; font-weight: 600; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+button.itag:hover { text-decoration-style: solid; }
+button.itag:focus-visible { outline: 2px solid var(--amber-2); outline-offset: 2px; border-radius: 3px; }
+.toast button.itag { pointer-events: none; text-decoration: none; }
+.nw { white-space: nowrap; }
 #dawnmini { position: absolute; z-index: 6; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 58px); transform: translateX(-50%); max-width: min(92vw, 560px); cursor: pointer;
   font-size: 13.5px; text-align: center; padding: 7px 14px; border-radius: 12px; background: color-mix(in srgb, var(--plum) 92%, transparent); border: 1px solid var(--gold); box-shadow: 0 6px 18px rgba(0,0,0,.4); animation: tin .35s ease-out both; }
 #dawnmini b { color: var(--gold); font-family: var(--f-display); margin-right: 4px; }
@@ -143,7 +151,11 @@ button { font: inherit; color: inherit; }
   .dawn-card h2 { font-size: 18.5px; }
   .dawn-stats b { font-size: 19px; }
   .dawn-lines { font-size: 13px; }
-  .wavechip { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 62px); font-size: 11.5px; }
+  /* on a phone the wave chip sits under the clock (under the boss bar when there is one), clear of the toasts below */
+  .wavechip { top: calc(env(safe-area-inset-top, 0px) + 54px); right: max(10px, env(safe-area-inset-right, 0px)); font-size: 11.5px; padding: 3px 9px; }
+  .wavechip .bn { display: none; }
+  #app.boss-on .wavechip { top: calc(env(safe-area-inset-top, 0px) + 114px); }
+  #app:has(#wavechip:not([hidden])) .journal { max-width: calc(100vw - 205px); }
 }
 /* the weather in the clock */
 .clock { cursor: pointer; }
@@ -226,6 +238,11 @@ button { font: inherit; color: inherit; }
 .qsteps li .btn { grid-column: 2; justify-self: start; margin-top: 4px; padding: 6px 12px; font-size: 13px; }
 .qoffer { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; margin: 0 0 10px; border-radius: 12px; border: 1px solid var(--gold); background: rgba(255,190,110,.1); }
 .qoffer img.face { width: 40px; height: 40px; border-radius: 9px; object-fit: cover; object-position: 50% 18%; }
+.linkrow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; margin: 0 0 2px; padding: 4px 10px; border-radius: 10px; border: 1px solid rgba(241,228,198,.16); background: rgba(0,0,0,.16); cursor: pointer; text-align: left; font-size: 13.5px; }
+.linkrow svg { width: 22px; height: 22px; flex: none; }
+.linkrow span { flex: 1; }
+.linkrow em { font-style: normal; font-size: 12.5px; color: var(--amber-2); }
+.linkrow:hover { border-color: var(--cream-2); }
 .mood-head { display: flex; gap: 12px; align-items: center; margin: 4px 0 6px; }
 .mood-head svg { width: 44px; height: 44px; flex: none; }
 .mood-head b { display: block; font-family: var(--f-display); color: var(--gold); font-size: 17px; }
@@ -271,9 +288,11 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
 @media (min-width: 900px) {
   .panel { left: auto; width: 370px; top: calc(env(safe-area-inset-top, 0px) + 70px); bottom: calc(env(safe-area-inset-bottom, 0px) + 70px); max-height: none; right: max(14px, env(safe-area-inset-right, 0px)); }
 }
-.panel .x { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--cream-2); background: var(--plum); font-size: 20px; line-height: 1; cursor: pointer; }
-.panel h2 { font-family: var(--f-display); color: var(--gold); font-size: 20px; letter-spacing: .03em; margin: 0 40px 2px 0; text-wrap: balance; line-height: 1.15; }
-.panel h3 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--cream-2); margin: 14px 0 6px; font-weight: 600; }
+/* the × sits in the panel's first row, beside the title: the title and the lines under it wrap round it, never under it */
+.panel .x { float: right; position: relative; z-index: 1; margin: -6px -8px 4px 10px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--cream-2); background: var(--plum); font-size: 20px; line-height: 1; cursor: pointer; }
+.panel h2 { font-family: var(--f-display); color: var(--gold); font-size: 20px; letter-spacing: .03em; margin: 0 0 2px 0; text-wrap: balance; line-height: 1.15; }
+.panel:focus { outline: none; }
+.panel h3 { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--amber-2); margin: 14px 0 6px; font-weight: 600; }   /* section headings: one colour, as in the settings and the sheets */
 .panel p { margin: 4px 0; font-size: 14px; line-height: 1.45; color: #eadfc8; max-width: 62ch; }
 .sub { font-size: 13px; color: var(--cream-2); }
 .lvl { display: inline-flex; gap: 3px; vertical-align: 2px; margin-left: 6px; }
@@ -311,9 +330,20 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
 .gear .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--cream-2); }
 .trait { display: inline-block; margin-top: 6px; }
 .small { font-size: 12px; color: var(--cream-2); }
+/* why a button or a row is off: said plainly, never dimmed with it */
+.why, .panel .small.why { color: #f6c48e; }
+.li.off, .irow.off { cursor: default; }
+.li.off .nm, .li.off .fit, .li.off .jb { color: rgba(241,228,198,.5); }
+.li.off .jb .why, .li.off .jb.why { color: #f6c48e; }
+.li.off > canvas, .li.off > img, .li.off > .dkico { opacity: .5; }
+/* one style of tabs everywhere in the panels (the bench's, the journal's, the crew's, the Dock's) */
 .tabs { display: flex; gap: 6px; margin: 10px 0 8px; flex-wrap: wrap; }
-.tabs button { border: 1px solid rgba(241,228,198,.3); background: transparent; border-radius: 999px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
-.tabs button[aria-pressed="true"] { background: var(--cream); color: var(--plum); }
+.tabs button { border: 1px solid rgba(241,228,198,.3); background: transparent; border-radius: 999px; padding: 6px 13px; min-height: 36px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--cream); color: var(--plum); border-color: var(--cream); }
+/* a person's card: what they're doing now and the buttons to change it, right under their name */
+.sh-now { padding: 8px 10px 10px; border-radius: 12px; background: rgba(0,0,0,.16); border: 1px solid rgba(241,228,198,.14); }
+.sh-now h3 { margin-top: 0 !important; }
+.sh-now p { margin: 2px 0 0; }
 
 /* ---------- overlays */
 .overlay { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(13,9,20,.55); padding: calc(env(safe-area-inset-top, 0px) + 16px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(16px, env(safe-area-inset-left, 0px)); overflow: auto; }
@@ -340,6 +370,7 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
   .intro-actions .btn { width: 100%; }
 }
 /* the settings: one card in sections, scrolling on a phone, with its Back button always in reach */
+.menu-card:focus { outline: none; }
 .menu-card { position: relative; width: min(100%, 560px); max-height: 100%; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; box-sizing: border-box; padding: 16px 20px 0; }
 .mc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .menu-card h2 { font-family: var(--f-display); color: var(--gold); margin: 0; font-size: 22px; }
@@ -391,7 +422,6 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
   .clock-t span { font-size: 11px; }
   .btn, .seg button { padding: 8px 10px; font-size: 13px; }
   .bottombar { gap: 6px; }
-  #b-speed { display: none; }
   .seg button { padding: 8px 8px; }
   #b-people { width: 42px; padding: 0; display: grid; place-items: center; }
   #b-people .lbl { display: none; }
@@ -404,6 +434,7 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
 .buildbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; padding: 10px max(12px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 10px) max(12px, env(safe-area-inset-left, 0px));
   background: linear-gradient(180deg, rgba(23,15,25,0), rgba(23,15,25,.82) 26%); display: grid; gap: 8px; }
 .bb-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.bb-head > div { padding: 6px 12px 7px; border-radius: 12px; background: color-mix(in srgb, var(--plum) 84%, transparent); border: 1px solid rgba(241,228,198,.18); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }   /* a backing: the words sit over the claim */
 .bb-head b { font-family: var(--f-display); color: var(--gold); font-size: 18px; letter-spacing: .03em; display: block; }
 .bb-head span { font-size: 13px; color: var(--cream-2); display: block; line-height: 1.35; max-width: 46ch; }
 .bb-head .btn { flex: none; }
@@ -464,7 +495,7 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
 .haul canvas { width: 36px; height: 36px; image-rendering: pixelated; border-radius: 8px; background: rgba(0,0,0,.25); }
 .zone { font-family: var(--f-display); color: var(--gold); font-size: 15px; }
 .step { display: inline-flex; align-items: center; border: 1px solid rgba(241,228,198,.3); border-radius: 10px; overflow: hidden; }
-.step button { width: 40px; height: 38px; background: transparent; border: 0; font-size: 18px; cursor: pointer; }
+.step button { width: 40px; height: 40px; background: transparent; border: 0; font-size: 18px; cursor: pointer; }
 .step span { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 /* ---------- the Sky Dock's raids */
@@ -475,11 +506,19 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
 
 /* ---------- a person's card: portrait, GEARS, the paper doll and their kit */
 @media (min-width: 900px) { .panel.wide { width: 640px; } }
-@media (max-width: 899px) { .panel.wide { max-height: min(82vh, 760px); } }
-.sheet { display: grid; gap: 12px; }
+/* On a phone the panel is a sheet along the bottom. A tall one stops short of the top bar by enough for a toast to
+   sit above it, never over its title or its ×; one with tabs keeps one height, so its tabs stay put from tab to tab. */
+@media (max-width: 899px) {
+  .panel.wide { max-height: min(calc(100% - 262px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)), 760px); }
+  .panel.tabbed { height: min(58vh, 560px); }
+  .panel.wide.tabbed { height: min(calc(100% - 262px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)), 760px); }
+}
+@media (max-width: 899px) and (max-height: 620px) { .panel.wide { max-height: 82vh; } .panel.wide.tabbed { height: 82vh; } }
+.sheet { display: block; }
+.sheet > * + * { margin-top: 12px; }
 @media (max-width: 560px) { .sh-head .pframe { width: 112px !important; height: 112px !important; } }
 .sh-head { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
-.sh-id h2 { font-size: 24px; margin: 0 40px 4px 0; }
+.sh-id h2 { font-size: 24px; margin: 0 0 4px 0; }
 .sh-id .eyebrow { margin: 0 0 2px; }
 .sh-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0; }
 .sh-id .small { margin: 2px 0; }
@@ -546,7 +585,7 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
   background: linear-gradient(180deg, rgba(13,9,20,0) 45%, rgba(13,9,20,.55)); }
 .talk-title { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 74px); left: 0; right: 0; text-align: center; margin: 0; font-family: var(--f-display); font-size: clamp(20px, 3.4vw, 30px);
   color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 18px rgba(0,0,0,.8); letter-spacing: .04em; pointer-events: none; }
-.talk-card { width: min(780px, 100%); display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; padding: 14px 18px 14px 14px; border-radius: 16px;
+.talk-card { box-sizing: border-box; width: min(780px, 100%); display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; padding: 14px 18px 14px 14px; border-radius: 16px;
   background: linear-gradient(180deg, var(--plum-2), var(--plum)); border: 1.5px solid var(--cream); box-shadow: 0 18px 50px rgba(0,0,0,.6), inset 0 0 0 4px rgba(42,27,47,.9), inset 0 0 0 5px rgba(241,228,198,.18);
   animation: pin .25s ease-out; }
 .talk-por .pframe { width: 128px !important; height: 128px !important; }
@@ -557,17 +596,18 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
 .talk-more { position: absolute; right: 0; bottom: -4px; color: var(--amber-2); font-size: 16px; animation: bob 1s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(3px); } }
 .talk-card { position: relative; }
-.talk-skip { position: absolute; right: 0; bottom: calc(100% + 8px); padding: 6px 14px; min-height: 36px; font-size: 13px; }   /* on the scene's own card, clear of any panel */
+.talk-skip { position: absolute; right: 0; bottom: calc(100% + 8px); padding: 6px 14px; min-height: 40px; font-size: 13px; }   /* on the scene's own card, clear of any panel */
 #app:has(#talk:not([hidden])) #panel, #app:has(#evcard:not([hidden])) #panel { visibility: hidden; }
-/* a scene has the screen to itself: the night's bars and chips wait above it, out of sight (they come back after) */
-#app:has(#talk:not([hidden])) :is(#bossbar, .wavechip, #dawnmini, .sidemark, #journal) { visibility: hidden; }
+/* a scene has the screen to itself: the night's bars and chips and the controls wait out of sight (they come back after) */
+#app:has(#talk:not([hidden])) :is(#bossbar, .wavechip, #dawnmini, .sidemark, #journal, .bottombar) { visibility: hidden; }
 .pframe.letter { background: radial-gradient(circle at 50% 40%, #6e4a32, #2a1b1a 75%); }
 .pframe.letter svg { width: 78%; height: 78%; }
-@media (max-width: 560px) {
-  .talk-card { grid-template-columns: 1fr; justify-items: start; gap: 10px; padding: 12px 14px; }
-  .talk-por .pframe { width: 88px !important; height: 88px !important; }
+@media (max-width: 560px) {   /* a phone: a small portrait beside the words, so a line of speech takes little of the screen */
+  .talk-card { grid-template-columns: auto 1fr; align-items: start; gap: 12px; padding: 12px 14px 12px 12px; }
+  .talk-por .pframe { width: 64px !important; height: 64px !important; border-width: 1.5px; box-shadow: 0 0 0 2px var(--plum), 0 0 0 3px rgba(230,185,85,.45), 0 4px 12px rgba(0,0,0,.5); }
+  .talk-body b { font-size: 17px; }
   .talk-body p { font-size: 15.5px; }
-  .talk-body { min-height: 90px; }
+  .talk-body { min-height: 76px; gap: 4px; }
 }
 .pframe.painted img { image-rendering: auto; object-fit: cover; }
 
@@ -618,7 +658,6 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
 .tr-cmp .new { border: 1px solid var(--amber); }
 .tr-cmp .arrow { color: var(--amber-2); font-size: 18px; }
 .bench-tabs { margin-top: 12px; }
-.bench-tabs button { font-size: 13px; padding: 6px 12px; min-height: 34px; }
 .bench-pane { display: grid; gap: 8px; }
 .bench-pane > p.small { margin: 0; }
 .bench-go { display: grid; gap: 4px; justify-items: start; margin: 4px 0; }
@@ -688,13 +727,17 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
 .cmp-face canvas { width: 30px; height: 40px; image-rendering: pixelated; }
 .cmp-cur { margin: 4px 0 6px; }
 .item-acts { margin-top: 12px; }
-/* the stash */
-.stash-f { display: grid; gap: 6px; margin: 8px 0 6px; }
-.tabs.chips { margin: 0; }
+/* the stash: its filters are one row that scrolls sideways, so the pieces start on the first screen */
+.stash-f { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; margin: 8px -16px 6px; padding: 2px 16px 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; touch-action: pan-x pan-y;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 28px), transparent); }
+.stash-f::-webkit-scrollbar { display: none; }
+.stash-f > * { flex: none; }
+.tabs.chips { margin: 0; flex-wrap: nowrap; }
+.tabs.chips button { white-space: nowrap; }
 .tabs.chips em { font-style: normal; opacity: .65; margin-left: 2px; font-variant-numeric: tabular-nums; }
 .stash-row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
 .seg.mini { box-shadow: none; }
-.seg.mini button { padding: 4px 9px; min-height: 32px; font-size: 12px; font-weight: 600; backdrop-filter: none; }
+.seg.mini button { padding: 4px 9px; min-height: 36px; font-size: 12.5px; font-weight: 600; backdrop-filter: none; white-space: nowrap; }
 /* the best kit for someone's job, on their card */
 .suggest { padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(230,185,85,.35); background: rgba(230,185,85,.06); display: grid; gap: 6px; }
 .suggest h3 { margin: 0 0 2px !important; }
@@ -778,12 +821,12 @@ ul.days li.story { color: var(--gold); } ul.days li.cast { color: #ffe0a8; }
 .sheet-card p b, .about-list b { color: var(--amber-2); font-weight: 600; }
 .sheet-card .small { font-size: 12.5px; color: var(--cream-2); }
 .sheet-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.cl-slots { display: grid; gap: 10px; margin-top: 12px; }
+.cl-slots { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 12px; }
 .cl-slot { border: 1px solid rgba(241,228,198,.2); border-radius: 12px; padding: 9px 12px 11px; background: rgba(0,0,0,.18); }
 .cl-slot.open { border-color: var(--gold); background: rgba(230,185,85,.08); }
 .cl-slot.empty { border-style: dashed; }
 .slot-top { display: flex; align-items: center; gap: 8px; }
-.slot-name { flex: 1; min-width: 0; font: inherit; font-family: var(--f-display); font-weight: 700; font-size: 17px; color: var(--gold); background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 5px 7px; margin-left: -7px;
+.slot-name { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; font: inherit; font-family: var(--f-display); font-weight: 700; font-size: 17px; color: var(--gold); background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 5px 7px; margin-left: -7px;
   user-select: text; -webkit-user-select: text; }
 .slot-top .pen { color: var(--cream-2); font-size: 14px; margin-left: -4px; pointer-events: none; }
 .slot-name:hover, .slot-name:focus { border-color: rgba(241,228,198,.35); background: rgba(0,0,0,.25); outline: none; }
@@ -804,7 +847,7 @@ ol.steps { margin: 10px 0; padding-left: 20px; font-size: 13.5px; line-height: 1
 .about-list { margin: 4px 0; padding-left: 18px; font-size: 14px; line-height: 1.5; color: #eadfc8; display: grid; gap: 6px; }
 
 /* ---------- a first-time tip: out of the way, never in the way (hints.js) */
-.hintcard { position: absolute; z-index: 13; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 62px); width: min(calc(100vw - 32px), 380px); box-sizing: border-box; padding: 10px 14px 10px;
+.hintcard { position: absolute; z-index: 13; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 62px); bottom: auto; width: min(calc(100vw - 32px), 380px); box-sizing: border-box; padding: 10px 14px 10px;
   border-radius: 14px; background: linear-gradient(180deg, #4b3243, var(--plum)); border: 1.5px solid var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 22px rgba(230,185,85,.18); }
 #app:has(#menu:not([hidden])) .hintcard, #app:has(#fd-sheet:not([hidden])) .hintcard, #app:has(#talk:not([hidden])) .hintcard, #app:has(#intro:not([hidden])) .hintcard { visibility: hidden; }
 .hintcard.in { animation: hcin .4s cubic-bezier(.2,.8,.2,1) both; }
@@ -817,15 +860,30 @@ ol.steps { margin: 10px 0; padding-left: 20px; font-size: 13.5px; line-height: 1
 .hc-acts { display: flex; align-items: center; gap: 12px; }
 .hc-acts .btn { min-height: 36px; padding: 6px 16px; font-size: 13px; }
 .hc-off { background: none; border: 0; color: var(--cream-2); font-size: 12px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; padding: 8px 2px; }
-.hintcard[data-where="build"] { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 196px); }
 .hintcard[data-where="boss"] { top: calc(env(safe-area-inset-top, 0px) + 118px); }
 .hintcard[data-where="event"] { top: calc(env(safe-area-inset-top, 0px) + 10px); }
-@media (min-width: 900px) {
-  .hintcard[data-where="side"], .hintcard[data-where="event"] { left: max(16px, env(safe-area-inset-left, 0px)); transform: none; top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 70px); }
-  .hintcard[data-where="side"].in, .hintcard[data-where="event"].in { animation-name: hcin2; }
-  .hintcard[data-where="side"].out, .hintcard[data-where="event"].out { animation-name: tout; }
+@media (min-width: 900px) {   /* beside the panel; the layout tip on the left above the tray (hints.js sets its bottom), clear of where a building drops */
+  .hintcard[data-where="side"], .hintcard[data-where="event"], .hintcard[data-where="build"] { left: max(16px, env(safe-area-inset-left, 0px)); transform: none; top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 70px); }
+  .hintcard[data-where="side"].in, .hintcard[data-where="event"].in, .hintcard[data-where="build"].in { animation-name: hcin2; }
+  .hintcard[data-where="side"].out, .hintcard[data-where="event"].out, .hintcard[data-where="build"].out { animation-name: tout; }
 }
 @keyframes hcin2 { from { opacity: 0; transform: translateY(8px); } }
+@media (max-width: 899px) { .hintcard[data-where="boss"] { top: calc(env(safe-area-inset-top, 0px) + 148px); } }   /* under the boss bar and the wave chip */
+/* a one-line tip (the Bright Night's): its title, its words and a round close button, under the boss bar */
+.hintcard.line { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 10px; width: min(calc(100vw - 32px), 520px); padding: 4px 4px 4px 14px; border-radius: 999px; }
+.hintcard.line .hc-k, .hintcard.line .hc-off { display: none; }
+.hintcard.line .hc-t { margin: 0; font-size: 15px; white-space: nowrap; }
+.hintcard.line .hc-x { margin: 0; font-size: 13px; line-height: 1.3; }
+.hintcard.line .hc-ok { width: 40px; min-height: 40px; height: 40px; padding: 0; border-radius: 50%; font-size: 20px; line-height: 1; box-shadow: none; }
+/* a tip about a panel, on a screen too narrow to put it beside: a strip inside the panel, above its title */
+.hintcard.inpanel { position: relative; z-index: 1; left: auto; top: auto; bottom: auto; transform: none; width: auto; margin: -4px -6px 12px; padding: 8px 12px 6px; border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.hintcard.inpanel .hc-k { display: none; }
+.hintcard.inpanel .hc-t { display: inline; font-size: 15px; margin-right: 6px; }
+.hintcard.inpanel .hc-x { display: inline; margin: 0; font-size: 13px; line-height: 1.4; }
+.hintcard.inpanel .hc-acts { margin-top: 4px; }
+.hintcard.inpanel.in { animation-name: hcin2; }
+.hintcard.inpanel.out { animation-name: tout; }
 /* on a phone the day event's tip sits at the top: the event's card moves down below it */
 @media (max-width: 899px) {
   #app:has(#hintcard[data-where="event"]:not([hidden]):not(.out)) .evcard { padding-top: calc(env(safe-area-inset-top, 0px) + var(--hint-h, 140px) + 18px); }
@@ -862,24 +920,36 @@ ol.steps { margin: 10px 0; padding-left: 20px; font-size: 13.5px; line-height: 1
 
 /* ---------- thumbs: on a touch screen the small controls get bigger targets; long cards scroll */
 @media (pointer: coarse) {
-  .tabs button { min-height: 36px; padding: 6px 13px; font-size: 13px; }
-  .panel .x { width: 42px; height: 42px; top: 6px; right: 6px; }
-  .panel h2 { margin-right: 46px; }
-  .seg.mini button { min-height: 36px; }
-  .hc-off { padding: 10px 4px; }
+  .tabs button { min-height: 40px; padding: 6px 13px; font-size: 13px; }
+  .panel .x { width: 42px; height: 42px; margin: -8px -10px 4px 10px; }
+  .seg.mini button { min-height: 40px; }
+  /* every close, segment, tip and HUD button a thumb's size */
+  .card .x, .sheet-card .sheet-x { width: 42px; height: 42px; }
+  .menu-card .seg button, .hc-acts .btn, .step button, .qsteps li .btn { min-height: 40px; }
+  .mb-play { width: 40px; height: 40px; }
+  .hc-off { padding: 10px 4px; min-height: 40px; }
+  /* the pills you can tap (the mood; on a phone the people) reach a thumb's height without looking any bigger */
+  .pill.mood, #r-pop, #dawnmini { position: relative; }
+  .pill.mood::after, #r-pop::after, #dawnmini::after { content: ""; position: absolute; inset: -6px -2px; }
   .menu-card input[type="range"] { height: 40px; }
   .slot-name { min-height: 40px; }
 }
 /* a phone's bottom bar: the round buttons keep a thumb's width; the view buttons and the edges give up the room */
+/* Build becomes a hammer like People's figure, and pause and the game speed sit together as one pair, so the speed fits */
 @media (max-width: 430px) {
-  .bottombar { gap: 5px; padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); }
-  .bottombar .btn.icon, .bottombar #b-people { flex: none; width: 40px; }
-  .bottombar #b-build { flex: none; padding: 8px 9px; }
+  .bottombar { gap: 4px; padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+  .bottombar .btn.icon, .bottombar #b-people, .bottombar #b-build { flex: none; width: 40px; padding: 0; display: grid; place-items: center; }
+  #b-build .lbl { display: none; }
+  #b-build .pico { display: block; }
+  .bottombar #b-pause { border-radius: 10px 0 0 10px; }
+  .bottombar #b-speed { flex: none; min-width: 34px; padding: 0 5px; margin-left: -4px; border-radius: 0 10px 10px 0; border-left-color: rgba(241,228,198,.18); font-size: 13px; font-variant-numeric: tabular-nums; }
   .bottombar .seg { min-width: 0; }
-  .bottombar .seg button { padding: 8px 7px; }
+  .bottombar .seg button { padding: 8px 5px; font-size: clamp(12px, 3.3vw, 13px); }
 }
+@media (max-width: 380px) { .bottombar { gap: 3px; padding-left: max(6px, env(safe-area-inset-left, 0px)); padding-right: max(6px, env(safe-area-inset-right, 0px)); } .bottombar #b-speed { margin-left: -3px; } }
 @media (max-width: 350px) {
-  .bottombar .btn.icon, .bottombar #b-people { width: 36px; }
-  .bottombar .seg button { padding: 8px 5px; font-size: 12.5px; }
+  .bottombar .btn.icon, .bottombar #b-people, .bottombar #b-build { width: 36px; }
+  .bottombar #b-speed { min-width: 32px; padding: 0 4px; }
+  .bottombar .seg button { padding: 8px 4px; font-size: 12px; }
 }
 #dawn { max-height: calc(100% - env(safe-area-inset-top, 0px) - 80px); overflow: auto; overscroll-behavior: contain; touch-action: pan-y; border-radius: 16px; }

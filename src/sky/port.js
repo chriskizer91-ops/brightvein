@@ -16,8 +16,8 @@ import { PARTS, MAX, POWER, SHIPYARD, PAINTS, SAILS, FIGURES, refitCost, lookCos
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Math.round(n).toLocaleString('en');
-const MATS = { brass: 'Brass', glass: 'Glass', heartstone: 'Heartstone' };
-// a cost in words: ◆ 120 · 2 Brass · 1 Glass
+const MATS = { brass: 'Brass Scrap', glass: 'Cut Glass', heartstone: 'Heartstone' };   // as the claim names them (src/claim/loot.js)
+// a cost in words: ◆ 120 · 2 Brass Scrap · 1 Cut Glass
 export const costText = (c) => [c.shards ? `◆ ${fmt(c.shards)}` : '', ...Object.keys(MATS).filter((k) => c[k]).map((k) => `${c[k]} ${MATS[k]}`)].filter(Boolean).join(' · ') || 'Free';
 const hex = (c) => `#${c.toString(16).padStart(6, '0')}`;
 
@@ -237,7 +237,7 @@ export function makePort({ renderer, env, progress, claim = {}, shipFor, crewOf,
     $('btn-skies').textContent = innerWidth < 500 ? SKIES[d.skies].name : `Skies: ${SKIES[d.skies].name}`;
     $('port-shards').textContent = `◆ ${fmt(d.shards)}`;
     const m = claim.mats?.();
-    $('port-mats').hidden = !m; if (m) $('port-mats').textContent = `${m.brass | 0} Brass · ${m.glass | 0} Glass · ${m.heartstone | 0} Heartstone`;
+    $('port-mats').hidden = !m; if (m) $('port-mats').textContent = `${m.brass | 0} ${MATS.brass} · ${m.glass | 0} ${MATS.glass} · ${m.heartstone | 0} ${MATS.heartstone}`;
     for (const b of shipsEl.children) {
       const id = b.dataset.ship, own = d.ships[id].owned, lock = !own && lockedWhy(id, at);
       b.setAttribute('aria-pressed', String(id === viewing)); b.classList.toggle('locked', !!lock); b.classList.toggle('flag', id === d.flying);

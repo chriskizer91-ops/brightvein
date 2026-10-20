@@ -9,7 +9,8 @@ const EVT = { day: 0, today: null, card: null, log: [], seen: {}, recent: [], ne
 const evScale = () => 1 + Math.max(0, STORY.ch) * 0.12;
 const evAmt = n => Math.max(1, Math.round(n * evScale() / 5) * 5);
 const firstOf = v => v.d.name.split(' ')[0];
-const itemTag = it => `<b style="color:${rarityOf(it).color}">${esc(it.name)}</b>`;
+// a piece named on a card: a button that opens it (ui.js); in a toast it's only its name
+const itemTag = it => `<button type="button" class="itag" data-uid="${esc(it.uid || '')}" style="color:${rarityOf(it).color}">${esc(it.name)}</button>`;
 const evIlvl = () => Math.round(3 + STORY.ch * 1.4);
 const settlers = (f = () => true) => GAME.villagers.filter(v => !v.d.hero && !v.d.named && !v.d.exp && !v.d.sick && f(v));
 const freeBeds = () => totalBeds() - bedsUsed();
@@ -366,7 +367,7 @@ function eventFire(id) {
   });
   card.append(box);
   el.append(card); el.hidden = false;
-  GAME.talk = true; UI.close();
+  GAME.talk = true; UI.park();   // the panel comes back when the card is closed (ui.js)
   AUDIO.play('open');
   requestAnimationFrame(() => { const f = el.querySelector('.ev-ch:not([disabled])'); if (f && !matchMedia('(pointer:coarse)').matches) f.focus(); });
   return true;
@@ -390,8 +391,9 @@ function eventClose() {
   const el = evCardEl(); el.hidden = true; el.innerHTML = '';
   EVT.card = null; if (!STORY.shown) GAME.talk = false;
   journalHUD();
+  UI.unpark();
 }
-addEventListener('keydown', e => { if (EVT.card && e.key === 'Escape' && EVT.card.picked) eventClose(); });
+addEventListener('keydown', e => { if (EVT.card && e.key === 'Escape' && EVT.card.picked) { e.preventDefault(); eventClose(); } });   // handled: main.js leaves it
 
 // ---- things that settle later: a cracked tray at dusk, Juno's wager at dawn, the cache on the map
 function eventsTick() {

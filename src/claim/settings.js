@@ -18,6 +18,7 @@ function applyLookSettings() {
   reducedMotion = SETTINGS.calm == null ? DEVICE_CALM : !!SETTINGS.calm;
   const app = $('#app'); app.classList.toggle('calm', reducedMotion);
   app.style.setProperty('--tz', String(SETTINGS.text || 1));
+  const sky = document.getElementById('sky'); if (sky) sky.style.setProperty('--tz', String(SETTINGS.text || 1));   // the skies' words too (sky.css)
 }
 applyLookSettings();
 function applyCamSettings() {
@@ -58,8 +59,18 @@ function menuSaveLine() {
   const now = started ? { day: GAME.day, chapter: chapterLabel(STORY.ch), people: GAME.villagers.length } : S;
   $('#save-where').innerHTML = `<b>${esc(slotName(SLOTS.active))}</b> · ${now ? esc(summaryLine(now)) + ' · ' : ''}${S ? `saved ${esc(ago(S.savedAt))}` : 'not saved yet'}`;
 }
-function openMenu() { $('#menu').hidden = false; $('#reset-confirm').hidden = true; syncMenu(); menuSaveLine(); const c = $('#menu .menu-card'); if (c) c.scrollTop = 0; }
-function closeMenu() { $('#menu').hidden = true; $('#reset-confirm').hidden = true; }
+// opening the settings moves focus into them, and closing gives it back to whatever opened them (the keyboard's way round)
+let menuOpener = null;
+function openMenu() {
+  const a = document.activeElement; menuOpener = a && a !== document.body && !a.closest('#menu') ? a : null;
+  $('#menu').hidden = false; $('#reset-confirm').hidden = true; syncMenu(); menuSaveLine(); const c = $('#menu .menu-card'); if (c) { c.scrollTop = 0; c.tabIndex = -1; c.focus({ preventScroll: true }); }
+}
+function closeMenu() {
+  const inside = $('#menu').contains(document.activeElement);
+  $('#menu').hidden = true; $('#reset-confirm').hidden = true;
+  if (inside && menuOpener && menuOpener.isConnected && menuOpener.offsetParent) menuOpener.focus({ preventScroll: true });
+  menuOpener = null;
+}
 $('#b-menu').onclick = openMenu;
 $('#menu-close').onclick = closeMenu;
 $('#menu-x').onclick = () => $('#menu-close').click();

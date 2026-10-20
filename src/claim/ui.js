@@ -4,7 +4,7 @@ let QUIET = false;
 // faster and dropping its oldest everyday lines. They sit low, above the controls (or above the panel, or beside it
 // on a wide screen), clear of the banners at the top. While a card is up (a scene, a day event, the dawn report, the
 // settings) they hold still and out of sight, and pick up where they were when it's gone.
-const TOASTS = { q: [], live: [], max: () => TOASTS.tight ? 1 : innerWidth < 560 ? 2 : 3, shown: 0, placeN: 0, tight: false };
+const TOASTS = { q: [], live: [], max: () => TOASTS.tight || TOASTS.room < 140 ? 1 : innerWidth < 560 ? 2 : 3, shown: 0, placeN: 0, tight: false, room: 999 };
 function toast(html, kind = '', o = {}) {
   if (QUIET) return;
   const same = !o.el && [...TOASTS.live, ...TOASTS.q].find(t => !t.el && t.html === html);
@@ -57,21 +57,21 @@ function toastPlace() {
     else bottom = Math.max(bottom, H - r.top + 8);
   }
   if (hint && !hint.hidden && bottom < 110) bottom = 110;
-  const chip = document.getElementById('wavechip');   // on a phone the night’s wave chip sits just above the controls
-  if (chip && !chip.hidden && W <= 560 && bottom < 100) bottom = 100;
-  // a first-time tip low on the screen: beside it on a wide screen, above it otherwise
+  // a first-time tip low on the screen: beside it on a wide screen, above it otherwise (a tip inside the panel moves with it)
   let lo = 0, hi = W >= 900 && panel && !panel.hidden ? left * 2 : W;
   const tip = document.getElementById('hintcard');
-  if (tip && !tip.hidden) {
+  if (tip && !tip.hidden && !tip.classList.contains('inpanel')) {
     const r = tip.getBoundingClientRect();
     if (r.bottom > H - bottom - 140) { if (W >= 900 && r.right < W / 2) lo = r.right + 8; else bottom = Math.max(bottom, H - r.top + 8); }
   }
   // a phone's panel nearly as tall as the screen leaves no room above it: one toast at a time, just under the top bar
-  // (over the panel's heading), never over the stores
-  const top = $('.topbar'), boss = document.getElementById('bossbar');
+  // (over the panel's heading), never over the stores. On a phone the night's wave chip is under the clock: below it.
+  const top = $('.topbar'), boss = document.getElementById('bossbar'), chip = document.getElementById('wavechip');
   let topY = top ? top.getBoundingClientRect().bottom : 50;
   if (boss && !boss.hidden) topY = Math.max(topY, boss.getBoundingClientRect().bottom);
-  TOASTS.tight = H - bottom - topY < 96;
+  if (chip && !chip.hidden && W <= 560) topY = Math.max(topY, chip.getBoundingClientRect().bottom);
+  TOASTS.room = H - bottom - topY;
+  TOASTS.tight = TOASTS.room < 96;
   if (TOASTS.tight) { box.style.top = Math.round(topY + 6) + 'px'; box.style.bottom = 'auto'; }
   else { box.style.top = ''; box.style.bottom = `calc(env(safe-area-inset-bottom, 0px) + ${Math.round(bottom)}px)`; }
   box.style.left = Math.round((lo + hi) / 2) + 'px';
@@ -85,9 +85,12 @@ const SHARD = '<svg viewBox="0 0 20 20" width="13" height="13" style="vertical-a
 // a small canvas with one frame of a villager's sheet. It is drawn at the screen's own resolution: in whole-pixel
 // steps when there is room for at least two screen pixels per sprite pixel, otherwise smoothly scaled down, so
 // small sizes keep their eyes and hands instead of dropping rows of pixels.
+// a short key for what a picture shows, so a panel brought up to date keeps a picture only while it's still the same (uiMorph)
+const uiKey = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
 function miniSprite(v, w = 36, h = 48, col = 0, row = 0) {
   const dpr = Math.min(3, window.devicePixelRatio || 1), cw = Math.round(w * dpr), ch = Math.round(h * dpr);
   const c = document.createElement('canvas'); c.width = cw; c.height = ch; c.style.width = w + 'px'; c.style.height = h + 'px';
+  c.dataset.k = `v${v.d.id}.${col}.${row}.${uiKey(JSON.stringify(v.look ? v.look() : v.d.look || ''))}`;
   const ctx = c.getContext('2d'), k = Math.min(cw / PX.FW, ch / PX.FH), sx = col * PX.FW, sy = row * PX.FH;
   if (k >= 2) { const s = Math.floor(k), dw = PX.FW * s, dh = PX.FH * s; ctx.imageSmoothingEnabled = false; ctx.drawImage(v.canvas, sx, sy, PX.FW, PX.FH, Math.round((cw - dw) / 2), ch - dh, dw, dh); }
   else { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(v.canvas, sx, sy, PX.FW, PX.FH, 0, 0, cw, ch); }
@@ -104,9 +107,9 @@ function portraitOf(v, size = 128) {
   const src = (v.d.hero && ART.cast && ART.cast[v.d.hero]) || portraitSrc(v.d);
   if (src) { const im = new Image(); im.src = src; im.alt = ''; wrap.append(im); wrap.classList.add('painted'); return wrap; }
   try {
-    if (typeof drawPortrait === 'function') { const c = document.createElement('canvas'); drawPortrait({ ...v.d.look }, c); if (c.width > 1) { wrap.append(c); return wrap; } }
+    if (typeof drawPortrait === 'function') { const c = document.createElement('canvas'); drawPortrait({ ...v.d.look }, c); c.dataset.k = 'p' + uiKey(JSON.stringify(v.d.look)); if (c.width > 1) { wrap.append(c); return wrap; } }
   } catch (e) { console.warn(e); }
-  const c = document.createElement('canvas'), hh = Math.round(PX.FH * 0.6); c.width = PX.FW; c.height = hh;
+  const c = document.createElement('canvas'), hh = Math.round(PX.FH * 0.6); c.width = PX.FW; c.height = hh; c.dataset.k = 'c' + v.d.id + '.' + uiKey(JSON.stringify(v.look()));
   c.getContext('2d').drawImage(v.canvas, 0, 0, PX.FW, hh, 0, 0, PX.FW, hh);
   c.className = 'crop'; wrap.append(c);
   return wrap;
@@ -124,22 +127,108 @@ function itemPicture(it, size = 48) {
   const c = itemIcon(it, 64); c.style.width = c.style.height = size + 'px'; return c;
 }
 const stars = s => s >= 9 ? '★★★' : s >= 6 ? '★★' : '★';
+// ---- bringing a panel up to date in place (UI.render): make `old`'s children match `neu`'s, keeping old elements
+// wherever the new ones are the same kind of thing (same tag, id, class and data-k), copying across their attributes,
+// text and click handlers. Pictures are kept only if every attribute matches: a canvas says what it shows in data-k.
+const UI_ON = ['onclick', 'onkeydown', 'oninput', 'onchange', 'onpointerdown', 'onpointerup', 'onfocus', 'onblur'];
+function uiSame(a, b) {
+  if (!a || a.nodeType !== b.nodeType || a.nodeName !== b.nodeName) return false;
+  if (a.nodeType !== 1) return true;
+  if (a.nodeName === 'CANVAS' || a.nodeName === 'IMG' || a.nodeName === 'svg') {
+    if (a.attributes.length !== b.attributes.length) return false;
+    for (const at of b.attributes) if (a.getAttribute(at.name) !== at.value) return false;
+    return a.nodeName !== 'svg' || a.innerHTML === b.innerHTML;
+  }
+  return a.id === b.id && a.className === b.className && a.getAttribute('data-k') === b.getAttribute('data-k');
+}
+function uiMorph(old, neu, top) {
+  if (!top) {
+    if (old.nodeType !== 1) { if (old.data !== neu.data) old.data = neu.data; return; }
+    if (old.nodeName === 'CANVAS' || old.nodeName === 'IMG' || old.nodeName === 'svg') return;   // uiSame found them identical
+    for (const at of [...old.attributes]) if (!neu.hasAttribute(at.name)) old.removeAttribute(at.name);
+    for (const at of neu.attributes) if (old.getAttribute(at.name) !== at.value) old.setAttribute(at.name, at.value);
+    for (const h of UI_ON) if (old[h] !== neu[h]) old[h] = neu[h];
+    if (old.nodeName === 'INPUT' && old.value !== neu.value && document.activeElement !== old) old.value = neu.value;
+  }
+  // the children, in order: matched where they line up (looking a few ahead, for a row come or gone), else put in
+  const kids = [...neu.childNodes];
+  let j = 0;
+  for (const n of kids) {
+    const oc = old.childNodes;
+    let k = -1;
+    for (let s = j; s < Math.min(oc.length, j + 4); s++) if (uiSame(oc[s], n)) { k = s; break; }
+    if (k < 0) { old.insertBefore(n, oc[j] || null); j++; continue; }
+    for (let s = j; s < k; s++) old.removeChild(oc[j]);
+    uiMorph(old.childNodes[j], n); j++;
+  }
+  while (old.childNodes.length > j) old.removeChild(old.lastChild);
+}
 const UI = {
   cur: null, tab: 'crew',
-  open(kind, ref) { this.cur = { kind, ref }; $('#panel').hidden = false; this.render(); AUDIO.play('open'); },
-  close() { this.cur = null; $('#panel').hidden = true; SEL.villager = null; SEL.building = null; },
-  refresh() { if (this.cur) this.render(); },
-  render() {
-    const c = this.cur, body = $('#panel-body'), panel = $('#panel'), key = c && c.kind + (c.ref != null && typeof c.ref !== 'object' ? c.ref : c.ref && (c.ref.id || c.ref.d?.id || c.ref.v?.d?.id || c.ref.it?.uid || c.ref.room || ''));
-    const keep = this.lastKey === key ? panel.scrollTop : 0;
+  // Opening a panel moves focus into it (for the keyboard: Tab goes through it next), and closing it gives focus back to
+  // the button that opened it, if a button did.
+  opener: null,
+  open(kind, ref) {
+    const panel = $('#panel'), a = document.activeElement;
+    if (panel.hidden) this.opener = a && a !== document.body && !panel.contains(a) && a.closest('button,[role=button],[tabindex]') ? a : null;
+    if (!['villager', 'jobs', 'equip', 'prep', 'exp', 'studyRooms', 'item'].includes(kind)) SEL.villager = null;   // no name tag left over someone whose card is gone
+    const was = this.cur;
+    this.cur = { kind, ref }; panel.hidden = false; this.render(); AUDIO.play('open');
+    if (!panel.contains(document.activeElement) || document.activeElement === panel) panel.focus({ preventScroll: true });
+    // a room in the Keep or the dig, newly shown: bring it clear of the panel (keep.js, mine.js)
+    if (!was || was.kind !== kind || was.ref !== ref) {
+      if (kind === 'room' && VIEW.mode === 'keep') keepFocusRoom(ref);
+      if (kind === 'dig' && VIEW.mode === 'mine') digShowRoom(ref);
+    }
+  },
+  close() {
+    const panel = $('#panel'), inside = panel.contains(document.activeElement), o = this.opener;
+    this.cur = null; panel.hidden = true; SEL.villager = null; SEL.building = null; this.opener = null;
+    if (inside && o && o.isConnected && o.offsetParent) o.focus({ preventScroll: true });
+  },
+  // A scene or a day's card takes the screen: the panel steps aside (park), and comes back as it was when the card is
+  // gone (unpark), unless something else was opened meanwhile or what it showed has gone (a building taken down, a
+  // person who left).
+  parked: null,
+  park() {
+    if (this.cur && !this.parked) this.parked = { cur: this.cur, sel: { ...SEL }, top: $('#panel').scrollTop };
+    this.close();
+  },
+  unpark() {
+    const P = this.parked; this.parked = null;
+    if (!P || this.cur || GAME.talk || STORY.shown || EVT.card || BUILD.on || (SKY && SKY.on)) return;
+    const r = P.cur.ref, gone = r && typeof r === 'object' && ((r.d && r.d.id != null && !GAME.villagers.includes(r))
+      || (r.def && typeof r.id === 'string' && !/^[mdc]:/.test(r.id) && r !== WALLB && r !== DOCK.b && TOWN.b[r.id] !== r));   // the dig's rooms find their own way (mine.js)
+    if (gone) return;
+    this.cur = P.cur; Object.assign(SEL, P.sel); $('#panel').hidden = false;
+    try { this.render(); } catch (e) { console.warn(e); this.close(); return; }
+    requestAnimationFrame(() => { $('#panel').scrollTop = P.top; });
+  },
+  // An open panel is brought up to date in place: drawn afresh off the page, then only what changed is copied across (a
+  // number, a bar's width, a button turning on or off, a row come or gone), and every element still there is kept. So a
+  // tap that lands mid-refresh still lands, a scroll keeps going, focus stays put, and nothing is read out again.
+  refresh() { if (this.cur) this.render(true); },
+  render(soft) {
+    const c = this.cur, body = $('#panel-body'), panel = $('#panel'), r = c && c.ref;
+    const key = c ? c.kind + ':' + (r == null ? '' : typeof r !== 'object' ? r : (r.id || r.d?.id || r.v?.d?.id || r.it?.uid || r.room || '')) : '';
+    const same = this.lastKey === key, hadFocus = panel.contains(document.activeElement) && document.activeElement !== panel;
     panel.classList.toggle('wide', !!c && ['villager', 'bench', 'item'].includes(c.kind));
     this.lastKey = key;
-    body.innerHTML = '';
-    requestAnimationFrame(() => { panel.scrollTop = keep; });
-    if (!c) return;
-    const fn = { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock, haul: this.haul, journal: this.journal, weather: this.weather, dig: this.dig,
+    const fn = c && { building: this.building, villager: this.villager, roster: this.roster, pick: this.picker, jobs: this.jobs, equip: this.equipPick, item: this.item, prep: this.prep, exp: this.exp, room: this.room, studyPick: this.studyPick, studyRooms: this.studyRooms, away: this.away, dock: this.dock, haul: this.haul, journal: this.journal, weather: this.weather, dig: this.dig,
       bench: this.bench, fit: this.fit, lark: this.lark, courier: this.courier }[c.kind];
-    if (fn) fn.call(this, body, c.ref);
+    if (soft && same && fn && body.firstChild) {
+      const fresh = document.createElement('div');
+      fn.call(this, fresh, c.ref);
+      uiMorph(body, fresh, true);
+    } else {
+      const keep = same ? panel.scrollTop : 0;
+      body.innerHTML = '';
+      requestAnimationFrame(() => { panel.scrollTop = keep; });
+      if (fn) fn.call(this, body, c.ref);
+    }
+    panel.classList.toggle('tabbed', !!body.querySelector('.tabs:not(.chips)'));   // one height on a phone, so the tabs stay put (style.css)
+    // keyboard: what had focus in the panel and was redrawn away hands it to the panel, not to the page
+    if (c && hadFocus && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
   },
   h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content; },
   back(body, label, fn) { const b = this.h(`<p style="margin-top:12px"><button type="button" class="btn">${esc(label)}</button></p>`); b.querySelector('button').onclick = fn; body.append(b); },
@@ -181,6 +270,18 @@ const UI = {
       body.append(box);
       if (def.job.night) body.append(this.h(`<p class="small">Works through the night.</p>`));
     }
+    // actions, then the next level: near the top, so a phone doesn't have to scroll past the bench and the sockets
+    const acts = document.createElement('div'); acts.className = 'stats-row';
+    if (b.type === 'keep') { const gi = this.h(`<button type="button" class="btn primary">Go inside</button>`); gi.querySelector('button').onclick = () => { UI.close(); setView('keep'); }; acts.append(gi); }
+    if (b.type === 'head' && VIEW.mode !== 'mine') { const gi = this.h(`<button type="button" class="btn primary">See the dig</button>`); gi.querySelector('button').onclick = () => { UI.close(); setView('mine'); }; acts.append(gi); }
+    if (b.tile) { const mv = this.h(`<button type="button" class="btn">Move</button>`); mv.querySelector('button').onclick = () => enterBuild(b); acts.append(mv); }
+    if (acts.children.length) body.append(acts);
+    if (lv < max) {
+      const cost = def.cost[lv + 1], can = GAME.shards >= cost && !b.building;
+      const u = this.h(`<div class="upgrade"><p><b>Level ${lv + 1}:</b> ${esc(def.levels[lv])}</p><button type="button" class="btn primary" ${can ? '' : 'disabled'}>${b.building ? 'Building…' : `Upgrade · <span class="cost">${SHARD} ${cost}</span>`}</button>${!can && !b.building ? `<p class="small why">Needs ${esc(shortOf({ shards: cost }))}.</p>` : ''}</div>`);
+      u.querySelector('button').onclick = () => upgrade(b);
+      body.append(u);
+    } else body.append(this.h(`<p class="small" style="margin-top:12px">Fully built.</p>`));
     if (b.type === 'keep') {
       body.append(this.h(`<h3>Build allowance at level ${lv}</h3>`));
       const rows = BUILD_ORDER.map(t => { const have = byType(t).length, cap = KEEP_LIMITS[t][lv], nxt = KEEP_LIMITS[t][Math.min(3, lv + 1)]; return `<span class="chip ${have < cap ? 'amber' : ''}">${esc(DEFS[t].name)} ${have}/${cap}${lv < 3 && nxt > cap ? ` <em style="font-style:normal;color:var(--good)">→ ${nxt}</em>` : ''}</span>`; });
@@ -194,18 +295,6 @@ const UI = {
       const fl = (GAME.sockets.lark || []).filter(Boolean).length, r = this.h(`<div class="stats-row"><button type="button" class="btn">The Lark’s fittings · ${fl} of ${LARK_SLOTS}</button><button type="button" class="btn">The courier’s wares</button></div>`);
       const [a, c] = r.querySelectorAll('button'); a.onclick = () => UI.open('lark'); c.onclick = () => UI.open('courier'); body.append(r);
     }
-    // actions
-    const acts = document.createElement('div'); acts.className = 'stats-row';
-    if (b.type === 'keep') { const gi = this.h(`<button type="button" class="btn primary">Go inside</button>`); gi.querySelector('button').onclick = () => { UI.close(); setView('keep'); }; acts.append(gi); }
-    if (b.type === 'head' && VIEW.mode !== 'mine') { const gi = this.h(`<button type="button" class="btn primary">See the dig</button>`); gi.querySelector('button').onclick = () => { UI.close(); setView('mine'); }; acts.append(gi); }
-    if (b.tile) { const mv = this.h(`<button type="button" class="btn">Move</button>`); mv.querySelector('button').onclick = () => enterBuild(b); acts.append(mv); }
-    if (acts.children.length) body.append(acts);
-    if (lv < max) {
-      const cost = def.cost[lv + 1], can = GAME.shards >= cost && !b.building;
-      const u = this.h(`<div class="upgrade"><p><b>Level ${lv + 1}:</b> ${esc(def.levels[lv])}</p><button type="button" class="btn primary" ${can ? '' : 'disabled'}>${b.building ? 'Building…' : `Upgrade · <span class="cost">${SHARD} ${cost}</span>`}</button>${!can && !b.building ? `<p class="small">Needs ${cost - Math.floor(GAME.shards)} more shards.</p>` : ''}</div>`);
-      u.querySelector('button').onclick = () => upgrade(b);
-      body.append(u);
-    } else body.append(this.h(`<p class="small" style="margin-top:12px">Fully built.</p>`));
   },
   picker(body, b) {
     const def = b.def, stat = def.job.stat;
@@ -227,30 +316,34 @@ const UI = {
   villager(body, v) {
     const d = v.d, b = v.jobB, E = d.exp;
     this.sheet(body, v);
+    // what they're doing now, and the buttons to change it, right under their name (sh-now); the wilds at the bottom
+    const now = document.createElement('div'); now.className = 'sh-now';
+    const card = body.querySelector('.sheet'), head = card && card.querySelector('.sh-head');
+    if (head) head.after(now); else body.append(now);
     if (d.study) {
       const S = d.study, r = GAME.rooms[S.room], k = r.type;
-      body.append(this.h(`<h3>${S.role === 'tutor' ? 'Teaching' : 'Studying'} in the ${esc(STUDY[k].name)}</h3>`));
+      now.append(this.h(`<h3>${S.role === 'tutor' ? 'Teaching' : 'Studying'} in the ${esc(STUDY[k].name)}</h3>`));
       if (S.role === 'student') { const need = pointTime(d.stats[k]), f = Math.min(1, S.prog / need);
-        body.append(this.h(`<p>${STAT_NAMES[k]} ${d.stats[k]} → <b>${d.stats[k] + 1}</b> · about ${fmtReal(studyLeft(v))} to go${GAME.speed > 1 ? ' at 1×' : ''}</p><div class="hp" role="meter" aria-label="Study progress" aria-valuenow="${Math.round(f * 100)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.max(2, f * 100)}%"></i></div>`)); }
-      else body.append(this.h(`<p class="small">Students here learn ${Math.round((tutorMult(S.room) - 1) * 100)}% faster with ${esc(d.name.split(' ')[0])} teaching.</p>`));
+        now.append(this.h(`<p>${STAT_NAMES[k]} ${d.stats[k]} → <b>${d.stats[k] + 1}</b> · about ${fmtReal(studyLeft(v))} to go${GAME.speed > 1 ? ' at 1×' : ''}</p><div class="hp" role="meter" aria-label="Study progress" aria-valuenow="${Math.round(f * 100)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.max(2, f * 100)}%"></i></div>`)); }
+      else now.append(this.h(`<p class="small">Students here learn ${Math.round((tutorMult(S.room) - 1) * 100)}% faster with ${esc(d.name.split(' ')[0])} teaching.</p>`));
       const r2 = this.h(`<div class="stats-row"><button type="button" class="btn">Stop and go back to work</button><button type="button" class="btn">See the room</button></div>`);
       const [stop, see] = r2.querySelectorAll('button');
       stop.onclick = () => { endStudy(v); toast(`<b>${esc(d.name.split(' ')[0])}</b> leaves the ${esc(STUDY[k].name)}.`); UI.refresh(); };
       see.onclick = () => { setView('keep'); UI.open('room', S.room); };
-      body.append(r2);
+      now.append(r2);
       return;
     }
     if (E) {
-      body.append(this.h(`<h3>In the wilds</h3>`));
-      const r = this.h(`<div class="stats-row"><button type="button" class="btn primary">See their log</button></div>`); r.querySelector('button').onclick = () => UI.open('exp', v); body.append(r);
+      now.append(this.h(`<h3>In the wilds</h3>`));
+      const r = this.h(`<div class="stats-row"><button type="button" class="btn primary">See their log</button></div>`); r.querySelector('button').onclick = () => UI.open('exp', v); now.append(r);
       return;
     }
-    body.append(this.h(`<h3>Job</h3><p>${b ? `<b>${esc(b.def.job.title)}</b> at the ${esc(b.name || b.def.name)}` : 'No job yet.'}</p>`));
+    now.append(this.h(`<h3>Job</h3><p>${b ? `<b>${esc(b.def.job.title)}</b> at the ${esc(b.name || b.def.name)}` : 'No job yet.'}</p>`));
     const row = this.h(`<div class="stats-row"><button type="button" class="btn" id="vj">${b ? 'Change job' : 'Give a job'}</button><button type="button" class="btn" id="vs">Study</button><button type="button" class="btn" id="vf">${FOLLOW.v === v ? 'Stop following' : 'Follow'}</button></div>`);
     row.querySelector('#vj').onclick = () => UI.open('jobs', v);
     row.querySelector('#vs').onclick = () => UI.open('studyRooms', v);
     row.querySelector('#vf').onclick = () => { FOLLOW.v = FOLLOW.v === v ? null : v; if (FOLLOW.v && v.where === 'mine') setView('mine'); UI.refresh(); };
-    body.append(row);
+    now.append(row);
     const can = expOut().length < expLimit();
     const ex = this.h(`<div class="upgrade"><p><b>The wilds.</b> Send ${esc(d.name.split(' ')[0])} down the rope stair to look for ore, food and gear. Kit them out first.</p><button type="button" class="btn primary" ${can ? '' : 'disabled'}>Get ready to set out</button>${can ? '' : `<p class="small">${expOut().length} already out. The Keep allows ${expLimit()} at once; raise it for more.</p>`}</div>`);
     ex.querySelector('button').onclick = () => UI.open('prep', v);
@@ -272,8 +365,8 @@ const UI = {
       const list = document.createElement('div'); list.className = 'list';
       for (const k of 'GEARS') {
         const S = STUDY[k], built = GAME.rooms.some(x => x.type === k), cost = ROOM_COST[1], can = !built && GAME.shards >= cost;
-        const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; el.style.gridTemplateColumns = '1fr auto'; if (!can) { el.disabled = true; el.style.opacity = 0.5; }
-        el.append(this.h(`<span><span class="nm">${esc(S.name)} · ${STAT_NAMES[k]}</span><span class="jb">${built ? 'Already furnished' : esc(S.blurb)}</span></span><span class="fit">${SHARD} ${cost}</span>`));
+        const el = document.createElement('button'); el.type = 'button'; el.className = 'li' + (can ? '' : ' off'); el.style.gridTemplateColumns = '1fr auto'; if (!can) el.disabled = true;
+        el.append(this.h(`<span><span class="nm">${esc(S.name)} · ${STAT_NAMES[k]}</span><span class="jb">${built ? '<span class="why">Already furnished: one of each kind</span>' : `${esc(S.blurb)}${can ? '' : ` <span class="why">Needs ${esc(shortOf({ shards: cost }))}.</span>`}`}</span></span><span class="fit">${SHARD} ${cost}</span>`));
         el.onclick = () => { if (!can) return; GAME.shards -= cost; r.type = k; r.level = 1; buildInterior(); AUDIO.play('build'); toast(`The <b>${esc(S.name)}</b> is furnished. ${esc(S.tutor.split(' ')[0])} would make a fine tutor.`); UI.open('room', i); };
         list.append(el);
       }
@@ -301,7 +394,7 @@ const UI = {
     body.append(box);
     if (lv < 3) {
       const cost = ROOM_COST[lv + 1], can = GAME.shards >= cost;
-      const u = this.h(`<div class="upgrade"><p><b>Level ${lv + 1}:</b> ${ROOM_SEATS[lv + 1]} seats and learning ×${ROOM_SPEED[lv + 1]}.</p><button type="button" class="btn primary" ${can ? '' : 'disabled'}>Upgrade · <span class="cost">${SHARD} ${cost}</span></button></div>`);
+      const u = this.h(`<div class="upgrade"><p><b>Level ${lv + 1}:</b> ${ROOM_SEATS[lv + 1]} seats and learning ×${ROOM_SPEED[lv + 1]}.</p><button type="button" class="btn primary" ${can ? '' : 'disabled'}>Upgrade · <span class="cost">${SHARD} ${cost}</span></button>${can ? '' : `<p class="small why">Needs ${esc(shortOf({ shards: cost }))}.</p>`}</div>`);
       u.querySelector('button').onclick = () => { if (GAME.shards < cost) return; GAME.shards -= cost; r.level++; buildInterior(); AUDIO.play('build'); toast(`The <b>${esc(S.name)}</b> is now level ${r.level}.`); UI.refresh(); };
       body.append(u);
     } else body.append(this.h(`<p class="small" style="margin-top:12px">Fully furnished.</p>`));
@@ -313,11 +406,12 @@ const UI = {
     const ok = v => role === 'tutor' ? canTutor(v, i) : canStudent(v, i);
     const people = GAME.villagers.filter(v => !v.d.exp && !(v.d.study && v.d.study.room === i)).sort((a, b) => (ok(b) - ok(a)) || (role === 'tutor' ? statOf(b, k) - statOf(a, k) : b.d.stats[k] - a.d.stats[k]));
     for (const v of people) {
-      const can = ok(v), s = v.d.stats[k], el = document.createElement('button'); el.type = 'button'; el.className = 'li'; if (!can) { el.disabled = true; el.style.opacity = 0.45; }
+      const can = ok(v), s = v.d.stats[k], el = document.createElement('button'); el.type = 'button'; el.className = 'li' + (can ? '' : ' off'); if (!can) el.disabled = true;
       const now = v.d.study ? `${v.d.study.role === 'tutor' ? 'Teaching' : 'Studying'} · ${safeStudyName(v.d.study.room)}` : v.jobB ? v.jobB.def.job.title + ', ' + (v.jobB.name || v.jobB.def.name) : 'No job';
+      const why = can ? '' : role === 'tutor' ? (roomTutor(i) ? 'There’s a tutor already' : `Needs ${STAT_NAMES[k]} 7 to teach`) : s >= STAT_MAX ? 'Mastered already' : 'The room is full';
       const side = role === 'tutor' ? `${stars(statOf(v, k))} <em>${STAT_NAMES[k]} ${statOf(v, k)}</em>` : s >= STAT_MAX ? '<em>Mastered</em>' : `<em>${s}→${s + 1} · ${fmtReal(pointTime(s) / studyRate(i))}</em>`;
       el.append(faceOf(v));
-      el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${esc(now)}</span></span><span class="fit">${side}</span>`));
+      el.append(this.h(`<span><span class="nm">${esc(v.d.name)}</span><span class="jb">${esc(now)}${why ? ` · <span class="why">${esc(why)}</span>` : ''}</span></span><span class="fit">${side}</span>`));
       el.onclick = () => { if (!can) return; if (startStudy(v, i, role)) { toast(`<b>${esc(v.d.name.split(' ')[0])}</b> heads into the Keep to ${role === 'tutor' ? 'teach' : 'study'} in the ${esc(S.name)}.`); AUDIO.play('tap'); } UI.open('room', i); };
       list.append(el);
     }
@@ -332,9 +426,9 @@ const UI = {
       if (!r.type || !slotOpen(i)) return; any = true;
       const k = r.type, s = v.d.stats[k], canS = canStudent(v, i), canT = canTutor(v, i);
       const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; el.style.gridTemplateColumns = '1fr auto';
-      if (!canS && !canT) { el.disabled = true; el.style.opacity = 0.45; }
+      if (!canS && !canT) { el.disabled = true; el.classList.add('off'); }
       const note = s >= STAT_MAX ? (canT ? 'Mastered: could teach here' : 'Mastered') : !canS ? (canT ? 'Room full: could teach here' : 'Room full') : `${s} → ${s + 1} in about ${fmtReal(pointTime(s) / studyRate(i))}${canT ? ' · or teach' : ''}`;
-      el.append(this.h(`<span><span class="nm">${esc(STUDY[k].name)} · ${STAT_NAMES[k]}</span><span class="jb">${esc(note)}</span></span><span class="fit"><em>${roomStudents(i).length}/${ROOM_SEATS[r.level]}</em></span>`));
+      el.append(this.h(`<span><span class="nm">${esc(STUDY[k].name)} · ${STAT_NAMES[k]}</span><span class="jb${!canS && !canT ? ' why' : ''}">${esc(note)}</span></span><span class="fit"><em>${roomStudents(i).length}/${ROOM_SEATS[r.level]}</em></span>`));
       el.onclick = () => { if (canS ? startStudy(v, i, 'student') : canT && startStudy(v, i, 'tutor')) { toast(`<b>${esc(v.d.name.split(' ')[0])}</b> heads into the Keep.`); AUDIO.play('tap'); UI.open('villager', v); } };
       list.append(el);
     });
@@ -475,9 +569,9 @@ const UI = {
     for (const b of opts) {
       const s = statOf(v, b.def.job.stat), n = slotsOf(b), used = workersOf(b.id).length, mine = v.d.job && v.d.job.bid === b.id;
       const full = used >= n && !mine;
-      const el = document.createElement('button'); el.type = 'button'; el.className = 'li'; if (full) el.disabled = true;
-      el.style.gridTemplateColumns = '1fr auto'; el.style.opacity = full ? 0.5 : 1;
-      el.append(this.h(`<span><span class="nm">${esc(b.def.job.title)} · ${esc(b.name || b.def.name)}</span><span class="jb">${mine ? 'Current job' : full ? 'Full' : `${used} of ${n} places taken`}${b.def.job.night ? ' · works nights' : ''}</span></span><span class="fit">${stars(s)} <em>${STAT_NAMES[b.def.job.stat]} ${s}</em></span>`));
+      const el = document.createElement('button'); el.type = 'button'; el.className = 'li' + (full ? ' off' : ''); if (full) el.disabled = true;
+      el.style.gridTemplateColumns = '1fr auto';
+      el.append(this.h(`<span><span class="nm">${esc(b.def.job.title)} · ${esc(b.name || b.def.name)}</span><span class="jb">${mine ? 'Current job' : full ? `<span class="why">Full: all ${n} places taken</span>` : `${used} of ${n} places taken`}${b.def.job.night ? ' · works nights' : ''}</span></span><span class="fit">${stars(s)} <em>${STAT_NAMES[b.def.job.stat]} ${s}</em></span>`));
       el.onclick = () => { if (mine) return UI.open('villager', v); if (v.d.study) endStudy(v); if (assignJob(v, b.id)) { if (!b.isDig) v.d.pref = b === WALLB ? 'wall' : b.type; toast(`<b>${esc(v.d.name)}</b> is now ${aJob(b.def.job.title)}.`); AUDIO.play('tap'); } UI.open('villager', v); };
       list.append(el);
     }
@@ -495,6 +589,10 @@ const UI = {
     body.append(tabs);
     const list = document.createElement('div'); list.className = 'list';
     if (this.tab === 'crew') {
+      if (BUILD.setupDone) {   // the claim's mood, and what's moving it (mood.js): on a phone the people pill opens this page
+        const mb = moodBand(), m = this.h(`<button type="button" class="linkrow"><svg viewBox="0 0 20 20" aria-hidden="true">${moodFace(mb)}</svg><span>Mood ${Math.round(MOOD.v)} · ${esc(mb.name)}</span><em>What’s moving it ›</em></button>`);
+        m.querySelector('button').onclick = () => UI.open('journal', { tab: 'days' }); list.append(m);
+      }
       const order = v => v.d.exp ? 'zzz' : v.d.job && v.jobB ? (v.jobB.name || v.jobB.def.name) : 'zz';
       for (const v of [...GAME.villagers].sort((a, b) => order(a).localeCompare(order(b)))) {
         const b = v.jobB, top = Object.entries(v.d.stats).sort((x, y) => statOf(v, y[0]) - statOf(v, x[0]))[0][0];
@@ -570,6 +668,16 @@ const UI = {
     body.append(log);
   },
 };
+// a piece named on the dawn report or a day's card (class itag, data-uid): tapping it puts the card away and opens the piece
+document.addEventListener('click', e => {
+  const t = e.target.closest && e.target.closest('.itag[data-uid]'); if (!t) return;
+  if (t.closest('#evcard') && !(EVT.card && EVT.card.picked)) return;
+  const x = findItem(t.dataset.uid);
+  if (!x) { toast('That piece isn’t on the claim any more.'); return; }
+  if (t.closest('#dawn')) dawnHide();
+  if (t.closest('#evcard')) eventClose();
+  UI.open('item', { it: x.it });
+});
 function upgrade(b) {
   const lv = b.level, cost = b.def.cost[lv + 1];
   if (!(cost >= 0) || GAME.shards < cost || b.building) return;   // (no next level: shards minus nothing was NaN, and saved as none)
@@ -619,7 +727,9 @@ function updateHUD(dt) {
   const a = a0 + GAME.t * TAU;
   g.fillStyle = TOD.night > 0.5 ? '#cfd8ff' : '#ffcf85'; g.beginPath(); g.arc(c + Math.cos(a) * 38, c + Math.sin(a) * 38, 11, 0, TAU); g.fill();
   g.strokeStyle = '#2a1b2f'; g.lineWidth = 3; g.stroke();
-  if (UI.cur && (UI.cur.kind === 'building' || UI.cur.kind === 'villager') && !document.activeElement?.closest?.('#panel')) { UI.liveT = (UI.liveT || 0) + 1; if (UI.liveT % 8 === 0) UI.refresh(); }
+  // an open building's, person's or study room's panel keeps its numbers live, in place (UI.render): taps, scrolling
+  // and focus carry on through it
+  if (UI.cur && ['building', 'villager', 'room'].includes(UI.cur.kind)) { UI.liveT = (UI.liveT || 0) + 1; if (UI.liveT % 8 === 0) UI.refresh(); }
 }
 // ----------------------------------------------------------------- labels over the scene
 const SEL = { villager: null, building: null };

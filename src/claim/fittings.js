@@ -482,6 +482,11 @@ function courierToday() {
   GAME.courier = { day: GAME.day, stock: LOOT.courierStock(ilvl), cell: { id: cell, price: D.CELLS[cell].price, sold: false } };
   return GAME.courier;
 }
+function courierBuy(s, p) {
+  if (s.sold) return false;
+  if (GAME.shards < p) { toast(`That costs ${p} shards. You have ${Math.floor(GAME.shards)}.`); return false; }
+  GAME.shards -= p; s.sold = true; addToStash(s.item, false, { line: 'Bought from the courier' }); AUDIO.play('chime'); return true;
+}
 const courierCut = () => Math.min(0.5, modV(TOWN.b.keep, 'tradeCut') / 100);
 const priceOf = p => Math.max(1, Math.round(p * (1 - courierCut())));
 UI.courier = function (body) {
@@ -491,7 +496,8 @@ UI.courier = function (body) {
   for (const s of C.stock) {
     if (s.sold) continue;
     const p = priceOf(s.price), can = GAME.shards >= p;
-    const row = this.itemRow(s.item, `Buy · ${p}`, () => { if (GAME.shards < p) { toast(`That costs ${p} shards. You have ${Math.floor(GAME.shards)}.`); return; } GAME.shards -= p; s.sold = true; addToStash(s.item, false, { line: 'Bought from the courier' }); AUDIO.play('chime'); UI.refresh(); });
+    // a tap opens the piece to read and compare first; it's bought from there (UI.item in finds.js)
+    const row = this.itemRow(s.item, `Buy · ${p}`, () => UI.open('item', { it: s.item, back: () => UI.open('courier'), buy: { price: p, go: () => courierBuy(s, p) } }));
     if (!can) row.classList.add('dim');
     row.querySelector('.side').innerHTML = `${SHARD} ${p}`;
     list.append(row);

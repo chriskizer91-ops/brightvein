@@ -297,9 +297,18 @@ $('#b-pause').onclick = () => { GAME.paused = !GAME.paused; $('#b-pause').classL
 // the settings panel, its buttons and the speed limits are in settings.js
 addEventListener('keydown', e => {
   if (SKY && SKY.on) return;
-  if (e.target.closest && e.target.closest('input,textarea')) return;
-  if (e.key === 'Escape') { if (!$('#menu').hidden) closeMenu(); else if (!$('#intro').hidden && started) introClose(); else if (BUILD.on && BUILD.pending) cancelPending(); else if (BUILD.on) exitBuild(); else UI.close(); }
-  if (e.key === ' ' && e.target === document.body && started) { e.preventDefault(); $('#b-pause').click(); }
+  if (e.defaultPrevented || (e.target.closest && e.target.closest('input,textarea'))) return;
+  // Esc: skips a scene, puts away the dawn report, closes the settings, the first look, a building being placed, build
+  // mode, then the panel. A day's card waits for its choice.
+  if (e.key === 'Escape') {
+    const dawn = document.getElementById('dawn');
+    if (STORY.shown) endScene();
+    else if (EVT.card) return;
+    else if (!$('#menu').hidden) closeMenu();
+    else if (dawn && !dawn.hidden) dawnHide();
+    else if (!$('#intro').hidden && started) introClose(); else if (BUILD.on && BUILD.pending) cancelPending(); else if (BUILD.on) exitBuild(); else { UI.close(); FOLLOW.v = null; }
+  }
+  if (e.key === ' ' && (e.target === document.body || e.target.id === 'panel') && started && !STORY.shown) { e.preventDefault(); $('#b-pause').click(); }
 });
 
 // ----------------------------------------------------------------- saving
@@ -613,7 +622,8 @@ Object.assign(window.__bv, { BENCH_T: { benchSalvage, benchOverhaul, benchRetune
 // the front door, saves, settings, tips and toasts, for tests (title.js, saves.js, settings.js, hints.js, ui.js)
 Object.assign(window.__bv, { TITLE, titleShow, titleHide, toTitle, SLOTS, slotRead, slotWrite, slotClear, slotSummary, slotName, exportCode, importCode, codeWhy, reloadInto,
   SETTINGS, setSpeed, applyLookSettings, HINTS, hintShow, hintClose, hintsReset, TOASTS, toast, bedsUsed, guestCount, openMenu, closeMenu, openExport, openImport, openClaims, openAbout,
-  newClaimAsk, introShow, introClose, sheetClose, LOADING, frontOpen, drawOnly, frame, QUALITY, applyQuality, CROWD, crowdDraw, TMERGE, townMerge });
+  newClaimAsk, introShow, introClose, sheetClose, LOADING, frontOpen, drawOnly, frame, QUALITY, applyQuality, CROWD, crowdDraw, TMERGE, townMerge,
+  playScene, endScene, eventFire, eventChoose, uiMorph, updateHUD });   // the panels: put aside for a scene, brought up to date in place (ui.js)
 // mending saves, faults while playing, freeing what's taken down, for tests (saves.js, kit.js)
 Object.assign(window.__bv, { SAFE, safeMend, safeFault, safeBackup, safeFree, safeNightLoad, safeStoryLoad, buildDigLook, castLeave, slotRaw });
 Object.defineProperty(window.__bv, 'started', { get: () => started });

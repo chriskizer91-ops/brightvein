@@ -132,6 +132,41 @@ with sync_playwright() as p:
       return out; })()''')
     check("toasts queue, never more than the cap at once, and hold while a card is up", 0 < r['shown'] <= r['max'] <= 3 and r['waiting'] >= 9 - r['max'] - 1 and r['held'] and r['back'], json.dumps(r))
 
+    # the panels: a scene or a day's card puts the open panel aside and gives it back when it's over (UI.park, ui.js)
+    r = pg.evaluate('''(async () => { const B = __bv, out = {}, K = B.TOWN.b.keep, wait = ms => new Promise(r => setTimeout(r, ms));
+      while (B.STORY.shown) B.talkNext(); B.eventClose();
+      B.UI.open('building', K); await wait(100);
+      B.playScene({ lines: [['hesper', 'A test line.'], ['odile', 'And another.']] });
+      out.during = { cur: B.UI.cur, hidden: document.getElementById('panel').hidden };
+      while (B.STORY.shown) B.talkNext(); await wait(100);
+      out.scene = !!B.UI.cur && B.UI.cur.kind === 'building' && B.UI.cur.ref === K && !document.getElementById('panel').hidden;
+      B.eventFire('courier'); out.cardUp = !!B.EVT.card && document.getElementById('panel').hidden;
+      B.eventChoose(0); B.eventClose(); await wait(100);
+      out.card = !!B.UI.cur && B.UI.cur.kind === 'building' && B.UI.cur.ref === K && !document.getElementById('panel').hidden;
+      out.during = out.during.cur === null && out.during.hidden;
+      return out; })()''')
+    check("a scene or a day's card puts the panel aside and gives it back after", r['during'] and r['scene'] and r['cardUp'] and r['card'], json.dumps(r))
+
+    # an open panel keeps its numbers live, in place: the same elements, new numbers, no rebuild (UI.render, ui.js)
+    r = pg.evaluate('''(async () => { const B = __bv, out = {}, K = B.TOWN.b.keep, G = B.GAME, wait = ms => new Promise(r => setTimeout(r, ms));
+      while (B.STORY.shown) B.talkNext(); B.eventClose();
+      G.recruit = 0.2; B.UI.open('building', K); await wait(50);
+      const body = document.getElementById('panel-body'), h2 = body.querySelector('h2'), chip = [...body.querySelectorAll('.chip')].find(c => /Next settler/.test(c.textContent));
+      out.before = chip && chip.textContent;
+      // the game's own refresh, every couple of seconds of the HUD's clock (updateHUD in ui.js): run that clock round
+      // by hand, so a slow machine's few frames don't matter
+      G.recruit = 0.6;
+      for (let i = 0; i < 9 && chip && chip.isConnected && !/60%/.test(chip.textContent); i++) B.updateHUD(0.3);
+      out.after = chip && chip.textContent; out.sameChip = !!chip && chip.isConnected && chip === [...body.querySelectorAll('.chip')].find(c => /Next settler/.test(c.textContent));
+      out.sameTitle = h2.isConnected && h2 === body.querySelector('h2');
+      // a button turns off and says why, then on again, and is the same button throughout
+      const up = () => body.querySelector('.upgrade .btn'), btn = up(), sh = G.shards;
+      G.shards = 0; B.UI.refresh(); out.off = btn.disabled && !!body.querySelector('.upgrade .why');
+      G.shards = 99999; B.UI.refresh(); out.on = !btn.disabled && !body.querySelector('.upgrade .why'); out.sameBtn = btn === up();
+      G.shards = sh; B.UI.refresh(); B.UI.close();
+      return out; })()''')
+    check('an open panel brings its numbers up to date in place, without rebuilding', r['sameChip'] and r['sameTitle'] and '20%' in (r['before'] or '') and '60%' in (r['after'] or '') and r['off'] and r['on'] and r['sameBtn'], json.dumps(r))
+
 
     # the skies: the ship moors at the Sky Dock, sets sail, beats a wave, sails on, sinks, and the crew bring half home
     pg.wait_for_function('__bv.DOCK.ship && __bv.DOCK.ship.root.parent', timeout=LONG)

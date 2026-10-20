@@ -194,7 +194,6 @@ function questAccept(id, quiet = false) {
     questsCheck(); journalHUD(); UI.refresh(); saveGame();
   };
   if (quiet) { start(); return true; }
-  UI.close();
   playScene({ lines: q.ask, heading: `${q.who}’s story · ${q.title}`, after: start });
   return true;
 }

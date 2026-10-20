@@ -634,6 +634,29 @@ with sync_playwright() as p:
     check('with no sound in the browser, nothing breaks', not quiet and r['missing'] and r['render'] is None, json.dumps(r) + ' ' + '; '.join(quiet))
     pg2.close()
 
+    # on a phone held upright, in a boss raid: the skies' panels (her numbers, the compass, the map, the score, the
+    # raid's objective, the boss's bar, the guns' label and the touch buttons) each have their own place, none on another
+    ph = b.new_page(viewport={'width': 390, 'height': 844}, has_touch=True, is_mobile=True, device_scale_factor=2)
+    ph.add_init_script('localStorage.clear(); localStorage.setItem("bv-settings", JSON.stringify({ hints: false }));')
+    phone_errs = []
+    ph.on('pageerror', lambda e: phone_errs.append(str(e)[:300]))
+    ph.route('**/fonts.g*/**', lambda r: r.fulfill(body='', content_type='text/css'))
+    ph.goto('file://' + ROOT + '/dist/test.html', timeout=LONG)
+    ph.wait_for_function('window.__bv && document.querySelector("#loading").hidden && __bv.DOCK.ship', timeout=LONG)
+    ph.evaluate('__bv.begin(true); __bv.exitBuild(); __bv.openSky("port")')
+    ph.wait_for_function('__bv.SKY.mode === "port"', timeout=LONG)
+    r = ph.evaluate('''(() => { const B = __bv, g = B.SKY, d = B.FLEET.data; d.ships.brig.owned = true; d.raids.citadel.won = 0; d.voyages = 3;
+      g.raid('citadel', 'brig'); const P = g.player, cur = g.sites.cur, c = cur.center;
+      P.pos.set(c.x - 700, c.y + 60, c.z - 500); P.heading = Math.atan2(c.x - P.pos.x, c.z - P.pos.z);
+      for (const t of cur.towers) t.alive = false; g.step(1, {}); if (cur.boss && cur.boss.rise) cur.boss.rise.t = cur.boss.rise.time; g.step(1, {}); g.G.frame(0.016); g.G.frame(0.016);
+      const ids = ['ship', 'compass', 'btn-pause', 'minimap', 'score', 'objective', 'sky-boss', 'battery', 'touch-buttons'], R = {}, over = [];
+      for (const id of ids) { const el = document.getElementById(id); if (!el || el.hidden || !el.offsetParent && getComputedStyle(el).position !== 'fixed') continue; const b = el.getBoundingClientRect(); if (b.width && b.height) R[id] = b; }
+      const keys = Object.keys(R);
+      for (let i = 0; i < keys.length; i++) for (let j = i + 1; j < keys.length; j++) { const a = R[keys[i]], b = R[keys[j]]; if (a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1) over.push(keys[i] + ' on ' + keys[j]); }
+      const off = keys.filter(k => R[k].left < -1 || R[k].right > innerWidth + 1 || R[k].top < -1 || R[k].bottom > innerHeight + 1);
+      return { shown: keys, over, off, boss: !!cur.boss && !document.getElementById('sky-boss').hidden }; })()''')
+    ph.close()
+    check('on a phone, in a boss raid, the panels each have their own place', r['boss'] and 'objective' in r['shown'] and 'touch-buttons' in r['shown'] and not r['over'] and not r['off'] and not phone_errs, json.dumps(r) + ' ' + '; '.join(phone_errs))
 
     # Saves from four older builds, a damaged save that can be mended, and one that can't be opened at all. Each opens
     # in a page of its own with only that save in storage (test/saves/: real saves kept from those builds).

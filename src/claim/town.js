@@ -75,10 +75,11 @@ function addBuilding(type, tx, tz, level = 1, o = {}) {
   return b;
 }
 function removeBuilding(b) {
-  if (b.ring) { scene.remove(b.ring); b.ring = null; }
+  if (b.ring) { scene.remove(b.ring); safeFree(b.ring, true); b.ring = null; }
   for (const v of workersOf(b.id)) { v.d.job = null; v.replan = true; v.redraw(); }
   freeLamps(b); scaffoldOff(b);
   scene.remove(b.group); if (b.pad) scene.remove(b.pad);
+  safeFree(b.group); safeFree(b.pad, true);   // what it held on the graphics card (kit.js)
   BUILDINGS.splice(BUILDINGS.indexOf(b), 1); delete TOWN.b[b.id];
   TOWN.towers = TOWN.towers.filter(x => x !== b); TOWN.ballistas = TOWN.ballistas.filter(x => x !== b);
   nameBuildings();
@@ -132,7 +133,8 @@ function setupTown(save) {
   if (list) {
     // the Keep first, so everything else finds room around it
     const order = [...list].sort((a, b) => (b.type === 'keep') - (a.type === 'keep'));
-    for (const s of order) if (s.type !== 'head' && FOOT[s.type]) addBuilding(s.type, s.tx, s.tz, s.level || 1, { id: s.id, hint: s.hint });
+    // one that won't fit where it stood goes to the nearest free spot; with no room left, it's refunded (safeRefundLost)
+    for (const s of order) if (s.type !== 'head' && FOOT[s.type] && !addBuilding(s.type, s.tx, s.tz, s.level || 1, { id: s.id, hint: s.hint || safeHint(s) })) SAFE.lost.push(s);
   }
   if (!TOWN.b.keep) addBuilding('keep', null, null, 1, { hint: [LAYOUT.keep.x, LAYOUT.keep.z] });
   if (!TOWN.b.mast) addBuilding('mast', null, null, 1, { hint: [LAYOUT.mast.x, LAYOUT.mast.z] });

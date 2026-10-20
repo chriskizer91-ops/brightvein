@@ -5,9 +5,7 @@ controls.screenSpacePanning = false;
 controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
 controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
 controls.zoomToCursor = true;
-const VIEW = { mode: 'town', tween: null };
-// the Keep view has its own pan and zoom, face on (keep.js); this keeps its target for the sound's listener
-const kcontrols = { enabled: false, target: new THREE.Vector3(0, 6, 0), update() { } };
+const VIEW = { mode: 'town', tween: null };   // the Keep view has its own pan and zoom, face on (KCAM, keep.js)
 function viewLimits(mode) {
   if (mode === 'build') { controls.minDistance = 30; controls.maxDistance = 170; controls.minPolarAngle = 0.12; controls.maxPolarAngle = 1.1; controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; return; }
   if (mode === 'town') { controls.minDistance = 12; controls.maxDistance = 150; controls.minPolarAngle = 0.25; controls.maxPolarAngle = 1.32; controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; }
@@ -16,7 +14,7 @@ function viewLimits(mode) {
 function setView(mode) {
   VIEW.mode = mode;
   $('#v-town').setAttribute('aria-pressed', mode === 'town'); $('#v-mine').setAttribute('aria-pressed', mode === 'mine'); $('#v-keep').setAttribute('aria-pressed', mode === 'keep');
-  kcontrols.enabled = mode === 'keep'; controls.enabled = mode === 'town';   // the Mine view has its own pan and zoom (mine.js)
+  controls.enabled = mode === 'town';   // the Mine view has its own pan and zoom (mine.js)
   if (mode === 'keep') { FOLLOW.v = null; VIEW.tween = null; buildInterior(); frameKeep(true); return; }
   const portrait = innerHeight > innerWidth;
   // the Mine view looks straight at the dig, the town's rim along the top
@@ -111,7 +109,7 @@ function buildBlockedReason() {
 }
 function enterBuild(sel = null, setup = false) {
   const why = buildBlockedReason(); if (why && !setup) { toast(why, 'night'); return; }
-  kcontrols.enabled = false; controls.enabled = true; $('#v-keep').setAttribute('aria-pressed', false);
+  controls.enabled = true; $('#v-keep').setAttribute('aria-pressed', false);
   BUILD.on = true; BUILD.sel = null; UI.close(); FOLLOW.v = null;
   $('.bottombar').hidden = true; $('#buildbar').hidden = false;
   gridOverlay.visible = true;
@@ -306,106 +304,99 @@ addEventListener('keydown', e => {
 // ----------------------------------------------------------------- saving
 // into the open claim's slot (saves.js). Autosave can be turned off in Settings: then only a save asked for (force) is
 // made, from Save now, going back to the title, or carrying the claim off as a code.
+// Each part is made on its own: one that fails keeps its last good copy and the rest is saved, and no number is saved
+// as NaN (safeSave, safeNums, safeWrite in saves.js). True when it was saved.
 function saveGame(force) {
-  if (leaving || (!force && !SETTINGS.autosave)) return;   // leaving: the page is opening another claim (saves.js)
-  try {
-    const s = {
-      v: 2, name: (SLOTS.names[SLOTS.active] || '').trim() || undefined, day: GAME.day,   // a name the player gave it travels with it
-      t: GAME.t, ore: GAME.ore, shards: GAME.shards, food: GAME.food, recruit: GAME.recruit, nights: GAME.nights, nextId: GAME.nextId,
-      wall: TOWN.wallLevel, kit: BUILD.kit, setupDone: BUILD.setupDone,
-      buildings: Object.values(TOWN.b).filter(b => !b.pending).map(b => ({ id: b.id, type: b.type, level: b.level, tx: b.tile ? b.tile.tx : null, tz: b.tile ? b.tile.tz : null })),
-      stash: GAME.stash, mats: GAME.mats, cells: GAME.cells, blueprints: GAME.blueprints, rooms: GAME.rooms, savedAt: Date.now(),
-      people: GAME.villagers.map(v => ({ ...v.d })),
-      sky: FLEET ? FLEET.data : undefined, story: storySave(), jumpNext: JUMP.next,
-      night: nightsSave(), weather: weatherSave(), dig: digSave(),
-      workshop: workshopSave(),   // Odile’s bench, the fitted modules, the Lark’s parts, the courier (bench.js, fittings.js)
-    };
-    slotWrite(SLOTS.active, s);
-    saveFails = 0;
-  } catch (e) { if (!saveFails++) toast('The claim couldn’t be saved: this browser’s storage may be full. Carry it off as a code (Settings › Saving) to be safe.', 'night'); }
+  if (leaving || (!force && !SETTINGS.autosave)) return false;   // leaving: the page is opening another claim (saves.js)
+  const N = safeNums(), raw = safeSave({
+    v: 2, name: (SLOTS.names[SLOTS.active] || '').trim() || undefined, day: N.day,   // a name the player gave it travels with it
+    t: N.t, ore: N.ore, shards: N.shards, food: N.food, recruit: N.recruit, nights: N.nights, nextId: N.nextId,
+    wall: TOWN.wallLevel, kit: BUILD.kit, setupDone: BUILD.setupDone,
+    buildings: () => Object.values(TOWN.b).filter(b => !b.pending).map(b => ({ id: b.id, type: b.type, level: b.level, tx: b.tile ? b.tile.tx : null, tz: b.tile ? b.tile.tz : null })),
+    stash: GAME.stash, mats: GAME.mats, cells: GAME.cells, blueprints: GAME.blueprints, rooms: GAME.rooms, savedAt: Date.now(),
+    people: () => GAME.villagers.map(v => ({ ...v.d })),
+    sky: () => FLEET ? FLEET.data : undefined, story: () => safeStorySave(storySave()), jumpNext: JUMP.next,   // an opening scene or a day's card that's up comes back (saves.js)
+    night: () => safeNightSave(nightsSave()), weather: weatherSave, dig: digSave,   // a night under way keeps its Wildlight and snuffed lamps (saves.js)
+    workshop: workshopSave,   // Odile’s bench, the fitted modules, the Lark’s parts, the courier (bench.js, fittings.js)
+  });
+  return safeWrite(raw, force);
 }
-let saveFails = 0;
 function loadSave() { return slotRead(SLOTS.active); }
-// A claim from before the grid: keep the people, stores and building levels; set each building down
-// on the grid as near as it will go to where it stood. Bunkhouses fold into the Keep.
-function migrateV1(s) {
-  const L = s.levels || {}, list = [], ids = {};
-  const put = (oldId, type, level) => { const id = type === 'keep' || type === 'mast' ? type : type + (list.filter(x => x.type === type).length + 1); ids[oldId] = id; list.push({ id, type, level: level || 1, hint: OLD_LAYOUT[oldId] || [0, 0] }); };
-  put('hall', 'keep', L.hall); list.push({ id: 'head', type: 'head', level: L.head || 1 }); ids.head = 'head';
-  for (const k of ['yardA', 'yardB', 'shop', 'garden', 'lens1', 'lens2']) put(k, { yardA: 'yard', yardB: 'yard', shop: 'shop', garden: 'garden', lens1: 'lens', lens2: 'lens' }[k], L[k]);
-  put('mast', 'mast', 1);
-  let refund = 0;
-  for (const [pid, p] of Object.entries(s.plots || {})) { if (p.type === 'bunk') { refund += 60; continue; } put(pid, p.type, p.level); ids[pid + '_' + p.type] = ids[pid]; }
-  const pop = (s.people || []).length, keep = list.find(x => x.type === 'keep');
-  while (keep.level < 3 && DEFS.keep.beds[keep.level] < pop) keep.level++;
-  for (const d of s.people || []) {
-    d.home = 'keep'; d.gear = d.gear || {};
-    if (d.job) { const nb = ids[d.job.bid] || (d.job.bid === 'wall' ? 'wall' : null); d.pref = nb === 'wall' ? 'wall' : (list.find(x => x.id === nb) || {}).type || null; d.job = null; }
-  }
-  return { ...s, v: 2, buildings: list, shards: (s.shards || 0) + refund, kit: {}, setupDone: true, migrated: true };
-}
 
 // ----------------------------------------------------------------- the loop
 const clock = { last: performance.now(), getDelta() { const n = performance.now(), d = (n - this.last) / 1000; this.last = n; return d; } };
 let elapsed = 0, prevPhase = null, smokeT = 0, started = false, lampNight = -1, shadowTick = 0;
 const _tint = new THREE.Color();
+// Its systems run in groups that each catch their own faults (noted once, safeFault in saves.js), so one fault can't
+// stop the picture, the clock or the autosave. A try costs nothing while nothing goes wrong.
 function frame() {
   const rdt = Math.min(clock.getDelta(), 0.1);
   // out in the skies: they draw instead, and the claim's time stands still until the ship is home
-  if (SKY && SKY.on) { renderer.shadowMap.autoUpdate = true; AUDIO.ambience(0.7, true); if (SKY.frame(rdt)) return; }   // the skies draw their own shadows every frame
+  if (SKY && SKY.on) { renderer.shadowMap.autoUpdate = true; AUDIO.ambience(0.7, true); try { if (SKY.frame(rdt)) return; } catch (e) { safeFault('the skies', e); return; } }   // the skies draw their own shadows every frame
   elapsed += rdt;
   const gdt = started && !GAME.paused && !BUILD.on && !GAME.talk && !(SKY && SKY.on) && !frontOpen() ? rdt * GAME.speed : 0;   // the settings and their sheets pause the claim
   if (started) {
     GAME.t += gdt / DAY_LEN;
     if (GAME.t >= 1) { GAME.t -= 1; GAME.day++; }
   }
-  applyTimeOfDay(TITLE.on ? titleFrame(rdt) : GAME.t, elapsed);   // the title screen shows golden hour (title.js)
-  const ph = TOD.phase;
-  if (started && prevPhase && ph !== prevPhase) phaseChange(prevPhase, ph);
-  prevPhase = ph;
+  try {
+    applyTimeOfDay(TITLE.on ? titleFrame(rdt) : GAME.t, elapsed);   // the title screen shows golden hour (title.js)
+    const ph = TOD.phase;
+    const was = prevPhase; prevPhase = ph;   // (before the change runs: a fault in it isn't run again every frame)
+    if (started && was && ph !== was) phaseChange(was, ph);
+  } catch (e) { safeFault('time of day', e); }
   if (gdt > 0) {
-    economy(gdt);
-    // sub-step villagers (and the dig: its lift cage carries them) at high speed so paths stay smooth
-    const n = Math.ceil(gdt / 0.05), sdt = gdt / n;
-    for (let i = 0; i < n; i++) { digTick(sdt); for (const v of GAME.villagers) v.update(sdt); }
-    updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); jumpersTick(gdt); updateExpeditions(gdt);
-    announceStudy(updateStudies(gdt));
-    lifeTick(gdt);   // the claim’s mood, the day’s events, the cast’s stories (acttwo.js)
-  } else for (const v of GAME.villagers) { v.sprite.position.copy(v.pos); v.frame(TITLE.on ? rdt : 0); }   // they breathe and blink under the title
-  benchFrame(rdt, gdt);   // the bench, the modules, the rare-find beams (bench.js)
-  if (BUILD.on) updatePlaceCtl();
-  if (VIEW.mode === 'keep') buildInterior();
-  updateRings(); updateInterior(rdt, gdt);
-  const now = performance.now() / 1000;
-  for (const b of BUILDINGS) b.update(now, gdt || rdt * 0.25);
-  FX.update(rdt * (GAME.paused ? 0.2 : Math.min(GAME.speed, 2)));
-  wallUpdate(rdt);
-  dressScene(rdt, gdt);
-  dockUpdate(rdt); updateLife(rdt, TOD.night); storyTick(rdt); talkFrame(rdt);
-  if (!TITLE.on) updateCamera(rdt);
-  digFrameUpdate(rdt, gdt);
-  if (VIEW.mode === 'keep') keepLookUpdate(rdt, gdt);   // after the camera moves: the lamplight is placed in its view
-  nightsDraw(rdt); weatherDraw(rdt);
-  updateHUD(rdt); updateLabels(); hintsTick(rdt);
-  AUDIO.ambience(TOD.night, !GAME.paused);
-  autosaveTick(rdt);   // every few minutes, as Settings says (settings.js)
+    try { economy(gdt); } catch (e) { safeFault('the economy', e); }
+    try {
+      // sub-step villagers (and the dig: its lift cage carries them) at high speed so paths stay smooth
+      const n = Math.ceil(gdt / 0.05), sdt = gdt / n;
+      for (let i = 0; i < n; i++) { digTick(sdt); for (const v of GAME.villagers) v.update(sdt); }
+    } catch (e) { safeFault('people', e); }
+    try {
+      updateWildlight(gdt, elapsed); updateDefenders(gdt, elapsed); jumpersTick(gdt); updateExpeditions(gdt);
+      announceStudy(updateStudies(gdt));
+      lifeTick(gdt);   // the claim’s mood, the day’s events, the cast’s stories (acttwo.js)
+    } catch (e) { safeFault('the claim', e); }
+  } else try { for (const v of GAME.villagers) { v.sprite.position.copy(v.pos); v.frame(TITLE.on ? rdt : 0); } } catch (e) { safeFault('people', e); }   // they breathe and blink under the title
+  try {
+    benchFrame(rdt, gdt);   // the bench, the modules, the rare-find beams (bench.js)
+    if (BUILD.on) updatePlaceCtl();
+    if (VIEW.mode === 'keep') buildInterior();
+    updateRings(); updateInterior(rdt, gdt);
+    const now = performance.now() / 1000;
+    for (const b of BUILDINGS) b.update(now, gdt || rdt * 0.25);
+    FX.update(rdt * (GAME.paused ? 0.2 : Math.min(GAME.speed, 2)));
+    wallUpdate(rdt);
+    dressScene(rdt, gdt);
+  } catch (e) { safeFault('the town', e); }
+  try {
+    dockUpdate(rdt); updateLife(rdt, TOD.night); storyTick(rdt); talkFrame(rdt);
+    if (!TITLE.on) updateCamera(rdt);
+    digFrameUpdate(rdt, gdt);
+    if (VIEW.mode === 'keep') keepLookUpdate(rdt, gdt);   // after the camera moves: the lamplight is placed in its view
+    nightsDraw(rdt); weatherDraw(rdt);
+  } catch (e) { safeFault('the story and the views', e); }
+  try { updateHUD(rdt); updateLabels(); hintsTick(rdt); AUDIO.ambience(TOD.night, !GAME.paused); } catch (e) { safeFault('the HUD', e); }
+  try { autosaveTick(rdt); } catch (e) { safeFault('autosave', e); }   // every few minutes, as Settings says (settings.js)
   slowCheck(rdt);
-  shadowsDraw(); crowdDraw(); townMerge();   // everyone’s shadow in one draw (people.js), everyone in one more (crowd.js), the town’s still pieces one per material (kit.js)
-  // On Light the sun's shadows are drawn again every third frame rather than every frame: the sun moves slowly, and
-  // it halves what a phone draws. A building being dragged redraws them every frame.
-  if (QUALITY.level === 'light') { renderer.shadowMap.autoUpdate = false; if (++shadowTick % 3 === 0 || BUILD.drag || !sun.shadow.map) renderer.shadowMap.needsUpdate = true; }   // no map yet (just switched): draw it now
-  else renderer.shadowMap.autoUpdate = true;
   const inK = VIEW.mode === 'keep', S = inK ? KSCENE : scene, C = inK ? kcam : camera;
-  if (renderPass) { renderPass.scene = S; renderPass.camera = C; }
-  // the lens: a model on a table from above, gentler side-on (the mine, the Keep) and when far away
-  if (lensPass) {
-    const dist = camera.position.distanceTo(controls.target), side = inK || VIEW.mode === 'mine';
-    lensPass.uniforms.uAmount.value = VIEW.mode === 'mine' && !inK ? 0.12 : side ? 0.35 : clamp(1.25 - (dist - 25) / 110, 0.35, 1.2) * (BUILD.on ? 0.4 : 1);
-    lensPass.uniforms.uFocus.value = side ? 0.5 : 0.47;
-    gradePass.uniforms.uNight.value = TOD.night;
-  }
+  try {
+    shadowsDraw(); crowdDraw(); townMerge();   // everyone’s shadow in one draw (people.js), everyone in one more (crowd.js), the town’s still pieces one per material (kit.js)
+    // On Light the sun's shadows are drawn again every third frame rather than every frame: the sun moves slowly, and
+    // it halves what a phone draws. A building being dragged redraws them every frame.
+    if (QUALITY.level === 'light') { renderer.shadowMap.autoUpdate = false; if (++shadowTick % 3 === 0 || BUILD.drag || !sun.shadow.map) renderer.shadowMap.needsUpdate = true; }   // no map yet (just switched): draw it now
+    else renderer.shadowMap.autoUpdate = true;
+    if (renderPass) { renderPass.scene = S; renderPass.camera = C; }
+    // the lens: a model on a table from above, gentler side-on (the mine, the Keep) and when far away
+    if (lensPass) {
+      const dist = camera.position.distanceTo(controls.target), side = inK || VIEW.mode === 'mine';
+      lensPass.uniforms.uAmount.value = VIEW.mode === 'mine' && !inK ? 0.12 : side ? 0.35 : clamp(1.25 - (dist - 25) / 110, 0.35, 1.2) * (BUILD.on ? 0.4 : 1);
+      lensPass.uniforms.uFocus.value = side ? 0.5 : 0.47;
+      gradePass.uniforms.uNight.value = TOD.night;
+    }
+  } catch (e) { safeFault('drawing', e); }
   if (!inK && !TITLE.on) shakeCamera(rdt);
-  composer ? composer.render() : renderer.render(S, C);
+  try { composer ? composer.render() : renderer.render(S, C); } catch (e) { safeFault('drawing', e); }
   if (!inK) unshakeCamera();
 }
 // running slowly (under about 22 frames a second for half a minute) on Balanced or High: once, suggest Light
@@ -473,7 +464,8 @@ function dressScene(rdt, gdt) {
 // the page can draw it. Then the title screen, unless the tab was reloaded to open a claim (go: 'continue' or 'new').
 async function boot() {
   loadStep(0.02, 'Opening the claim book…');
-  const go = takeGo(), save = loadSave();
+  // the open claim's save, with whatever couldn't be used mended; or, if it couldn't be opened, why (saves.js)
+  const go = takeGo(), { save, broken } = safeOpen();
   await loadAssets(k => loadStep(0.03 + k * 0.3));
   await breathe(); loadStep(0.36, 'Raising the plateau…');
   applyQuality();
@@ -487,7 +479,7 @@ async function boot() {
   setupDig(save);
   fixEnv(scene);
   if (save) { TOWN.wallLevel = save.wall || 1; wallSetLevel(TOWN.wallLevel, false); }
-  nightsLoad(save); weatherLoad(save);   // wall damage, a night in progress, a boss that got away; the weather
+  nightsLoad(save); safeNightLoad(save); weatherLoad(save);   // wall damage, a night in progress (its Wildlight, its lamps), a boss that got away; the weather
   buildNav();
   await breathe(); loadStep(0.74, 'Waking everyone up…');
   if (save) {
@@ -503,14 +495,17 @@ async function boot() {
       if (d.exp && d.exp.state !== 'leaving') { v.setHidden(true); v.where = 'wilds'; }
       else if (d.study) { v.setHidden(true); v.where = 'study'; v.plan = [{ type: 'study' }]; }
     }
+    if (!GAME.villagers.length) { seedVillagers(); SAFE.notes.push('Nobody on this claim could be read from its save, so its founders have come back to run it.'); }
+    safeRefundLost();   // a building with no room left on the grid comes back as shards (town.js)
     digAfterLoad();
     autoAssign();
     // settlers from before the roll take a place on it (keeping their names), so their sprite matches a portrait
     for (const v of GAME.villagers) if (!v.d.portrait && !v.d.named && !v.d.hero) { const f = nextFolk(v.d.pref); if (f) { v.d.portrait = f.id; v.d.look = { ...v.d.look, ...f.look }; v.redraw(); } }
-    storyLoad(save.story); JUMP.next = save.jumpNext ?? null;
+    storyLoad(save.story); safeStoryLoad(save.story); JUMP.next = save.jumpNext ?? null;
     workshopLoad(save.workshop);   // a claim from before the bench simply has none of it yet
-    if (save.savedAt) GAME.away = catchUp((Date.now() - save.savedAt) / 1000);
-    if (save.migrated) setTimeout(() => toast('Your claim is on the new build grid. Everyone lives in <b>the Keep</b> now. Tap <b>Build</b> to rearrange.'), 2500);
+    try { if (save.savedAt) GAME.away = catchUp((Date.now() - save.savedAt) / 1000); } catch (e) { safeFault('time away', e); GAME.away = null; }
+    safeOpened(save);   // its parts, as their last good copies (saves.js)
+    for (const n of SAFE.notes) toast(n, 'night');   // what had to be mended, once the claim is open
   } else { starterStash(); seedVillagers(); if (go !== 'new') titleShowcase(); }
   for (const v of GAME.villagers) { const S = stationFor(v); if (S && S.kind === 'surface') v.place(S.pos.x + (Math.random() - 0.5), 0, S.pos.z + (Math.random() - 0.5)); }
   applyTimeOfDay(GAME.t, 0);
@@ -521,6 +516,7 @@ async function boot() {
   applyCamSettings(); setSpeed(GAME.speed);
   const straightIn = (go === 'new' && !save) || (go === 'continue' && !!save);
   if (!straightIn) titleShow(save);
+  if (broken) safeBrokenSheet(broken);   // this claim couldn't be opened: carry it off, open another, or start fresh (saves.js)
   // the first picture compiles every shader the claim uses: done here, behind the loading screen, not on the title
   await breathe(); loadStep(0.82, 'Airing out the Keep…'); await breathe();
   warmViews();
@@ -592,8 +588,8 @@ function skipTo(t, step = 0.25) { let guard = 0; while (Math.abs(GAME.t - t) > s
 function drawOnly() { shadowsDraw(); crowdDraw(); townMerge(); const inK = VIEW.mode === 'keep', S = inK ? KSCENE : scene, C = inK ? kcam : camera; if (renderPass) { renderPass.scene = S; renderPass.camera = C; } if (composer) composer.render(); else renderer.render(S, C); }
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
 window.__bv = { DIG, CAGE, ROOMK, digQuick, digSetHead, digTick, recruit: recruitArrives, digOrder, digUpgrade, digCancel, digWhyNot, digDiggable, digIncident, digMerge, digSave, digFrame, DIGCAM, roomAt, digAt, digAutoCrew, DLOOK, GLOW, pickDig,
-  JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, kcontrols, updateStudies,
-  KCAM, KLIFE, KGLOW, KSCENE, keepTick, frame, keepLookUpdate, keepCamUpdate, frameKeep, pickKeep, keepAssign, kpath, keepDrawCalls, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, migrateV1, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, THREE, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin,
+  JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, updateStudies,
+  KCAM, KLIFE, KGLOW, KSCENE, keepTick, frame, keepLookUpdate, keepCamUpdate, frameKeep, pickKeep, keepAssign, kpath, keepDrawCalls, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin,
   NIGHT, WEATHER, WEATHERS, WL_KINDS, WALL, KEEP_LIMITS, BUY, DEFS, byType, autoAssign, findSpot, layoutChanged, planNight, forceWeather, lightningStrike, wallHit, nightReport, showDawn, skipTo, phaseChange, camShake, OUTLINE, cliffAt,
   showBanner, bossBar, nightLookout, BOLT, wallSetLevel, wallMatrices, snuffLamp, FX };
 // the bench and the fittings, for tests (bench.js, fittings.js, finds.js)
@@ -602,5 +598,8 @@ Object.assign(window.__bv, { BENCH_T: { benchSalvage, benchOverhaul, benchRetune
 Object.assign(window.__bv, { TITLE, titleShow, titleHide, toTitle, SLOTS, slotRead, slotWrite, slotClear, slotSummary, slotName, exportCode, importCode, codeWhy, reloadInto,
   SETTINGS, setSpeed, applyLookSettings, HINTS, hintShow, hintClose, hintsReset, TOASTS, toast, bedsUsed, guestCount, openMenu, closeMenu, openExport, openImport, openClaims, openAbout,
   newClaimAsk, introShow, introClose, sheetClose, LOADING, frontOpen, drawOnly, frame, QUALITY, applyQuality, CROWD, crowdDraw, TMERGE, townMerge });
+// mending saves, faults while playing, freeing what's taken down, for tests (saves.js, kit.js)
+Object.assign(window.__bv, { SAFE, safeMend, safeFault, safeBackup, safeFree, safeNightLoad, safeStoryLoad, buildDigLook, castLeave, slotRaw });
 Object.defineProperty(window.__bv, 'started', { get: () => started });
-boot().catch(e => { console.error(e); clearInterval(LOADING.t); $('#ld-line').textContent = 'The claim could not be built: ' + e.message + '. Try opening the page again.'; $('#loading').classList.add('failed'); });
+// a claim that won't open is put aside, and the page opens again without it (safeBroken, saves.js): never a dead end
+boot().catch(e => { console.error(e); if (SAFE.opening && safeBroken(SLOTS.active, e)) return; clearInterval(LOADING.t); $('#ld-line').textContent = 'The claim could not be built: ' + e.message + '. Try opening the page again.'; $('#loading').classList.add('failed'); });

@@ -294,8 +294,9 @@ function castLeave(ids) {
     const v = GAME.villagers.find(x => x.d.hero === id); if (!v) continue;
     scene.remove(v.sprite); scene.remove(v.shadow); KSCENE.remove(v.isprite);
     GAME.villagers.splice(GAME.villagers.indexOf(v), 1);
+    crowdFree(v); v.tex.dispose(); v.mat.dispose();   // their sheet on the graphics card (the shadow's shape is everyone's)
   }
-  if (VISIT.ships.faire && !GAME.villagers.some(v => ['jester', 'ranger', 'herbal'].includes(v.d.hero))) { scene.remove(VISIT.ships.faire.s.root); delete VISIT.ships.faire; }
+  if (VISIT.ships.faire && !GAME.villagers.some(v => ['jester', 'ranger', 'herbal'].includes(v.d.hero))) { const r = VISIT.ships.faire.s.root; scene.remove(r); safeFree(r); delete VISIT.ships.faire; }
 }
 function shipLeaves(kind) { const V = VISIT.ships[kind]; if (V) { scene.remove(V.s.root); delete VISIT.ships[kind]; } }
 

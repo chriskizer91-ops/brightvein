@@ -67,7 +67,6 @@ function fittedAll() {
   return out;
 }
 const buildingById = id => id === 'lark' ? 'lark' : id === 'wall' ? WALLB : TOWN.b[id];
-function fittedWhere(it) { for (const [id, L] of Object.entries(GAME.sockets)) { const i = L.indexOf(it); if (i >= 0) return { id, i, b: buildingById(id) }; } return null; }
 
 // ----------------------------------------------------------------- fitting and taking out
 function fitModule(it, b, i) {

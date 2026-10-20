@@ -78,7 +78,7 @@ function updateInterior(rdt = 0, gdt = 0) { KEEPV.live = VIEW.mode === 'keep'; k
 // ----------------------------------------------------------------- the Keep view's camera: straight at the cutaway
 // Drag (one finger on a phone) to pan, the wheel or a pinch to zoom; it can't wander off the Keep. Landscape screens
 // see the whole Keep; phones held upright see one side and the stair, and swipe across for the other.
-const KCAM = { x: 0, y: 6, d: 40, wx: 0, wy: 6, wd: 40, tilt: 0.09, ptrs: new Map() };
+const KCAM = { x: 0, y: 6, d: 40, wx: 0, wy: 6, wd: 40, tilt: 0.09, ptrs: new Map(), at: new THREE.Vector3(0, 6, 0) };   // at: what the Keep view looks at (the sound's listener, the lamplight)
 const kcamT = () => Math.tan(THREE.MathUtils.degToRad(kcam.fov / 2));
 const keepTop = () => (KEEPV.H || 2 * FH) + 5.6 + (keepLv() >= 3 ? 3.4 : 0);
 const kfree = () => Math.max(0.6, 1 - 150 / innerHeight);
@@ -97,9 +97,9 @@ function frameKeep(reset = true) {
 }
 function keepCamPose() {
   const C = KCAM;
-  kcontrols.target.set(C.x, C.y, 0);
+  C.at.set(C.x, C.y, 0);
   kcam.position.set(C.x, C.y + Math.sin(C.tilt) * C.d, Math.cos(C.tilt) * C.d);
-  kcam.lookAt(kcontrols.target); kcam.updateMatrixWorld();
+  kcam.lookAt(C.at); kcam.updateMatrixWorld();
 }
 function keepClamp() {
   const C = KCAM, t = kcamT(), a = innerWidth / innerHeight, wide = innerWidth >= 900 && !!UI.cur;

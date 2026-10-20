@@ -1,7 +1,7 @@
 // ===================================================================== THE VISITING CAST
 // Characters from Chris's other games, drawn by the same pixel code as the villagers (pixel.js), so they can walk the
 // claim beside them. Each look is an ordinary villager look plus the cast's extras (listed in pixel.js), with a name
-// and a title. Their dialogue portraits are assets/cast/<id>.png.
+// and a title. Their dialogue portraits are assets/cast/<id>.webp.
 //   io, sol, halcyon, quill, brann, tock: from Envoi on the Longest Night
 //   jester, ranger, herbal, fox: the Moon Faire's four performers (New, Full, Waxing and Waning Moon)
 const HERO_LOOKS = {

@@ -389,10 +389,10 @@ function runStep(v, s, dt) {
       const W = s.target;
       if (!W || W.dead) { done(); break; }
       const d = Math.hypot(W.pos.x - v.pos.x, W.pos.z - v.pos.z), F = fightOf(v);
-      if (d > F.range) { moveToward(v, _tmp.set(W.pos.x, 0, W.pos.z), 3.4, dt); v.running = true; }
+      if (d > F.range + wlBodyR(W)) { moveToward(v, _tmp.set(W.pos.x, 0, W.pos.z), 3.4, dt); v.running = true; }   // (a boss's flank, not its middle: wildlight.js)
       else {
         v.fighting = true; v.face.set(W.pos.x - v.pos.x, W.pos.z - v.pos.z).normalize(); W.hurt(F.dps * dt, v);
-        if (F.ranged) { s.cd = (s.cd || 0) - dt; if (s.cd <= 0) { s.cd = F.cd; fireBeam(v.pos.clone().setY(1.2), W.pos.clone().setY(W.pos.y + 0.6), D.ASPECTS[F.aspect] ? new THREE.Color(D.ASPECTS[F.aspect].color).getHex() : 0xffd08a, 0.45); AUDIO.play('flare'); } }
+        if (F.ranged) { s.cd = (s.cd || 0) - dt; if (s.cd <= 0) { s.cd = F.cd; fireBeam(v.pos.clone().setY(1.2), W.pos.clone().setY(W.pos.y + 0.6 * (W.root ? W.root.scale.x : 1)),D.ASPECTS[F.aspect] ? new THREE.Color(D.ASPECTS[F.aspect].color).getHex() : 0xffd08a, 0.45); AUDIO.play('flare'); } }
       }
       s.t -= dt; if (s.t <= 0) done();
       break;

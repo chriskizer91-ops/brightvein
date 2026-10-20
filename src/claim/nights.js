@@ -219,7 +219,7 @@ function bossTick(f, dt) {
   if (f.kind === 'brightmaw' && f.from !== 'seam') {
     if (f.dash) {
       const s = f.dash, d = new THREE.Vector3(s.mx - f.pos.x, 0, s.mz - f.pos.z), L = d.length();
-      if (L < 1.4 * Math.max(1, f.root.scale.x / 3) || s.broken) { bossSlam(f, s); return 'hold'; }   // (a bigger beast meets the wall further from its middle)
+      if (L < Math.max(1.4, 0.8 * f.root.scale.x) || s.broken) { bossSlam(f, s); return 'hold'; }   // (when its head meets the wall: a big beast's is well ahead of its middle)
       d.normalize(); f.vel.copy(d); f.pos.addScaledVector(d, Math.min(L, 13 * dt)); f.pos.y = 0;
       if (Math.random() < dt * 30) FX.puff(f.pos.clone().setY(0.3), 1, 0xc8b898, 1.2);
       return 'run';

@@ -540,7 +540,7 @@ const SKY_KEYS = [
   [0.92, '#0c122c', '#2a3352', '#9ab0ff', 0.5, '#2a3868', '#262a3c', 0.24, '#1e2440', 1.1, '#4a5a80', '#141a30'],
   [1.00, '#2a3456', '#c48a7a', '#ff9a66', 0.0, '#4a5680', '#2a2430', 0.25, '#8a7a8a', 0.95, '#f2b7a0', '#5a5a7a'],
 ];
-const _c1 = new THREE.Color(), _c2 = new THREE.Color();
+const _c1 = new THREE.Color(), _c2 = new THREE.Color(), _ld = new THREE.Vector3();
 function keyLerp(t, col) {
   let i = 0; while (i < SKY_KEYS.length - 2 && SKY_KEYS[i + 1][0] <= t) i++;
   const a = SKY_KEYS[i], b = SKY_KEYS[i + 1], k = smooth(0, 1, (t - a[0]) / (b[0] - a[0]));
@@ -562,9 +562,9 @@ function applyTimeOfDay(t, time) {
   TOD.sunlight = clamp(Math.sin(sunAng) * 1.6, 0, 1) * (t < 0.66 ? 1 : 0);
   TOD.phase = dayPhase(t);
   const useMoon = TOD.night > 0.5;
-  // the light itself never drops below a raking angle, so the shadows at golden hour fall long but stay on the claim
-  // (the sun's disc in the sky still sets)
-  const ld = useMoon ? moonDir : new THREE.Vector3(sunDir.x, Math.max(sunDir.y, 0.32), sunDir.z).normalize();
+  // the light itself never drops below about 25 degrees, so at golden hour the lawn still catches enough of it for the
+  // long shadows to read (lower, and the grass is lit edge-on and the shadows fade into it); the sun's disc still sets
+  const ld = useMoon ? moonDir : _ld.set(sunDir.x, Math.max(sunDir.y, 0.45), sunDir.z).normalize();
   sun.position.copy(ld).multiplyScalar(160); sun.target.position.set(0, 0, 0);
   sun.color.copy(keyLerp(t, 3)); sun.intensity = keyLerp(t, 4);
   hemi.color.copy(keyLerp(t, 5)); hemi.groundColor.copy(keyLerp(t, 6)); hemi.intensity = keyLerp(t, 7);
@@ -578,7 +578,10 @@ function applyTimeOfDay(t, time) {
   if (worldMats.puff) worldMats.puff.color.copy(keyLerp(t, 11)).lerp(keyLerp(t, 10), 0.5);
   if (worldMats.clumps) for (const m of worldMats.clumps) m.emissiveIntensity = 0.06 + TOD.night * 0.3;
   if (worldMats.needles) worldMats.needles.emissiveIntensity = TOD.night * 0.5;   // the pines keep a faint blue-green at night
-  const envK = lerp(1, 0.18, TOD.night) * (1 - 0.55 * wxCover());   // metal and glass shine less under cloud (weather.js)
+  // the sky's fill: less at night and under cloud (metal and glass shine less: weather.js), and a little less in the
+  // low sun of early morning and golden hour, so the shadows show
+  const lowSun = (smooth(0.03, 0.06, t) * (1 - smooth(0.1, 0.16, t)) + smooth(0.5, 0.57, t) * (1 - smooth(0.64, 0.69, t))) * (1 - TOD.night);
+  const envK = lerp(1, 0.18, TOD.night) * (1 - 0.55 * wxCover()) * (1 - 0.3 * lowSun);
   for (const m of ENV_MATS) m.envMapIntensity = m.userData.env * envK;
   if (bloom) { bloom.strength = lerp(0.42, 0.95, TOD.night); bloom.threshold = lerp(0.88, 0.62, TOD.night); }
   weatherMood(t, time);   // cloud, rain, fog and storm over the hour’s light (weather.js)

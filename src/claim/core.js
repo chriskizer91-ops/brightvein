@@ -82,8 +82,8 @@ const GRADE_SHADER = {
 };
 // On Light there are no passes after the picture is drawn, so the grade is folded into the tone mapping instead: ACES,
 // then the grade's colour moves (the plum shadows, the cream lights, a touch more colour), made on the screen's values
-// as the pass makes them. The vignette and the soft top and bottom edges are drawn by the page over the canvas
-// (#lookfx in style.css), which costs the picture nothing.
+// as the pass makes them. The vignette is drawn by the page over the canvas (#lookfx in style.css), which costs the
+// picture nothing.
 const LOOK_TONE = 'vec3 CustomToneMapping( vec3 color ) { return color; }';
 if (THREE.ShaderChunk.tonemapping_pars_fragment.includes(LOOK_TONE)) THREE.ShaderChunk.tonemapping_pars_fragment = THREE.ShaderChunk.tonemapping_pars_fragment.replace(LOOK_TONE, `vec3 CustomToneMapping( vec3 color ) {
     vec3 d = pow( max( ACESFilmicToneMapping( color ), 0.0 ), vec3( 1.0 / 2.2 ) );

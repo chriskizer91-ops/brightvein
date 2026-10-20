@@ -131,6 +131,9 @@ const WL_KINDS = {
   lodestar:   { name: 'Lodestar', plural: 'Lodestars', scale: 1.38, col: [1.08, 0.76, 0.42], glow: 0xffd8a0, core: 0xcfe6ff, hp: n => 72 + n * 8, speed: [2.4, 2.7], climb: 2.5, chew: 1.0, bite: 7, width: 1.5, cost: 6 },
   brightmaw:  { name: 'Brightmaw', plural: 'Brightmaws', scale: 5.5, col: [1.3, 0.82, 0.42], glow: 0xfff0d0, core: 0xffffff, hp: n => 1100 + n * 60, speed: [2.0, 2.0], climb: 3.0, chew: 3, bite: 16, width: 2.6, cost: 0 },
 };
+// how far a big one's body reaches out from its middle: the watch close in to its flank, not its heart, and the
+// turrets can hit its body as soon as the body is in reach (nothing for the small ones)
+const wlBodyR = f => f.root && f.root.scale.x > 1.5 ? 0.55 * f.root.scale.x : 0;
 class Wildlight {
   constructor(route, kind = 'flarehound', o = {}) {
     if (!FOX_GEO) buildFoxGeometry();
@@ -402,13 +405,13 @@ function towerAI(dt) {
     if (!crew.length && !(raid && workersOf(b.id).length) || (TOD.night < 0.4 && !raid)) { b.cool = 0; continue; }
     const range = turretRange(b) * wxSight(), muzzle = new THREE.Vector3(); b.muzzle.getWorldPosition(muzzle);
     let best = null, bd = range;
-    for (const f of WL.list) { if (f.dead || f.leaving || f.pos.y < -2) continue; const d = Math.hypot(f.pos.x - muzzle.x, f.pos.z - muzzle.z); if (d < bd) { bd = d; best = f; } }
+    for (const f of WL.list) { if (f.dead || f.leaving || f.pos.y < -2) continue; const d = Math.hypot(f.pos.x - muzzle.x, f.pos.z - muzzle.z) - wlBodyR(f); if (d < bd) { bd = d; best = f; } }
     // swing the head toward the target, or sweep slowly
     const head = b.head, gp = new THREE.Vector3(); head.getWorldPosition(gp);
     const want = best ? Math.atan2(best.pos.x - gp.x, best.pos.z - gp.z) - b.group.rotation.y : Math.sin(performance.now() / 2600 + b.L.x) * 1.4 + Math.PI;
     let dy = want - head.rotation.y; while (dy > Math.PI) dy -= TAU; while (dy < -Math.PI) dy += TAU;
     head.rotation.y += dy * Math.min(1, dt * 5);
-    if (best) b.tilt.rotation.x = lerp(b.tilt.rotation.x, Math.atan2(7.5 - best.pos.y, bd) * 0.9, dt * 5);
+    if (best) b.tilt.rotation.x = lerp(b.tilt.rotation.x, Math.atan2(7.5 - best.pos.y, Math.max(1, bd)) * 0.9, dt * 5);
     b.cool = (b.cool || 0) - dt;
     // the core gathers light as the next shot comes round: a glow at the lens that swells, then the flash
     const agi = (crew.length ? crew : workersOf(b.id)).reduce((s, v) => s + statOf(v, 'A'), 0), period = (b.level >= 2 ? 1.1 : 1.7) / (0.6 + agi * 0.06) * wxScorch(b);
@@ -449,14 +452,14 @@ function ballistaAI(dt) {
     if (!b.level || b.pending || b.building) continue;
     const range = turretRange(b) * wxSight(), muzzle = new THREE.Vector3(); b.muzzle.getWorldPosition(muzzle);
     let best = null, bd = range;
-    for (const f of WL.list) { if (f.dead || f.leaving || f.pos.y < -2) continue; const d = Math.hypot(f.pos.x - muzzle.x, f.pos.z - muzzle.z); if (d < bd) { bd = d; best = f; } }
+    for (const f of WL.list) { if (f.dead || f.leaving || f.pos.y < -2) continue; const d = Math.hypot(f.pos.x - muzzle.x, f.pos.z - muzzle.z) - wlBodyR(f); if (d < bd) { bd = d; best = f; } }
     const head = b.head;
     const want = best ? Math.atan2(best.pos.x - b.L.x, best.pos.z - b.L.z) : TOD.night > 0.4 ? Math.sin(performance.now() / 3100 + b.L.x) * 1.2 : head.rotation.y;
     let dy = want - head.rotation.y; while (dy > Math.PI) dy -= TAU; while (dy < -Math.PI) dy += TAU;
     head.rotation.y += dy * Math.min(1, dt * 4);
     // the stock kicks back when a bolt goes, and eases forward again as the spring winds
     b.kick = Math.max(0, (b.kick || 0) - dt * 3);
-    b.tilt.rotation.x = lerp(b.tilt.rotation.x, best ? -Math.atan2(best.pos.y + 0.6 - 1.9, bd) * 0.8 : 0, dt * 4) - b.kick * dt * 2.5;
+    b.tilt.rotation.x = lerp(b.tilt.rotation.x, best ? -Math.atan2(best.pos.y + 0.6 - 1.9, Math.max(1, bd)) * 0.8 : 0, dt * 4) - b.kick * dt * 2.5;
     b.cool = (b.cool || 0) - dt;
     if (best && b.cool <= 0 && Math.abs(dy) < 0.3) {
       b.cool = (b.level >= 2 ? 1.6 : 2.1) * wxScorch(b); b.kick = 1;

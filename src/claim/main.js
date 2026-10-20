@@ -410,15 +410,13 @@ function frame() {
   composer ? composer.render() : renderer.render(S, C);
   if (!inK) unshakeCamera();
 }
-// Light's finish: the page's vignette over the claim (and its soft edges in the town view), and the grade folded into
-// the tone mapping (core.js). The skies keep ACES and no finish, as on every detail level.
-let lookKey = '';
+// Light's finish: the page's vignette over the claim, and the grade folded into the tone mapping (core.js). The skies
+// keep ACES and no finish, as on every detail level.
+let lookOn = null;
 function lookFinish() {
   const sky = !!(SKY && SKY.on), light = QUALITY.level === 'light' && !sky;
   renderer.toneMapping = sky ? THREE.ACESFilmicToneMapping : lookTone();
-  const key = (light ? 'L' : '') + (light && VIEW.mode === 'town' && !BUILD.on && !TITLE.on ? 'T' : '');
-  if (key === lookKey) return; lookKey = key;
-  const app = $('#app'); app.classList.toggle('look-light', light); app.classList.toggle('look-tilt', key === 'LT');
+  if (light !== lookOn) { lookOn = light; $('#app').classList.toggle('look-light', light); }
 }
 // running slowly (under about 22 frames a second for half a minute) on Balanced or High: once, suggest Light
 const SLOW = { t: 0, n: 0, said: (() => { try { return !!localStorage.getItem('bv-slow-tip'); } catch (e) { return true; } })() };

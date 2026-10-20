@@ -114,7 +114,7 @@ export const DAY = { now: null };
 const pad = (n) => String(n).padStart(2, '0');
 export const dayKey = (t = new Date()) => (DAY.now ? `claim-${DAY.now()}/${ORDERS_V}` : `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}/${ORDERS_V}`);
 const EPOCH = new Date(2026, 0, 1);
-export const dayNumber = (t = new Date()) => (DAY.now ? DAY.now() + 1 : Math.round((new Date(t.getFullYear(), t.getMonth(), t.getDate()) - EPOCH) / 864e5) + 1);
+export const dayNumber = (t = new Date()) => (DAY.now ? DAY.now() : Math.round((new Date(t.getFullYear(), t.getMonth(), t.getDate()) - EPOCH) / 864e5) + 1);
 export const dateOf = (n) => { if (DAY.now) return `Day ${n}`; const t = new Date(EPOCH); t.setDate(t.getDate() + n - 1); return t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); };
 // three of the orders that suit her, picked by the day (the same day, the same three, on every device)
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }

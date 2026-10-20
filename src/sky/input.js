@@ -68,6 +68,7 @@ export function makeInput(canvas, el) {
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   // the wheel: a mouse's notch is about one step closer or further; a trackpad's many small nudges are each a little
   canvas.addEventListener('wheel', (e) => {
+    if (!s.active) return; // (Brightvein: the claim's own view takes the wheel while the skies are shut)
     e.preventDefault();
     s.zoom += Math.max(-1, Math.min(1, e.deltaY * (e.deltaMode === 1 ? 0.33 : e.deltaMode === 2 ? 3 : 0.01)));
   }, { passive: false });

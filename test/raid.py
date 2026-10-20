@@ -4,7 +4,7 @@
 #     ship:  skiff, cutter, brig, frigate, galleon, manowar
 #     strike (the default) strikes the guards down as they come in range, to test the raid itself; fight shoots
 #     everything for real and counts how often she'd have gone down (for balance)
-#     skies: fair, cross, mael. refit: 0 to 3, every part (and a good crew at 3)
+#     skies: fair, cross, mael. refit: 0 to 3, every upgrade at that step (and a good crew at 3)
 # The autopilot (__raidPilot) is also used by the smoke test.
 import sys, json, os
 from playwright.sync_api import sync_playwright
@@ -74,7 +74,7 @@ SETUP = '''(([ship, skies, refit, site]) => { const B = __bv, d = B.FLEET.data; 
   for (const s of B.SITES) d.raids[s.id].won = d.raids[s.id].won || 0;
   if (!(window.__keepWon)) d.raids[site].won = 0;   // a first raid (set __keepWon for a repeat)
   const cfg = d.ships[ship]; cfg.owned = true; d.flying = ship; cfg.wear = { hull: 1, sails: 1, crystals: 1 }; cfg.repair = null;
-  cfg.refit = { hull: refit, sails: refit, guns: refit, crystals: refit };
+  cfg.mods = { armour: refit, canvas: refit, drill: refit, crystals: refit };   // (every upgrade at this step)
   if (site === 'bounty') d.bounty = B.makeBounty ? B.makeBounty(B.GAME.day, B.STORY.ch, 0) : d.bounty;
   if (refit >= 3) B.yardAutoCrew(ship);
   return { ship, skies, refit, crew: B.yardCrewNames(ship) }; })'''

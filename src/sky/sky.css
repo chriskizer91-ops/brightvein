@@ -1592,7 +1592,20 @@ body.between.roads #sky #btn-fire, body.between.roads #sky #btn-surge { visibili
 .sb-two .meter i { background: #ff9f45; }
 #sky-boss.sails .sb-two .meter i { background: var(--gold); }
 /* (a boss's bar takes the guns' label's place under the compass while she's up) */
-body.boss-up:not(.touch) #sky #battery { top: calc(var(--top) + 128px); }
+body.boss-up:not(.touch) #sky #battery { top: calc(var(--top) + 150px); }
+/* a raid's boss's tag, and one of the claim's own barges on a convoy run (plum, with no danger in it) */
+.tag.boss { border-color: #ffb347; box-shadow: 0 0 8px rgba(255, 160, 60, 0.45); }
+.tag.friend { background: rgba(40, 14, 36, 0.82); border-color: #d7a0d0; }
+.tag.friend b { color: #f0c8ea; }
+.tag.friend .arrow { color: #d7a0d0; }
+/* the place being raided (or the next beacon): a gold tag over it, or at the edge pointing to it */
+#raid-tag { position: absolute; left: 0; top: 0; display: grid; grid-template-columns: auto auto; gap: 2px 6px; padding: 3px 7px 4px; font-size: 12px; white-space: nowrap;
+  background: rgba(26, 18, 8, 0.82); border: 1px solid #ffd36a; border-radius: 6px; color: var(--cream); pointer-events: none; }
+#raid-tag b { font-weight: 600; color: #ffd36a; }
+#raid-tag .d { color: var(--dim); }
+#raid-tag .arrow { display: none; position: absolute; left: 50%; top: -21px; margin-left: -5px; width: 10px; height: 18px; color: #ffd36a; }
+#raid-tag .arrow::before { content: ''; position: absolute; inset: 0; background: currentColor; clip-path: polygon(50% 0, 100% 100%, 50% 70%, 0 100%); }
+#raid-tag.edge .arrow { display: block; }
 /* the compass's arrow to the objective */
 #goal-dir { font-size: 14px; font-weight: 500; color: #ffcf85; white-space: nowrap; }
 #goal-dir i { display: inline-block; font-style: normal; margin-right: 3px; color: #ffb347; }

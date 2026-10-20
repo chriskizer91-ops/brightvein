@@ -55,7 +55,8 @@ import { makeDeeds, DAY as DEED_DAY } from './deeds.js';
 import { makeCoach } from './coach.js';
 import { makeRecord } from './record.js';
 import { applyPaint, DYES, notRaider } from './paint.js';
-import { SITES } from './sites.js';
+import { SITES, bountySite, REPEAT } from './sites.js';
+import { makeRaids, km } from './raids.js';
 import minimapUrl from '../../assets/map/minimap.webp';
 
 export { SKIES, SHIPS, SITES, MAP, HOME, minimapUrl, WTIME };
@@ -603,12 +604,23 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
       if (ang < tol && ang < bestA) { bestA = ang; locked = r; }
     }
     if (locked !== wasLocked) { wasLocked = locked; if (locked) { LOCK.raider = locked; emit('lock'); LOCK.raider = null; } }
+    // (Brightvein: on a raid, with no ship to lock on to, the gun tower or drill engine nearest the crosshair: raids.js)
+    raidLock = !locked && W.raid ? raids.lockOn(camera, cam.look) : null;
     player.locked = locked;
     aimPoint.copy(target).addScaledVector(cam.look, 800);
   }
   function aimFor(battery) {
     reach = true;
-    if (!locked) return;
+    if (!locked) {
+      if (!raidLock) return;
+      // (a gun tower or a drill engine: where it is, or will be as the drill moves)
+      player.ship.root.updateMatrixWorld(true);
+      const m = gunnery.muzzle(battery);
+      if (!m) { reach = false; return; }
+      intercept(m.p, player.velocity, raidLock.world, STILL_V, m.K.speed * SHOTS[gunnery.shot].speed, aimPoint);
+      reach = gunnery.reaches(battery, aimPoint, m);
+      return;
+    }
     player.ship.root.updateMatrixWorld(true);
     const m = gunnery.muzzle(battery);
     if (!m) { reach = false; return; }
@@ -631,7 +643,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
   function hitTest(b, a, c) {
     if (b.owner === 'player') {
       const h = raiders.hitBy(a, c);
-      if (!h) return false;
+      if (!h) return raidHit(b, a, c); // (or one of a raid's gun towers, a drill engine, the rock or the cliff: raids.js)
       const r = h.r, part = h.h.part, was = !!r.f.down, along = b.K === KINDS.broadside && rakeMul(b.v, r.ship.body) > 1, shot = b.damage * SHOTS[b.shot][part];
       let rake = along ? RAKE.mul : 1;
       if (r.plated && part === 'hull') {
@@ -915,7 +927,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
       // a named raider captain brought down: remembered (and the price on her head is gone)
       if (!trial && r.who) { const c = grudges()[r.who.id] ??= { beaten: 0, sank: 0 }; c.beaten++; c.sank = 0; progress.save(); }
       const why = r.f.down.why, beaten = why === 'struck' && r.role !== 'prize'; // (a crew who struck her colours: half as many shards again)
-      const who = r.who ? r.who.name : r.captain ? `The captain's ${r.R.cls}` : `The ${r.R.cls}`, ship = who; // (a named captain by her name alone: short)
+      const who = r.who ? r.who.name : r.named || r.boss ? r.name : r.captain ? `The captain's ${r.R.cls}` : `The ${r.R.cls}`, ship = who; // (a named captain by her name alone: short; a raid's named ships by theirs)
       if (trial) { toast(why === 'struck' ? `${who} strikes her colours!` : why === 'hull' ? `${r.captain ? who : r.R.cls} down!` : `${ship} is sinking!`); continue; } // (a sea trial: no shards)
       SPILL.at.copy(r.f.pos).setY(r.f.pos.y + 2); SPILL.total = r.bounty * skies().shards * (1 + 0.1 * W.n) * (W.wave?.mult ?? 1) * (beaten ? NERVE.prize : 1);
       pickups.spill(SPILL.at, r.f.velocity, SPILL.total); emit('shards:spill');
@@ -932,7 +944,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     if (W.lost > 0) {
       if ((W.lost -= dt) <= 0) {
         W.sunk = true; bigMap(false); // (the card says so over everything: game.html)
-        $('paused-title').textContent = `The ${player.ship.recipe.name} went down`;
+        $('paused-title').textContent = `The ${shipName(player.ship.recipe.id)} went down`;
         // (and a raider captain who sank her, got away with a price on her head)
         const grudge = W.grudge ? ` ${W.grudge.name} got away: the price on her head is up to ◆ ${fmt(W.grudge.price)}.` : '';
         $('paused-line').textContent = trial ? 'It was only her sea trial: it cost nothing, and she\'s back in the Shipyard as good as new.' : (V.shards ? `Your crew got her home to ${HOME.name} with half this voyage's shards: ◆ ${fmt(V.shards / 2)}.` : `Your crew got her home to ${HOME.name}.`) + ' She\'ll need a long stay at the dock.' + grudge;
@@ -942,7 +954,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
       return;
     }
     if (player.down) {
-      W.lost = 4; calmUp(false); document.body.classList.add('sinking'); banner(`The ${player.ship.recipe.name} is going down`, 'All hands to the boats');
+      W.lost = 4; calmUp(false); document.body.classList.add('sinking'); banner(`The ${shipName(player.ship.recipe.id)} is going down`, 'All hands to the boats');
       gunnery.cancel(); payload('player:down').why = player.down.why; emit('player:down');
       // a raider captain still afloat sank her: she gets away, the price on her head up (tactics.js WANTED), and comes
       // back for her next wave (not a sea trial's: it changes nothing)
@@ -1087,7 +1099,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     if (on && !$('help').hidden) toggleHelp();
     layout();
   }
-  const goHome = () => { if (mode === 'voyage' && W.state === 'choose') endVoyage(1, true); };
+  const goHome = () => { if (mode === 'voyage' && (W.state === 'choose' || W.state === 'taken' || W.state === 'lost')) endVoyage(1, true); }; // (between waves, or a raid over)
   $('btn-sail-on').addEventListener('click', () => sailOn(0));
   road.addEventListener('click', () => sailOn(1));
   $('btn-go-port').addEventListener('click', goHome);
@@ -1907,14 +1919,14 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     hurt = Math.max(0, hurt - dt * 1.2);
     const red = Math.round(Math.max(hurt, player.down ? 0.6 : 0) * 50) / 50;
     if (H.hurt._o !== red) { H.hurt._o = red; H.hurt.style.opacity = String(red); }
-    const n = gunnery.count(battery), rl = gunnery.ready[battery], full = gunnery.reload(battery), guns = n * 10 + (locked && !reach ? 1 : 0);
+    const n = gunnery.count(battery), rl = gunnery.ready[battery], full = gunnery.reload(battery), guns = n * 10 + ((locked || raidLock) && !reach ? 1 : 0);
     if (H.battery !== battery || H.guns !== guns) {
       H.battery = battery; H.guns = guns;
       setText(H['battery-name'], n ? BATTERY_NAMES[battery] : `No ${BATTERY_NAMES[battery].toLowerCase()}`);
-      setText(H['battery-count'], !n ? '–' : locked && !reach ? 'out of reach' : `${n} gun${n > 1 ? 's' : ''}`);
+      setText(H['battery-count'], !n ? '–' : (locked || raidLock) && !reach ? 'out of reach' : `${n} gun${n > 1 ? 's' : ''}`);
     }
     setWidth(H['reload-bar'], n ? 1 - rl / full : 0);
-    const aim = locked ? (reach ? 'locked' : 'locked far') : '';
+    const aim = locked || raidLock ? (reach ? 'locked' : 'locked far') : '';
     if (H.aim._v !== aim) { H.aim._v = aim; H.aim.className = aim; }
     // a warning under the crosshair (ten times a second), written before the tags are placed, as it keeps off her ship
     // and they keep off it
@@ -1929,6 +1941,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
       if (w._note !== !!note) { w._note = !!note; w.classList.toggle('note', !!note); }
     }
     tags(slow, dt);
+    if (W.raid) raidTag(); // (the place being raided: raids.js)
     bounties(dt);
     // the shard count counts up to what's in the hold (written only when the whole number shown changes)
     const C = shardCount;
@@ -1955,7 +1968,8 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
       setText(H[`n-${k}`], String(Math.ceil(player.health[k])));
       H[`row-${k}`].classList.toggle('low', player.frac(k) < 0.3);
     }
-    setText(H['score-n'], String(V.downed)); setText(H['score-raiders'], V.downed === 1 ? 'raider ' : 'raiders '); setText(H['wave-n'], trial ? '' : String(W.state === 'choose' ? W.n : W.n + 1)); // (the card up: the wave just beaten; on a sea trial, no wave)
+    setText(H['score-n'], String(V.downed)); setText(H['score-raiders'], V.downed === 1 ? 'raider ' : 'raiders '); setText(H['wave-n'], trial || W.raid ? '' : String(W.state === 'choose' ? W.n : W.n + 1)); // (the card up: the wave just beaten; on a sea trial or a raid, no wave)
+    if (W.raid) raidHud(); // (a raid's objective, its boss and the way to it: raids.js)
     const deg = compassDeg(player.heading);
     setText(H.heading, `${['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8]} ${Math.round(deg)}°`);
     // the wind, against the ship: the arrow points the way it blows (up is the way you're heading), and in words how
@@ -2002,12 +2016,19 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
       mctx.drawImage(mimg, 0, 0, W2, H2);
       const x = (player.pos.x / MAP.w + 0.5) * W2, y = (player.pos.z / MAP.h + 0.5) * H2, s = Math.max(5, W2 / 40);
       mctx.fillStyle = '#ff4636'; mctx.strokeStyle = '#3a1631'; mctx.lineWidth = Math.max(1, s / 5);
+      // (Brightvein: home as a gold diamond, and on a raid the place being raided as a square, orange, plum once taken)
+      const hx = (HOME.x / MAP.w + 0.5) * W2, hz = (HOME.z / MAP.h + 0.5) * H2;
+      mctx.fillStyle = '#ffcf85'; mctx.beginPath(); mctx.moveTo(hx, hz - s); mctx.lineTo(hx + s * 0.7, hz); mctx.lineTo(hx, hz + s); mctx.lineTo(hx - s * 0.7, hz); mctx.closePath(); mctx.fill(); mctx.stroke();
+      if (W.raid && raids.cur) { const p = raids.where(); mctx.fillStyle = raids.cur.taken ? '#7a3a6a' : '#ff9a3a'; const px = (p.x / MAP.w + 0.5) * W2, pz = (p.z / MAP.h + 0.5) * H2; mctx.fillRect(px - s * 0.8, pz - s * 0.8, s * 1.6, s * 1.6); mctx.strokeRect(px - s * 0.8, pz - s * 0.8, s * 1.6, s * 1.6); }
+      mctx.fillStyle = '#ff4636';
       for (const q of raiders.list) {
         if (q.f.down) continue;
         const at = q.lost ? q.seenAt : q.f.pos; // (one lost in cloud: a ring where she was last seen)
         mctx.beginPath(); mctx.arc((at.x / MAP.w + 0.5) * W2, (at.z / MAP.h + 0.5) * H2, s * 0.45, 0, Math.PI * 2);
         if (q.lost) { mctx.strokeStyle = '#ff4636'; mctx.stroke(); mctx.strokeStyle = '#3a1631'; } else { mctx.fill(); mctx.stroke(); }
       }
+      mctx.fillStyle = '#d7a0d0'; // (the claim's barges, plum)
+      for (const q of raiders.friends) { if (q.f.down) continue; mctx.beginPath(); mctx.arc((q.f.pos.x / MAP.w + 0.5) * W2, (q.f.pos.z / MAP.h + 0.5) * H2, s * 0.45, 0, Math.PI * 2); mctx.fill(); mctx.stroke(); }
       mctx.save(); mctx.translate(x, y); mctx.rotate(-player.heading + Math.PI);
       mctx.fillStyle = '#e2bd67'; mctx.lineWidth = Math.max(1.5, s / 4);
       mctx.beginPath(); mctx.moveTo(0, -s * 1.3); mctx.lineTo(s * 0.8, s); mctx.lineTo(0, s * 0.45); mctx.lineTo(-s * 0.8, s); mctx.closePath(); mctx.fill(); mctx.stroke();
@@ -2052,6 +2073,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     // back out of the port's berth, where she now stands)
     if (mode !== 'voyage') return;
     player.update(dt, inp);
+    if (W.raid) raids.keepOut(player); // (out of the rock and the cliff: raids.js)
     player.ship.root.updateMatrixWorld(true);
     const gone = raiders.update(dt, player, camera);
     placeCamera(dt, inp);
@@ -2122,14 +2144,115 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
   // ---------- raids (raids.js: Brightvein's nine places, on this engine) ----------
-  const RAIDS_READY = false;
-  function raidStart() { return {}; }
-  function raidBanner() {}
-  function raidResult() { return null; }
-  function raidClear() {}
-  function raidBounty() { return null; }
-  function raidHit() { return false; }
-  function raidStep() {}
+  // a raid sets out towards its place (raidStart), says so (raidBanner), runs each step in place of the waves
+  // (raidStep: the card when it's over), lands the Captain's shots on its towers, engines, rock and cliff (raidHit),
+  // and shows its objective, its boss and the way to it (raidHud, raidTag). What it did goes home to the claim with the
+  // voyage (raidResult: yard.js opens its crates)
+  const STILL_V = new THREE.Vector3();
+  const raids = makeRaids({ scene, bolts, fx, raiders, skies, skiesId: () => progress.data.skies, pickups, sky, say: { banner, toast }, player: () => player, camera: () => camera });
+  let raidLock = null; // (the gun tower or drill engine the guns are locked on to, when there's no ship to)
+  function raidStart(site, repeat) { return raids.start(site, { repeat }); }
+  function raidBanner(site, at, repeat) {
+    const dx = site.x - at.pos.x, dz = site.z - at.pos.z, dist = Math.hypot(dx, dz);
+    banner(`${site.kind === 'convoy' || site.kind === 'storm' ? '' : 'Raid: '}${site.short}`, `${dist > 600 ? `${(dist / 1000).toFixed(1)} km to the ${COMPASS[Math.round(compassDeg(Math.atan2(dx, dz)) / 45) % 8]} · ` : ''}${site.goal}${repeat ? ' · taken before: a smaller haul' : ''}`);
+  }
+  // what the raid did, for the claim (null on a patrol)
+  function raidResult(lost) {
+    const site = W.raid, cur = raids.cur; if (!site) return null;
+    return { id: site.id, loot: site.loot, name: site.short, taken: !!cur?.taken && !lost, time: Math.round(cur?.t ?? 0), repeat: W.repeat, share: cur?.got ?? 1,
+      boss: !!(cur?.boss && cur.boss.f.down), stars: site.stars, why: cur?.why ?? '', bounty: site.bounty ?? null };
+  }
+  function raidClear() {
+    raids.clear(); raidLock = null;
+    for (const id of ['objective', 'sky-boss', 'goal-dir', 'raid-tag']) { const el = $(id); if (el) el.hidden = true; }
+    document.body.classList.remove('boss-up');
+  }
+  const raidBounty = (B) => bountySite(B);
+  // a shot's path from a to c: a raid's gun tower or drill engine (the Captain's shots), or its rock or the cliff (anyone's)
+  function raidHit(b, a, c) {
+    if (!W.raid) return false;
+    const g = raids.hitBy(a, c, b.owner);
+    if (!g) return false;
+    if (g.tower || g.mount) {
+      const t = g.tower ?? g.mount, damage = b.damage * SHOTS[b.shot].hull;
+      V.hits++;
+      HIT.owner = 'player'; HIT.target = 'raider'; HIT.part = 'hull'; HIT.at.copy(g.at); HIT.damage = damage; HIT.raider = null; HIT.size = b.K.size; HIT.raked = false; HIT.kind = b.K === KINDS.broadside ? 'broadside' : 'chaser'; HIT.shot = b.shot;
+      HIT.dir.copy(b.v).normalize(); HIT.vel.set(0, 0, 0); emit('hit');
+      hitMark('hull', raids.damage(t, damage));
+    } else fx.burst(g.at, 0xb8a48a, 10, 0.6, 0.5); // (dust off the rock)
+    return true;
+  }
+  // a step of a raid, in place of the waves: when it's over, its card (Home with the crates, or Home)
+  function raidStep(dt) {
+    const ev = raids.update(dt, player), cur = raids.cur, site = cur?.def ?? W.raid;
+    if (ev !== 'taken' && ev !== 'lost') return;
+    W.state = ev;
+    const taken = ev === 'taken', time = `${Math.floor(cur.t / 60)}:${String(Math.floor(cur.t % 60)).padStart(2, '0')}`;
+    const crates = Math.max(1, Math.round(site.crates * (W.repeat ? REPEAT : 1) * (cur.got ?? 1)));
+    const what = { convoy: taken ? `${Math.round((cur.got ?? 1) * 3)} of 3 barges home` : 'The barges are lost', storm: taken ? 'Through the front' : 'The front closed', bounty: taken ? `${site.short} is down` : `${site.short} got away`,
+      dredge: !W.repeat && taken ? 'The Grindstone is sunk' : null, citadel: !W.repeat && taken ? 'The Black Candle is down' : null }[site.kind];
+    $('calm-title').textContent = what ?? (taken ? `${site.short} strikes ${site.moving ? 'her' : 'its'} colours` : cur.why === 'escaped' ? `${site.short} got away` : cur.why === 'drilled' ? 'The drill is through' : `${site.short} went down with her crates`);
+    $('calm-line').textContent = taken
+      ? `In ${time}. Your crew load ${crates === 1 ? 'one crate' : `${NUMBER[crates] ?? crates} crates`} aboard · ◆ ${fmt(V.shards)} gathered. Take them home to ${HOME.name} to open them.`
+      : `◆ ${fmt(V.shards)} gathered. There'll be another run.`;
+    $('btn-sail-on').hidden = true; W.alt = null; roadButton();
+    const home = $('btn-go-port'); home.classList.add('big'); home.classList.remove('plain');
+    setText($('go-port-text'), taken ? 'Home with the crates' : `Home to ${HOME.name}`);
+    $('calm').classList.remove('late'); calmUp(true);
+    banner(taken ? (site.kind === 'storm' ? 'The strongbox is yours' : site.kind === 'convoy' ? 'The convoy is home' : `${site.short} is taken`) : 'The prize is lost', taken ? `${site.kind === 'rock' || site.kind === 'citadel' ? 'Brightvein’s colours fly over it · ' : ''}${time}` : '');
+  }
+  // the raid's objective and its progress, its boss's bar, and the compass's arrow to it (ten times a second)
+  function raidHud() {
+    const I = raids.info(), ob = $('objective'), bb = $('sky-boss'), gd = $('goal-dir');
+    const showOb = !!I && !I.done, showBoss = !!I?.boss && !I.done;
+    if (ob.hidden === showOb) ob.hidden = !showOb;
+    if (bb.hidden === showBoss) { bb.hidden = !showBoss; document.body.classList.toggle('boss-up', showBoss); layout(); }
+    if (!I || I.done) { gd.hidden = true; return; }
+    setText($('obj-goal'), I.goal); setText($('obj-sub'), I.sub);
+    const bars = $('obj-bars');
+    if (I.bars) {
+      if (bars.children.length !== I.bars.length) bars.innerHTML = I.bars.map(() => '<span class="ob"><em></em><span class="meter hull"><b></b><i></i></span></span>').join('');
+      I.bars.forEach((b, i) => { const e = bars.children[i]; setText(e.firstChild, b.home ? `${b.label} ✓` : b.label); e.querySelector('i').style.width = `${b.frac * 100}%`; e.classList.toggle('gone', b.frac <= 0); });
+    } else if (bars.children.length) bars.innerHTML = '';
+    const m = $('obj-meter');
+    m.hidden = !I.meter; if (I.meter) { m.querySelector('i').style.width = `${I.meter.frac * 100}%`; m.classList.toggle('warn', !!I.meter.warn); }
+    ob.classList.toggle('urgent', (I.timer != null && I.timer < 20) || !!I.meter?.warn);
+    if (I.boss) {
+      const B = I.boss;
+      setText($('sb-name'), B.name); setText($('sb-sub'), B.sub); setText($('sb-phase'), B.phase || '');
+      $('sb-fill').style.width = `${B.frac * 100}%`; $('sb-fill2').style.width = `${(B.frac2 ?? 0) * 100}%`;
+      setText($('sb-label2'), B.label2 ?? 'Crystals'); bb.querySelector('.sb-two').hidden = B.frac2 == null;
+      bb.classList.toggle('sails', !!B.sails); bb.classList.toggle('shield', !!B.shield);
+      const marks = $('sb-marks'), key = (B.marks || []).join(',');
+      if (marks.dataset.k !== key) { marks.dataset.k = key; marks.innerHTML = (B.marks || []).map((x) => `<i style="left:${x * 100}%"></i>`).join(''); }
+    }
+    // the compass points to the objective
+    gd.hidden = false;
+    const dx = I.at.x - player.pos.x, dz = I.at.z - player.pos.z, rel = Math.atan2(dx, dz) - player.heading;
+    setStyle($('goal-arrow'), 'transform', `rotate(${(-rel).toFixed(2)}rad)`);
+    setText($('goal-d'), km(Math.hypot(dx, dz)));
+  }
+  // the place being raided (or the next beacon): a gold tag over it, or at the edge of the screen pointing to it
+  const rtP = new THREE.Vector3();
+  function raidTag() {
+    const cur = raids.cur, show = !!cur && !cur.taken && !cur.lost && (!cur.def.moving || cur.kind === 'storm');
+    let el = $('raid-tag');
+    if (!show) { if (el && !el.hidden) el.hidden = true; return; }
+    if (!el) { el = document.createElement('div'); el.id = 'raid-tag'; el.innerHTML = '<span class="arrow"></span><b></b><span class="d"></span>'; H.tags.append(el); }
+    el.hidden = false;
+    setText(el.children[1], cur.kind === 'storm' ? 'Beacon' : `Raid · ${cur.def.short}`);
+    const at = cur.kind === 'storm' ? raids.where() : cur.center;
+    rtP.copy(at); rtP.y += cur.kind === 'storm' ? 40 : cur.def.size * 0.4 + 24;
+    rtP.project(camera);
+    const behind = rtP.z > 1, W2 = view.w / 2, H2 = view.h / 2;
+    let sx = (behind ? -rtP.x : rtP.x) * W2, sy = -(behind ? -rtP.y : rtP.y) * H2;
+    const k = Math.max(Math.abs(sx) / (W2 - 70), Math.abs(sy) / (H2 - 60)), edge = behind || k > 1;
+    if (edge) { const kk = Math.max(k, 1e-6); sx /= kk; sy /= kk; setStyle(el.firstChild, 'transform', `rotate(${Math.atan2(sx, -sy).toFixed(2)}rad)`); }
+    if (el._edge !== edge) { el._edge = edge; el.classList.toggle('edge', edge); }
+    el.style.transform = `translate(${(W2 + sx).toFixed(1)}px, ${(H2 + sy).toFixed(1)}px) translate(-50%, -100%)`;
+    const n = raids.towersLeft;
+    setText(el.children[2], `${km(at.distanceTo(player.pos))}${cur.kind === 'storm' ? ` · ${cur.next + 1} of ${cur.beacons.length}` : n ? ` · ${n} gun${n > 1 ? 's' : ''}` : ''}`);
+  }
 
   // ---------- the skies opened and closed (the claim's open and close, below) ----------
   // into the skies: the Shipyard ('port'), choosing the skies ('title'), a patrol ('voyage') or a raid ('raid', with
@@ -2138,9 +2261,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     resize(); applyPicture(); applyHands(); fx.shake = settings.data.shake;
     WTIME.value = time;
     if (m === 'voyage' || m === 'raid') {
-      const site = m === 'raid' && RAIDS_READY ? opts.site : null;
-      if (!sail(progress.data.flying, false, false, site)) port.setMode('port');
-      else if (m === 'raid' && !RAIDS_READY) toast('The raids are being fitted to the new skies: a patrol for now');
+      if (!sail(progress.data.flying, false, false, m === 'raid' ? opts.site : null)) port.setMode('port');
     } else port.setMode(m === 'title' ? 'title' : 'port');
   }
   // out of the skies: everything a voyage leaves behind cleared away, the cards and the HUD put away, the sound told
@@ -2167,7 +2288,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     get lastArc() { return lastArc; }, waveAt, treasureShip, giants, describe,
     tactics: { SHOTS, SHOT_ORDER, RAKE, PATCH, SMART, rakeMul, NERVE, CAPTAINS, PLATE, FORT, LINE, ROADS, ROAD }, pickShot, nextShot: () => nextShot(), patchUp,
     nextWave: (n) => nextWave(n), roadWave, bannerFor: (wave, arr) => waveBanner(wave, arr), BANNER_LINE, cardRisen, BOUNTY, CAPTAIN,
-    sail, endVoyage, pause, sailOn, goHome, goHomeToClaim, tipsAgain, siteFor,
+    sail, endVoyage, pause, sailOn, goHome, goHomeToClaim, tipsAgain, siteFor, sites: raids, get raidLock() { return raidLock; },
     get summary() { return summary; }, saying: said, layout, edge: EDGE,
     placeTags: () => tags(true, Infinity),
     quiet() { bannerAt.until = TOAST_AT.until = 0; for (const id of ['banner', 'toast']) $(id).getAnimations().forEach((a) => a.finish()); },
@@ -2218,7 +2339,7 @@ export function makeSky({ renderer, canvas, progress, onLeave, claim = {} }) {
     get G() { return G; }, get player() { return G?.player ?? null; }, get gunnery() { return G?.gunnery ?? null; }, get cam() { return G?.cam; }, get input() { return G?.input; },
     get waves() { return G?.waves ?? null; }, get voyage() { return G?.voyage ?? null; }, progress,
     get raiders() { return G?.raiders; }, get parts() { return G; }, get port() { return G?.port; }, get scene() { return G?.scene; }, camera,
-    get sites() { return G?.sites ?? null; }, wind: WIND,
+    get sites() { return G?.sites ?? null; }, raidsReady: true, wind: WIND,
     sail: (...a) => G?.sail(...a), endVoyage: (...a) => G?.endVoyage(...a), pause: (on) => G?.pause(on), sailOn: (k) => G?.sailOn(k),
     raid: (site, id) => G?.sail(id ?? progress.data.flying, true, false, site),
     fly: (id) => G?.sail(id, true), // a voyage in any ship, owned or not

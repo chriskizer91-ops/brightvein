@@ -5,7 +5,10 @@
 // A claim travels to another device as a code: the save squeezed (deflate, where the browser can) and written in
 // base64, with a check at the end, so a code that lost or changed a few letters on the way is caught and refused
 // instead of loading half a claim. The same code can go in a file.
-const SAVE_KEY = 'brightvein-keep-v1', OLD_SAVE_KEY = 'brightvein-keep-none';
+// A save that can't be used is never the end of a claim: what can be mended is mended as it's opened (safeMend), a
+// claim that still won't open is put aside under a key of its own and the title says so, with a way on (safeBroken),
+// and a fault in one part of saving keeps that part's last good copy instead of stopping every save after it (safePart).
+const SAVE_KEY = 'brightvein-keep-v1';
 const SLOT_N = 3;
 const SLOTS = { active: 1, names: {} };
 try { const s = JSON.parse(localStorage.getItem('bv-slots')); if (s) { SLOTS.active = clamp(s.active | 0 || 1, 1, SLOT_N); SLOTS.names = s.names && typeof s.names === 'object' ? s.names : {}; } } catch (e) { }
@@ -13,14 +16,13 @@ const slotKey = n => n === 1 ? SAVE_KEY : SAVE_KEY + '-s' + n;
 const slotName = n => (SLOTS.names[n] || '').trim() || `Claim ${n}`;
 function slotsKeep() { try { localStorage.setItem('bv-slots', JSON.stringify(SLOTS)); } catch (e) { } }
 function slotRaw(n) { try { return localStorage.getItem(slotKey(n)); } catch (e) { return null; } }
-// a claim's save as it is stored (and, for slot 1, one from before the grid, brought up to date)
+// a claim's save as it is stored
 function slotRead(n) {
   try { const s = JSON.parse(slotRaw(n)); if (s && s.v === 2) return s; } catch (e) { }
-  if (n === 1) try { const s = JSON.parse(localStorage.getItem(OLD_SAVE_KEY)); if (s && s.v === 1) return migrateV1(s); } catch (e) { }
   return null;
 }
-function slotWrite(n, s) { localStorage.setItem(slotKey(n), typeof s === 'string' ? s : JSON.stringify(s)); }
-function slotClear(n) { try { localStorage.removeItem(slotKey(n)); if (n === 1) localStorage.removeItem(OLD_SAVE_KEY); } catch (e) { } }
+function slotWrite(n, s) { localStorage.setItem(slotKey(n), typeof s === 'string' ? s : JSON.stringify(s, safeJSON)); }
+function slotClear(n) { try { localStorage.removeItem(slotKey(n)); } catch (e) { } }
 // a claim in a few words, for the title screen and the claims list: day, chapter, people, when it was saved
 function chapterLabel(ch) {
   const C = CHAPTERS[ch];
@@ -29,9 +31,9 @@ function chapterLabel(ch) {
 }
 function saveSummary(s) {
   if (!s) return null;
-  const people = (s.people || []).length, guests = (s.people || []).filter(p => p.hero).length;
-  return { day: s.day || 1, ch: s.story ? s.story.ch || 0 : 0, chapter: chapterLabel(s.story ? s.story.ch || 0 : 0), people, guests, savedAt: s.savedAt || 0,
-    keep: ((s.buildings || []).find(b => b.type === 'keep') || {}).level || 1, setupDone: s.setupDone !== false };
+  const P = Array.isArray(s.people) ? s.people.filter(safeObj) : [], B = Array.isArray(s.buildings) ? s.buildings.filter(safeObj) : [], ch = safeObj(s.story) ? safeNum(s.story.ch, 0) : 0;
+  return { day: safeNum(s.day, 1), ch, chapter: chapterLabel(ch), people: P.length, guests: P.filter(p => p.hero).length, savedAt: safeNum(s.savedAt, 0),
+    keep: (B.find(b => b.type === 'keep') || {}).level || 1, setupDone: s.setupDone !== false };
 }
 function slotSummary(n) { return saveSummary(slotRead(n)); }
 const ago = t => {
@@ -118,8 +120,9 @@ async function importCode(text) {
     const bytes = await unsqueeze(m[2], body);
     try { s = JSON.parse(new TextDecoder().decode(bytes)); } catch (e) { throw new Error('broken'); }
   }
-  if (s && s.v === 1 && Array.isArray(s.people)) s = migrateV1(s);
   if (!s || typeof s !== 'object' || s.v !== 2 || !Array.isArray(s.people) || !Array.isArray(s.buildings) || !s.people.length || typeof s.day !== 'number') throw new Error(s && s.v > 2 ? 'newer' : 'notclaim');
+  safeMend(s);   // each person is checked: one that can't be read is left out, and a claim with nobody left is refused
+  if (!s.people.length) throw new Error('notclaim');
   return s;
 }
 const codeWhy = e => CODE_WHY[e && e.message] || CODE_WHY.broken;
@@ -151,3 +154,238 @@ function reloadInto(slot, go) {
   location.reload();
 }
 function takeGo() { try { const g = sessionStorage.getItem(GO_KEY); sessionStorage.removeItem(GO_KEY); return g; } catch (e) { return null; } }
+
+// ----------------------------------------------------------------- mending a save as it's opened
+// A save is used as it is, except for what can't be used. A number that's missing or isn't a number takes its starting
+// value; a person with nothing to say how able they are is left out (rather than the whole claim); a missing look is
+// drawn afresh; a study in a room that isn't furnished ends. A save that's already sound comes through unchanged.
+// When something had to be left out, the save as it was is kept aside first (safeBackup), so nothing is lost for good.
+const SAFE = { notes: [], lost: [], faults: [], seen: new Set(), told: false, parts: {}, nums: {}, failed: [], broken: null };
+const SAFE_NUMS = { day: 1, t: 0.14, ore: 24, shards: 150, food: 40, recruit: 0, nights: 0, nextId: 1 };
+const SAFE_STATS = ['G', 'E', 'A', 'R', 'S'];
+const safeNum = (v, d) => typeof v === 'number' && Number.isFinite(v) ? v : d;
+const safeObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+const safeStudyName = i => (STUDY[(GAME.rooms[i] || {}).type] || {}).name || 'a study';   // a study in a room with no kind (ui.js)
+function safeMend(s) {
+  const notes = [];
+  let lost = false;
+  for (const [k, d] of Object.entries(SAFE_NUMS)) if (typeof s[k] !== 'number' || !Number.isFinite(s[k])) {
+    if (k in s && (k === 'shards' || k === 'ore' || k === 'food')) { notes.push(`The claim’s ${k} couldn’t be read from its save, so they were set back to ${d}.`); lost = true; }
+    s[k] = d;
+  }
+  if (s.day < 1 || s.day % 1) s.day = Math.max(1, Math.floor(s.day));
+  if (s.t < 0 || s.t >= 1) s.t = ((s.t % 1) + 1) % 1;
+  for (const k of ['story', 'night', 'weather', 'dig', 'workshop', 'sky', 'kit', 'cells', 'mats']) if (k in s && s[k] != null && !safeObj(s[k])) { delete s[k]; lost = true; }
+  if (safeObj(s.mats)) for (const [k, v] of Object.entries(s.mats)) if (!Number.isFinite(v)) s.mats[k] = 0;
+  if (s.stash != null && !Array.isArray(s.stash)) { delete s.stash; lost = true; }
+  if (Array.isArray(s.stash) && s.stash.some(it => !safeObj(it))) { s.stash = s.stash.filter(safeObj); lost = true; }
+  if (s.blueprints != null && !Array.isArray(s.blueprints)) s.blueprints = [];
+  if (s.rooms != null && !Array.isArray(s.rooms)) delete s.rooms;
+  if (Array.isArray(s.rooms)) s.rooms.forEach((r, i) => { if (!safeObj(r)) s.rooms[i] = { type: null, level: 0 }; else if (r.type && !STUDY[r.type]) r.type = null; });
+  if (!Array.isArray(s.buildings)) { s.buildings = []; lost = true; }
+  if (s.buildings.some(b => !safeObj(b) || typeof b.type !== 'string')) { s.buildings = s.buildings.filter(b => safeObj(b) && typeof b.type === 'string'); lost = true; }
+  for (const b of s.buildings) if (b.level != null && (!Number.isFinite(b.level) || b.level < 1)) b.level = 1;
+  // the people: each must have their abilities; the rest of a person can be mended
+  if (!Array.isArray(s.people)) { s.people = []; lost = true; }
+  const ids = new Set(), keep = [];
+  let gone = 0;
+  for (const d of s.people) {
+    if (!safeObj(d) || !safeObj(d.stats)) { gone++; continue; }
+    for (const k of SAFE_STATS) if (!Number.isFinite(d.stats[k])) d.stats[k] = 3;
+    if (typeof d.name !== 'string' || !d.name.trim()) d.name = 'A settler with no name';
+    if (!Number.isFinite(d.id) || ids.has(d.id)) d.id = null;
+    else ids.add(d.id);
+    if (!safeObj(d.look)) d.look = safeLook(d);
+    if (d.gear != null && !safeObj(d.gear)) d.gear = {};
+    if (d.job != null && !(safeObj(d.job) && typeof d.job.bid === 'string')) d.job = null;
+    if (d.exp != null && !safeObj(d.exp)) d.exp = null;
+    if (d.study != null && !(safeObj(d.study) && Array.isArray(s.rooms) && s.rooms[d.study.room] && s.rooms[d.study.room].type)) d.study = null;
+    keep.push(d);
+  }
+  if (gone) { s.people = keep; lost = true; notes.push(`${gone === 1 ? 'One person' : gone + ' people'} on this claim couldn’t be read from its save, so they were left out. Everyone else is here.`); }
+  for (const d of s.people) if (d.id == null) { while (ids.has(s.nextId)) s.nextId++; d.id = s.nextId++; ids.add(d.id); }
+  const top = Math.max(0, ...ids); if (s.nextId <= top) s.nextId = top + 1;
+  return { notes, lost };
+}
+// a look for someone whose save lost theirs: the cast's own, the roll's for a settler off it, or a new one
+function safeLook(d) {
+  if (d.hero && HERO_LOOKS[d.hero]) return { ...HERO_LOOKS[d.hero] };
+  const f = typeof d.portrait === 'string' && FOLK.find(x => x.id === d.portrait);
+  return randomLook(mulberry((d.seed | 0) || ((d.id | 0) * 7919 + 1)), f ? { ...f.look } : {});
+}
+// a saved building that won't fit where it stood looks for the nearest free spot to there (setupTown, town.js)
+function safeHint(s) { const F = FOOT[s.type]; return Number.isFinite(s.tx) && Number.isFinite(s.tz) && F ? tileCenter(s.tx, s.tz, F.w, F.d) : undefined; }
+// and one with no room left anywhere comes back as the shards it cost, once the claim's numbers are in (boot, main.js)
+function safeRefundLost() {
+  for (const s of SAFE.lost) {
+    const D = DEFS[s.type]; if (!D || s.type === 'keep' || s.type === 'mast') continue;
+    let r = BUY[s.type] || 0; for (let l = 2; l <= (s.level | 0); l++) r += (D.cost && D.cost[l]) || 0;
+    GAME.shards += r;
+    SAFE.notes.push(`There was no room left on the grid for a <b>${esc(D.name)}</b>, so the ${r} shards it cost came back.`);
+  }
+  SAFE.lost = [];
+}
+// the save as it was, kept aside in this browser under a key of its own (at most three for each claim; the same save once)
+function safeBackup(n, raw) {
+  if (!raw) return null;
+  try {
+    const pre = slotKey(n) + '-broken-', keys = [];
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(pre)) keys.push(k); }
+    keys.sort();
+    for (const k of keys) if (localStorage.getItem(k) === raw) return k;
+    while (keys.length >= 3) localStorage.removeItem(keys.shift());
+    const key = pre + Date.now(); localStorage.setItem(key, raw); return key;
+  } catch (e) { console.warn('[Brightvein] the save couldn’t be kept aside', e); return null; }
+}
+// The open claim's save, mended, for boot (main.js). A claim that couldn't be opened a moment ago in this tab isn't
+// tried again (the page opened again without it, safeBroken); one whose save can't even be read is kept aside.
+function safeOpen() {
+  const n = SLOTS.active, broken = safeTakeBroken(), raw = slotRaw(n);
+  if (broken || !raw) return { save: null, broken };
+  let s = null; try { s = JSON.parse(raw); } catch (e) { }
+  if (!safeObj(s) || s.v !== 2) return { save: null, broken: { slot: n, why: safeObj(s) && s.v > 2 ? 'newer' : 'unreadable', kept: safeBackup(n, raw) } };
+  const M = safeMend(s);
+  if (M.lost) safeBackup(n, raw);
+  SAFE.notes = M.notes; SAFE.opening = true;   // a fault from here until the claim is open puts it aside (boot's catch, main.js)
+  return { save: s, broken: null };
+}
+// The claim was mended as far as it would go and still didn't open: keep its save aside, and open the page again
+// without it. The title then says so, with a way on (safeBrokenSheet). False if this tab can't hold the note.
+const BROKEN_KEY = 'bv-broken';
+function safeBroken(n, err) {
+  console.error(`[Brightvein] claim ${n} couldn’t be opened:`, err);
+  const kept = safeBackup(n, slotRaw(n));
+  try { sessionStorage.setItem(BROKEN_KEY, JSON.stringify({ slot: n, why: String((err && err.message) || err).slice(0, 300), kept })); } catch (e) { return false; }
+  leaving = true; location.reload(); return true;
+}
+function safeTakeBroken() {
+  try { const B = JSON.parse(sessionStorage.getItem(BROKEN_KEY)); sessionStorage.removeItem(BROKEN_KEY); return B && B.slot === SLOTS.active ? B : null; } catch (e) { return null; }
+}
+// on the title: this claim couldn't be opened. Carry it off as a code, open another claim, or start fresh here.
+function safeBrokenSheet(B) {
+  SAFE.broken = B;
+  const c = sheet(`<p class="eyebrow">${esc(slotName(B.slot))}</p><h2>This claim couldn’t be opened</h2>
+    <p>${B.why === 'newer' ? 'It was saved by a newer Brightvein than this one. Open the game again so it updates, then try once more.' : 'Something in its save couldn’t be read, so it was set aside just as it was. Nothing in it has been changed.'}</p>
+    <p class="small">You can carry it off as a code to keep it safe, open another claim, or start a fresh claim in its place. A copy stays put away in this browser either way.</p>
+    <div class="sheet-acts"><button type="button" class="btn primary" id="bk-code">Carry it off as a code</button><button type="button" class="btn" id="bk-claims">Open another claim</button><button type="button" class="btn danger" id="bk-fresh">Start fresh</button></div>`, 'codes');
+  c.querySelector('#bk-code').onclick = () => openExport();
+  c.querySelector('#bk-claims').onclick = () => openClaims();
+  const fresh = c.querySelector('#bk-fresh');
+  fresh.onclick = () => {
+    if (!fresh.dataset.sure) { fresh.dataset.sure = '1'; fresh.textContent = 'Start fresh: are you sure?'; return; }
+    slotClear(B.slot); SAFE.broken = null; sheetClose(); begin(true);
+  };
+}
+
+// ----------------------------------------------------------------- saving, part by part
+// Each part of the save is made and written out on its own (saveGame, main.js). A part that fails keeps its last good
+// copy (at first, the one the claim was opened with), its fault is noted once in the console, and the rest is saved.
+// No number is ever saved as NaN: it would come back as nothing, and nothing as zero shards.
+const SAFE_PART_NAMES = { people: 'its people', buildings: 'its buildings', story: 'the story', night: 'the night', weather: 'the weather', dig: 'the dig', workshop: 'the workshop', sky: 'the fleet', stash: 'the stash' };
+function safeJSON(k, v) { return typeof v === 'number' && !Number.isFinite(v) ? undefined : v; }
+function safePart(k, x) {
+  try { const v = typeof x === 'function' ? x() : x, j = v === undefined ? undefined : JSON.stringify(v, safeJSON); SAFE.parts[k] = j; return j; }
+  catch (e) {
+    SAFE.failed.push(k);
+    if (!SAFE.seen.has('save:' + k)) { SAFE.seen.add('save:' + k); SAFE.faults.push({ where: 'saving ' + k, msg: String(e && e.message) }); console.error(`[Brightvein] saving ${k}:`, e); }
+    return SAFE.parts[k];
+  }
+}
+// the whole save, part by part, as the text that's stored
+function safeSave(parts) {
+  SAFE.failed = [];
+  const out = [];
+  for (const [k, x] of Object.entries(parts)) { const j = safePart(k, x); if (j !== undefined) out.push(JSON.stringify(k) + ':' + j); }
+  return '{' + out.join(',') + '}';
+}
+// the claim's numbers as they're saved: never NaN. One that went wrong is put back to its last good value.
+function safeNums() {
+  const out = {};
+  for (const [k, d] of Object.entries(SAFE_NUMS)) {
+    let v = GAME[k];
+    if (typeof v !== 'number' || !Number.isFinite(v)) { safeFault('numbers', new Error(`GAME.${k} was ${v}`)); v = GAME[k] = safeNum(SAFE.nums[k], d); }
+    SAFE.nums[k] = out[k] = v;
+  }
+  return out;
+}
+// the parts the claim was opened with, as their last good copies until they're saved anew
+function safeOpened(save) {
+  if (!save) return;
+  for (const [k, v] of Object.entries(save)) if (k in SAFE_PART_NAMES) try { SAFE.parts[k] = JSON.stringify(v, safeJSON); } catch (e) { }
+  for (const k of Object.keys(SAFE_NUMS)) SAFE.nums[k] = GAME[k];
+}
+const safeQuota = e => !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
+// write it to the open claim's slot. A full browser, one that keeps nothing, and a fault in the game each say so in a
+// toast, once in a row of failures, and again whenever the player saves on purpose.
+function safeWrite(raw, force) {
+  try { slotWrite(SLOTS.active, raw); }
+  catch (e) {
+    const quota = safeQuota(e), blocked = !quota && !!e && e.name === 'SecurityError';
+    console.error('[Brightvein] the claim couldn’t be saved:', e);
+    if (!saveFails++ || force) toast(quota ? 'The claim couldn’t be saved: this browser’s storage is full. Carry it off as a code (Settings › Saving) to be safe.'
+      : blocked ? 'The claim couldn’t be saved: this browser isn’t letting the page keep anything. Carry it off as a code (Settings › Saving) to be safe.'
+      : 'The claim couldn’t be saved, because of a fault in the game. Carry it off as a code (Settings › Saving) to be safe.', 'night');
+    return false;
+  }
+  saveFails = 0;
+  if (SAFE.failed.length && force) toast(`Part of the claim (${SAFE.failed.map(k => SAFE_PART_NAMES[k] || k).join(', ')}) couldn’t be saved, so its last good copy was kept. Everything else is saved.`, 'night');
+  return true;
+}
+let saveFails = 0;
+
+// ----------------------------------------------------------------- a night under way
+// A night saved while it's on also keeps the Wildlight on the plateau, and the lamps they put out (nightsSave in
+// nights.js keeps the waves still to come and a boss). When the claim opens again they climb back over the rim.
+function safeNightSave(S) {
+  if (S && S.on) {
+    S.on.live = WL.list.filter(f => !f.dead && !f.air && !f.boss && !f.mine && !f.leaving).map(f => ({ kind: f.kind, hp: Math.round(f.hp), maxHp: Math.round(f.maxHp), seam: f.from === 'seam' }));
+    S.on.snuffed = DECOR.lamps.filter(L => !L.lit).map(L => [Math.round(L.x * 10) / 10, Math.round(L.z * 10) / 10]);
+  }
+  return S;
+}
+function safeNightLoad(save) {
+  const O = save && safeObj(save.night) && save.night.on, N = WL.night; if (!safeObj(O) || !N) return;
+  for (const p of Array.isArray(O.snuffed) ? O.snuffed : []) for (const L of DECOR.lamps) if (Array.isArray(p) && Math.hypot(L.x - p[0], L.z - p[1]) < 0.5) L.lit = false;
+  const live = (Array.isArray(O.live) ? O.live : []).filter(u => safeObj(u) && WL_KINDS[u.kind]), w = N.waves[N.waves.length - 1] || { center: 20, spread: 4 };
+  if (live.length) setTimeout(() => {
+    if (WL.night !== N) return;
+    for (const u of live) {
+      const f = spawnWildlight(u.kind, u.seam ? 'seam' : w.center + (Math.random() - 0.5) * 2 * (w.spread || 4), { hp: u.hp > 0 ? u.hp : undefined, maxHp: u.maxHp > 0 ? u.maxHp : undefined });
+      N.spawned--; if (N.kinds[f.kind]) N.kinds[f.kind].spawned--;   // counted when they first came
+    }
+  }, 0);
+}
+
+// ----------------------------------------------------------------- a scene or a day's card that's up as the claim is saved
+// A chapter counts as started as soon as it opens, so an opening scene still being told when the claim was saved is told
+// again when it opens. A day's card that's up with no choice made yet comes up again, its cooldown not yet spent (it's
+// dealt afresh). (storySave in story.js, eventsSave in events.js)
+function safeStorySave(S) {
+  const C = CHAPTERS[STORY.ch], K = EVT.card;
+  if (S && C && STORY.started && STORY.shown && STORY.shown.lines === C.open) S.opening = true;
+  if (S && safeObj(S.events) && K && !K.picked && K.e) {
+    const id = K.e.id, seen = { ...S.events.seen }; delete seen[id];
+    S.events = { ...S.events, today: { id, at: Math.min(GAME.t, 0.5) }, seen, recent: (S.events.recent || []).filter((x, i) => i || x !== id) };
+  }
+  return S;
+}
+function safeStoryLoad(s) {
+  const C = CHAPTERS[STORY.ch];
+  if (safeObj(s) && s.opening && STORY.started && C && C.open && !STORY.queue.some(q => q.lines === C.open)) STORY.queue.unshift({ lines: C.open, title: C.title, chapter: STORY.ch, act: C.actStart });
+}
+
+// ----------------------------------------------------------------- faults while playing
+// A fault is noted once, with its stack, in the browser's console, and the rest carries on: frame() (main.js) runs its
+// systems in groups that each catch their own, and anything else that slips through lands here too. The player is
+// told once, gently.
+function safeFault(where, e) {
+  const msg = String((e && e.message) || e), k = where + ':' + msg;
+  if (SAFE.seen.has(k)) return;
+  SAFE.seen.add(k); SAFE.faults.push({ where, msg });
+  console.error(`[Brightvein] ${where}:`, e);
+  if (SAFE.told) return;
+  SAFE.told = true;
+  try { toast('Something went wrong behind the scenes. The claim carries on, but if anything looks stuck, use <b>Settings › Save now</b> and open the page again.', 'night'); } catch (e2) { }
+}
+addEventListener('error', e => { if (e.error) safeFault('page', e.error); });   // (the browser's own notes, and other pages' scripts, carry no error)
+addEventListener('unhandledrejection', e => { if (e.reason instanceof Error) safeFault('page', e.reason); });

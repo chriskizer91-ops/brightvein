@@ -34,7 +34,7 @@ const TITLE = { on: false, t: 0.57, ang: 0, k: 0, showcase: [], save: null };
 const TITLE_T0 = 0.6, TITLE_T1 = 0.662;   // golden hour, into the first of dusk: the lamps come on
 function titleShow(save) {
   TITLE.on = true; TITLE.save = save; TITLE.t = reducedMotion ? 0.645 : TITLE_T0; TITLE.k = 0;
-  controls.enabled = false; kcontrols.enabled = false;
+  controls.enabled = false;
   if (VIEW.mode !== 'town') { VIEW.mode = 'town'; for (const id of ['#v-town', '#v-keep', '#v-mine']) $(id).setAttribute('aria-pressed', String(id === '#v-town')); }
   VIEW.tween = null; FOLLOW.v = null; UI.close();
   for (const id of ['qmark', 'hintcard']) { const el = document.getElementById(id); if (el) el.hidden = true; }   // the cast’s "wants a word" and a tip wait for the claim

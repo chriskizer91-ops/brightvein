@@ -7,6 +7,9 @@
 # The id is the file's name without its extension (founder-hesper.png -> founder-hesper). A picture that isn't
 # square is padded to square around its middle. A flat background colour sampled from the corners is made
 # transparent when it's uniform (so pictures made without transparency still sit on the card's own background).
+# Portraits and items are saved at quality 75 (80 for their transparency): on the cards they look the same as at 90,
+# at about half the size, and the whole game is one page with a size limit. The cast's small pixel-art pictures are
+# saved lossless. Keep Chris's full-size originals: re-encode from those, never from a webp already in assets/.
 import sys, os
 from PIL import Image
 
@@ -55,7 +58,8 @@ def main():
         sq = sq.resize((size, size), Image.LANCZOS)
         name = os.path.splitext(os.path.basename(f))[0].lower().replace(' ', '-')
         out = os.path.join(out_dir, name + '.webp')
-        sq.save(out, 'WEBP', quality=90, method=6)
+        if kind == 'cast': sq.save(out, 'WEBP', lossless=True, method=6)
+        else: sq.save(out, 'WEBP', quality=75, alpha_quality=80, method=6)
         print(f'{out}  {os.path.getsize(out) // 1024} KB' + ('  (background made transparent)' if col else ''))
 
 main()

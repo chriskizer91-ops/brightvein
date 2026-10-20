@@ -173,12 +173,12 @@ function openSky(mode, opts) {
   if (mode === 'voyage' || mode === 'raid') yardSailing();
   if (DOCK.ship) DOCK.ship.root.scale.setScalar(1);       // full size again for the skies and the shipyard
   UI.close(); FOLLOW.v = null; VIEW.tween = null;
-  controls.enabled = false; kcontrols.enabled = false;
+  controls.enabled = false;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   SKY.open(mode, opts).catch(e => { console.error(e); toast('The skies could not be opened: ' + esc(e.message)); dockHome({}); });
 }
 function dockHome(r) {
-  controls.enabled = VIEW.mode === 'town'; kcontrols.enabled = VIEW.mode === 'keep';
+  controls.enabled = VIEW.mode === 'town';
   clock.getDelta();
   dockMoor();
   yardHome(r);

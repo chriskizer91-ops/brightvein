@@ -536,7 +536,7 @@ const AUDIO = (() => {
   // where the listener is: the camera that's drawing, and what it's looking at
   function listener() {
     if (typeof SKY !== 'undefined' && SKY && SKY.on) return SKY.camera ? { cam: SKY.camera, focus: SKY.player ? SKY.player.pos : null, ref: 120 } : null;
-    if (typeof VIEW !== 'undefined' && VIEW.mode === 'keep') return { cam: kcam, focus: kcontrols.target, ref: 25, inside: true };
+    if (typeof VIEW !== 'undefined' && VIEW.mode === 'keep') return { cam: kcam, focus: KCAM.at, ref: 25, inside: true };
     return typeof camera !== 'undefined' ? { cam: camera, focus: controls.target, ref: 40 } : null;
   }
   const _v = { x: 0, y: 0, z: 0 };

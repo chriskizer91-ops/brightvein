@@ -143,9 +143,10 @@ with sync_playwright() as p:
       G.recruit = 0.2; B.UI.open('building', K); await wait(50);
       const body = document.getElementById('panel-body'), h2 = body.querySelector('h2'), chip = [...body.querySelectorAll('.chip')].find(c => /Next settler/.test(c.textContent));
       out.before = chip && chip.textContent;
-      // the game's own refresh, every couple of seconds (updateHUD in ui.js): wait for it to come round
-      G.recruit = 0.6; const until = Date.now() + 90000;
-      while (Date.now() < until && chip && chip.isConnected && !/60%/.test(chip.textContent)) await wait(250);
+      // the game's own refresh, every couple of seconds of the HUD's clock (updateHUD in ui.js): run that clock round
+      // by hand, so a slow machine's few frames don't matter
+      G.recruit = 0.6;
+      for (let i = 0; i < 9 && chip && chip.isConnected && !/60%/.test(chip.textContent); i++) B.updateHUD(0.3);
       out.after = chip && chip.textContent; out.sameChip = !!chip && chip.isConnected && chip === [...body.querySelectorAll('.chip')].find(c => /Next settler/.test(c.textContent));
       out.sameTitle = h2.isConnected && h2 === body.querySelector('h2');
       // a button turns off and says why, then on again, and is the same button throughout

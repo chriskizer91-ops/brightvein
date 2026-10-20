@@ -114,7 +114,7 @@ function wlBossPool(col) {
         vec4 g = texture2D(map, vUv);
         vec2 su = (vUv - 0.5) * vec2(3.2 / 2.6, 3.2 / 1.5) + 0.5;
         float d = su.x > 0.0 && su.y > 0.0 && su.x < 1.0 && su.y < 1.0 ? texture2D(scorch, su).a * uDark : 0.0;
-        gl_FragColor = vec4(g.rgb * uCol * g.a * uOp, d);
+        gl_FragColor = vec4(g.rgb * uCol * g.a * uOp * (1.0 - 0.85 * d), d);   // (its own light kept off the scorch, or it fills it in)
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,

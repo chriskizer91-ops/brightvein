@@ -580,6 +580,7 @@ function applyTimeOfDay(t, time) {
   const lowSun = (smooth(0.03, 0.06, t) * (1 - smooth(0.1, 0.16, t)) + smooth(0.5, 0.57, t) * (1 - smooth(0.64, 0.69, t))) * (1 - TOD.night);
   const envK = lerp(1, 0.18, TOD.night) * (1 - 0.55 * wxCover()) * (1 - 0.3 * lowSun);
   for (const m of ENV_MATS) m.envMapIntensity = m.userData.env * envK;
+  scene.environmentIntensity = envK;   // and what has no reflection of its own (a moored ship, the jumpers: they come later than fixEnv) takes the hour's too, or her sails glow white all night
   if (bloom) { bloom.strength = lerp(0.42, 0.95, TOD.night); bloom.threshold = lerp(0.88, 0.62, TOD.night); }
   weatherMood(t, time);   // cloud, rain, fog and storm over the hour’s light (weather.js)
 }

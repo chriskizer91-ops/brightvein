@@ -2,6 +2,8 @@
 
 Brightvein's own story, told in chapters: act one in `src/claim/story.js`, act two in `src/claim/acttwo.js`. Each chapter opens with a short scene, sets two or three goals you can see in the journal (top left; tap it for the whole story so far, the cast and their stories, the claim's days and mood, and the codex), and closes with a scene and a reward. Scenes pause the claim; tap to go on, or Skip.
 
+**Pacing** (`src/claim/pace.js`). The story speaks in the morning or by day: a chapter never opens or closes while Wildlight or jumpers are on the claim, at dusk or at night, or before the dawn report has been read. A chapter whose goals came true in the night closes the next morning, and the next chapter's opening follows straight on in the same scene. A goal that asks to see out a night is ticked at dawn, when the night is over. Goals count from the chapter's start (or are something you do, like paying a fee from the journal), so a chapter is never done the moment it opens. The clock's panel and the journal say when the next Bright Night is.
+
 Around the chapters, three more things keep the claim alive: each visitor who stays has **a story of their own** (`quests.js`), **days that are different** come up as small cards with a choice (`events.js`), and the claim has **a mood** (`mood.js`).
 
 Brightvein is set hundreds of years after Chris's other games. Its visitors borrow the looks and portraits of Envoi's and the Moon Faire's characters, but they're new people with new names and their own stories here. They visit in the chapters and can stay as crew. (In the code they still go by their art's ids: `io` is Tamsin, `sol` is Brisa, and so on; see `CAST_NAMES` in `story.js`.)
@@ -22,7 +24,7 @@ Two things want the claim's light:
 | Prologue | Stake the Claim | The founders arrive; the seam sings. | See out the first night | 40 shards; codex |
 | 1 | First Light | The town gets brighter, and more Wildlight come. | A Lens Tower; 250 shards; three nights | 100 shards; the Wildlight in the codex |
 | 2 | A Letter Under Seal | Tallow's courier drops a demand for a tithe. The founders won't pay. | Keep to level 2; take Tallow's prospect camp | 80 shards; Tallow in the codex |
-| 3 | The Nightjar | Tamsin Vey, a lamp-witch, and Brisa Hale, a convoy guard out of work since Tallow bought the Brass Road, come in at dusk on the Nightjar, drawn by the light. Brisa takes over the watch. | Give them both jobs; a night with them on the claim | They stay as crew |
+| 3 | The Nightjar | Tamsin Vey, a lamp-witch, and Brisa Hale, a convoy guard out of work since Tallow bought the Brass Road, come in on the Nightjar, drawn by the light. Brisa takes over the watch. | Give them both jobs; a night with them on the claim | They stay as crew |
 | 4 | Redspire | The jumpers' outpost on a red crag. Barnabus Teague (the old skyman who taught Tamsin to fly) and Nib Tolliver (the gnome who keeps her flying) arrive after. | Take Redspire; two ballistas | Barnabus and Nib join |
 | 5 | The Wickmoor | Tallow's supply galleon. Torvald Pike, a smith, wants the forge it was carrying. | Capture the Wickmoor; 400 shards | Torvald joins |
 | 6 | The Moon Faire | The Faire's painted ship tours in for a festival night, with its four Moons: Mirabel Quell (New), Rowan Thorne (Full), Hazel Brightwater (Waxing) and Clem Fennick (Waning). The Faire is an old travelling tradition by now, centuries older than its current troupe. | Light the sun beacon (Keep level 3); the festival night | Clem stays |
@@ -37,14 +39,16 @@ Two new faces: **Provost Lucan Marchbank** of the Exchange (polite, patient, cou
 
 | | Chapter | What happens | Goals | Reward |
 |---|---|---|---|---|
-| 9 | Silver Sails | A grey ship with silver sails: Marchbank says the Exchange held Tallow's notes, and with them his claim on every seam in the Ironspire, including this one. Two thousand shards, or a third of every tray for ever. Absalom's answer: a charter, so the land is the claim's by law. | 24 people on the claim; a Parlour in the Keep; 600 shards for the filing fee | 150 shards; the Exchange and the Ironspire Compact in the codex |
-| 10 | Charter Night | A settler argues for selling: two thousand shards is a lot of boots. The claim votes, and the Moon Faire's ship comes back for the night. | Mood 60 or more; 120 food; see out Charter Night (the Faire's music plays) | 200 shards; Brightvein is a free town (+5 mood for good, settlers come a little sooner) |
-| 11 | Hollowcrest | Juno Ferrars digs in on the dry flat-top across the gorge, on the Exchange's money. The Exchange's crews start raiding the claim by day under silver sails. Her survey rig, the Plumbline, has very long drills. | Take the Plumbline (a new raid); someone to the gorse moors and back; three Lens Towers | 220 shards; the maps were of Brightvein's deep seam, drawn from the side |
-| 12 | The Thinwatch's Oath | Seraphine tells the truth: every deep seam has a heart, the Heartlight. The Wildlight are its light, wandering, homesick; a Brightmaw is the heart reaching up to see who is digging. Take the heart and the seam goes grey, and the stone is worth more than a city. | The Thinwatch's book from the old-age ruins; a Bright Night's boss; a Drafting Loft in the Keep | 260 shards; the Heartlight and the oath in the codex; a letter from Tallow, retired, warning of the Grindstone |
-| 13 | Storm Season | A fortnight of Aether storms (three times as likely). Hollowcrest is wrecked and its people come over. | Two Lightning Rods; catch six bolts; 30 people on the claim | 260 shards; Juno saw the Grindstone come up the gorge |
-| 14 | The Long Bright Night | The Grindstone, the Exchange's dredge, drills for the heart under the south cliff. Every night is a Bright Night with the Warden of the Heart as its boss until it's calmed: it's stronger while the Grindstone drills, and takes half again as much harm while six people hold the mine. | Sink the Grindstone (a new raid); six people working the mine; bring down the Warden | 600 shards; the Exchange withdraws; Brightvein is a free town with a heart under it, asleep. The end of act two |
+| 9 | Silver Sails | A grey ship with silver sails: Marchbank says the Exchange held Tallow's notes, and with them his claim on every seam in the Ironspire, including this one. Two thousand shards, or a third of every tray for ever. Absalom's answer: a charter, so the land is the claim's by law. | 24 names on the charter roll (gathered by clerks working in the Keep, from the chapter's start); a Parlour in the Keep; pay the 600-shard filing fee (from the journal) | 100 shards, 3 Cut Glass and a module for the Keep; the Exchange and the Ironspire Compact in the codex |
+| 10 | Charter Night | A settler argues for selling: two thousand shards is a lot of boots. The claim votes, and the Moon Faire's ship comes back for the night. | Mood 60 or more; 120 food; see out Charter Night (the Faire's music plays) | 120 shards, 2 Heartstone and a Signed charm from the Faire; Brightvein is a free town (+5 mood for good, settlers come a little sooner) |
+| 11 | Hollowcrest | Juno Ferrars digs in on the dry flat-top across the gorge, on the Exchange's money. The Exchange's crews start raiding the claim by day under silver sails. Her survey rig, the Plumbline, has very long drills. | Take the Plumbline (a new raid); someone to the gorse moors and back; three Lens Towers | 120 shards, 4 Cut Glass and a Lark part from the Plumbline's stores; the maps were of Brightvein's deep seam, drawn from the side |
+| 12 | The Thinwatch's Oath | Seraphine tells the truth: every deep seam has a heart, the Heartlight. The Wildlight are its light, wandering, homesick; a Brightmaw is the heart reaching up to see who is digging. Take the heart and the seam goes grey, and the stone is worth more than a city. | The Thinwatch's book from the old-age ruins; a Bright Night's boss (the chapter brings its own Bright Night: the first night after it opens, then every other night until a boss is down); a Drafting Loft in the Keep | 150 shards, 3 Heartstone and a Signed weapon from the Thinwatch's chapter-house; the Heartlight and the oath in the codex; a letter from Tallow, retired, warning of the Grindstone |
+| 13 | Storm Season | A fortnight of Aether storms (three times as likely). Hollowcrest is wrecked, and four of its people wait at the Sky Dock. | Two Lightning Rods; catch six bolts; take in Hollowcrest's people (60 food, paid from the journal: they come up the bridge, and sleep on bedrolls by the hall fire until a bunk is free) | 150 shards, 4 Cut Glass, 2 Heartstone and a Signed Cloud Lens; Juno saw the Grindstone come up the gorge |
+| 14 | The Long Bright Night | The Grindstone, the Exchange's dredge, drills for the heart under the south cliff. Every night is a Bright Night with the Warden of the Heart as its boss until it's calmed: it's stronger while the Grindstone drills, and takes half again as much harm while six people hold the mine. | Sink the Grindstone (a new raid); six people working the mine; bring down the Warden | 400 shards, 4 Heartstone, 4 Cut Glass, a Signed Lark part and a Signed piece of gear; the Exchange withdraws; Brightvein is a free town with a heart under it, asleep. The end of act two |
 
 From chapter 11 until the Grindstone sinks, the Exchange's hired crews raid the claim by day, the way Tallow's jumpers did. The two new raid sites are in `src/sky/sites.js`; they only show in the Sky Dock's list once their chapter comes.
+
+Act two's chapters pay in materials, gear, modules and Lark parts as well as shards (a chapter's shards are less than half a day of the yards by then).
 
 ## The cast as crew
 
@@ -78,7 +82,7 @@ The two Masterworks are kept out of the random drop tables, so the stories are t
 
 ## Days that are different
 
-About half of all days, from day 3, something happens by day. It comes up as a small card: a picture (painted ones go in `assets/events/`; until then, the faces of the people in it), a few lines, and one or two choices with a real trade-off. Time waits while you choose. The result shows what it did, and it goes in the journal's days ("Day 12 · Wynn and Quentin married in the Hearth Hall"). The same card never comes twice in a row, each has a few days' rest before it can come again, and the amounts grow with the story.
+About one day in three, from day 3, something happens by day (never on a day a chapter opens or closes, or with a Bright Night coming). It comes up as a small card: a picture (painted ones go in `assets/events/`; until then, the faces of the people in it), a few lines, and one or two choices with a real trade-off. Time waits while you choose. The result shows what it did, and it goes in the journal's days ("Day 12 · Wynn and Quentin married in the Hearth Hall"). The same card never comes twice in a row, each has a few days' rest before it can come again, and the amounts grow with the story.
 
 | Event | From | The choice |
 |---|---|---|
@@ -177,6 +181,11 @@ half the next time; its boss doesn't come back (the Grindstone's wreck draws Exc
 now and then a **wanted jumper captain** turns up on the raid map for three days, in a ship that grows with the story
 (a cutter, then a brig, a frigate, a Man-o'-war) with escorts; bring her down before she runs for a big reward and her
 strongbox. Twelve of them, with names and nicknames (`WANTED` in `sites.js`).
+
+Act one's places open in their chapters (the camp in chapter 2, Redspire in 4, the Wickmoor in 5, the Chandlery in 8, and
+the convoy and the storm front in 3 and 7): before then they show on the raid map as "Opens in chapter N". Act two's are
+hidden until their chapter. The raid list says which ones carry Cut Glass, and the Shipyard says what you're short of
+for a ship or a refit, and where to find it.
 
 **What raids pay.** Crates opened at home with the Armory's raid tables (`RAIDS` in `src/claim/loot.js`): gear, modules,
 Lark parts, materials, now and then a Masterwork. A boss brought down the first time adds a Lark part or a module for

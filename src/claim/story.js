@@ -11,7 +11,9 @@
 // Act one (here) runs from the prologue to the Chandlery. Act two (acttwo.js) follows the money that backed Tallow,
 // the charter, a rival claim, what the deep seam really is, and the Long Bright Night. The cast's own stories are in
 // quests.js, the days' events in events.js and the claim's mood in mood.js; all of it is saved inside `story`.
-const STORY = { ch: 0, started: false, at: null, codex: [], done: [], queue: [], shown: null, voice: null };
+// ready: every goal is done and the closing scene is waiting for a quiet morning (pace.js); turnDay: the day a chapter
+// last opened or closed (no day event that day); paid: the goals paid for from the journal, by chapter and goal
+const STORY = { ch: 0, started: false, at: null, codex: [], done: [], queue: [], shown: null, voice: null, ready: false, turnDay: -1, paid: {} };
 
 // who can speak: the six founders (found among the claim's people by name), the cast, the Baron (by letter), and act
 // two's new faces (with a look, so a bust can be drawn until their painted portrait arrives; folk.js has their prompts).
@@ -69,10 +71,12 @@ const CODEX = {
 };
 
 // ---- the goals the chapters set (each: text, done(), and progress [have, need] where it helps)
-const sinceStart = k => (STORY.at ? (k === 'nights' ? GAME.nights - STORY.at.nights : 0) : 0);
+// Nights are counted when they're over, at dawn (paceNightsSeen in pace.js), so a night goal never closes a chapter at
+// dusk with the Wildlight still to come.
+const sinceStart = k => (STORY.at ? (k === 'nights' ? paceNightsSeen() - STORY.at.nights : 0) : 0);
 const raided = id => FLEET && FLEET.data.raids[id] && FLEET.data.raids[id].won > 0;
 const GOAL = {
-  nights: (n, text) => ({ text: text || `See out ${n === 1 ? 'the first night' : n + ' nights'}`, done: () => GAME.nights >= n, prog: () => [Math.min(n, GAME.nights), n] }),
+  nights: (n, text) => ({ text: text || `See out ${n === 1 ? 'the first night' : n + ' nights'}`, done: () => paceNightsSeen() >= n, prog: () => [Math.min(n, paceNightsSeen()), n] }),
   nightsHere: (n, text) => ({ text, done: () => sinceStart('nights') >= n, prog: () => [Math.min(n, sinceStart('nights')), n] }),
   shards: n => ({ text: `Have ${n} shards in the stores`, done: () => GAME.shards >= n, prog: () => [Math.min(n, Math.floor(GAME.shards)), n] }),
   build: (type, n, text) => ({ text, done: () => byType(type).length >= n, prog: () => [Math.min(n, byType(type).length), n] }),
@@ -81,6 +85,9 @@ const GOAL = {
   people: (n) => ({ text: `Have ${n} people on the claim`, done: () => GAME.villagers.length >= n, prog: () => [Math.min(n, GAME.villagers.length), n] }),
   ship: (ids, text) => ({ text, done: () => FLEET && ids.some(id => FLEET.data.ships[id].owned), prog: null }),
   jobs: (ids, text) => ({ text, done: () => ids.every(id => GAME.villagers.some(v => v.d.hero === id && v.d.job)), prog: () => [ids.filter(id => GAME.villagers.some(v => v.d.hero === id && v.d.job)).length, ids.length] }),
+  // something handed over from the journal (a fee, food for refugees): done once paid (storyPay in pace.js). then():
+  // what paying it does, as a scene's lines and what happens after; log: the line for the journal's days
+  pay: (cost, text, then = null, log = null) => ({ text, cost, then, log, done() { return !!STORY.paid[this.key]; }, prog: null }),
 };
 
 // ---- the chapters
@@ -128,7 +135,7 @@ const CHAPTERS = [
       ['odile', 'Then we’d better be brighter than he is.'],
     ],
     reward: { shards: 80, codex: ['tallow'] } },
-  { id: 'magpie', title: 'The Nightjar', line: 'A small black ship with a lantern on her bowsprit comes in at dusk.',
+  { id: 'magpie', title: 'The Nightjar', line: 'A small black ship with a lantern on her bowsprit comes in over the rim.',
     visit: { ship: 'magpie', cast: ['io', 'sol'] },
     open: [
       ['pip', 'Ship off the north rim! Small, black hull, a lantern on the bowsprit. She’s not one of Tallow’s.'],
@@ -229,11 +236,12 @@ const CHAPTERS = [
 // ---- saving: the chapters, and inside them act two's state, the cast's stories, the days' events and the mood.
 // A claim saved before any of those existed simply starts them fresh; one that finished act one goes on into act two.
 function storySave() {
-  return { ch: STORY.ch, started: STORY.started, at: STORY.at, codex: STORY.codex, done: STORY.done, voice: STORY.voice,
+  return { ch: STORY.ch, started: STORY.started, at: STORY.at, codex: STORY.codex, done: STORY.done, voice: STORY.voice, ready: STORY.ready, turnDay: STORY.turnDay, paid: STORY.paid,
     act: actSave(), quests: questsSave(), events: eventsSave(), mood: moodSave() };
 }
 function storyLoad(s) {
-  if (s) Object.assign(STORY, { ch: s.ch || 0, started: !!s.started, at: s.at || null, codex: s.codex || [], done: s.done || [], voice: s.voice ?? null });
+  if (s) Object.assign(STORY, { ch: s.ch || 0, started: !!s.started, at: s.at || null, codex: s.codex || [], done: s.done || [], voice: s.voice ?? null,
+    ready: !!s.ready, turnDay: s.turnDay ?? -1, paid: s.paid || {} });
   actLoad(s && s.act); questsLoad(s && s.quests); eventsLoad(s && s.events); moodLoad(s && s.mood);
   if (!s) return;
   // the cast keep their latest looks
@@ -292,6 +300,9 @@ function castLeave(ids) {
 function shipLeaves(kind) { const V = VISIT.ships[kind]; if (V) { scene.remove(V.s.root); delete VISIT.ships[kind]; } }
 
 // ---- the story's clock: open the chapter, watch its goals, close it
+// Scenes wait for a quiet hour (pace.js): a chapter opens and closes by day, never while Wildlight or jumpers are on
+// the claim, and once the dawn report has been read. A chapter whose goals all came true at night closes the next
+// morning (it stays done meanwhile: STORY.ready), and the next chapter's opening follows straight on in the same scene.
 let storyT = 0;
 function storyTick(dt) {
   if (!started || !BUILD.setupDone) return;
@@ -299,36 +310,45 @@ function storyTick(dt) {
   actFrame(dt);   // the day’s event card, the cast waiting at the Keep, the mood on the HUD (events.js, quests.js, mood.js)
   if ((storyT -= dt) > 0 || STORY.shown || EVT.card || (SKY && SKY.on) || BUILD.on || frontOpen()) return;   // not while the settings are open (title.js)
   storyT = 0.5;
-  if (STORY.queue.length) return playScene(STORY.queue.shift());
+  if (STORY.queue.length && paceCalm()) return playScene(STORY.queue.shift());   // the cast's scenes: once nothing is on the claim
   const C = CHAPTERS[STORY.ch]; if (!C) { journalHUD(); return; }
-  if (!STORY.started) {
-    STORY.started = true; STORY.at = { day: GAME.day, nights: GAME.nights, tally: { ...ACT.tally } };
-    if (C.visit) { if (C.visit.ship) visitShip(C.visit.ship); castArrive(C.visit.cast || []); }
-    if (C.ship) visitShip(C.ship);
-    if (C.onOpen) C.onOpen();
-    if (C.id === 'letter' || C.ship || (C.visit && C.visit.ship)) AUDIO.play('horn');
-    playScene({ lines: C.open, title: C.title, chapter: STORY.ch, act: C.actStart });
-    journalHUD(); return;
-  }
+  if (!STORY.started) { if (paceQuiet()) storyOpen(C); else journalHUD(); return; }
   journalHUD();
-  if (C.goals.every(g => g.done())) {
-    const R = C.reward || {};
-    if (C.visitAfter) castArrive(C.visitAfter.cast || []);
-    playScene({ lines: C.close, after: () => {
-      if (R.shards) GAME.shards += R.shards;
-      for (const k of R.codex || []) if (!STORY.codex.includes(k)) STORY.codex.push(k);
-      if (C.leave) castLeave(C.leave);
-      if (C.ship) shipLeaves(C.ship);
-      if (C.onClose) C.onClose();
-      STORY.done.push(C.id);
-      daysLog(`${C.actEnd ? 'The end of act ' + C.actEnd + ': ' : 'Chapter done: '}${C.title}.`, 'story');
-      toast(C.actEnd ? `<b>The end of act ${C.actEnd}.</b> ${esc(C.title)} is done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${CHAPTERS[STORY.ch + 1] ? '. The story goes on…' : '. More to come.'}`
-        : `<b>${esc(C.title)}</b>: chapter done${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${(R.crew || []).length ? ` · ${R.crew.map(castFirst).join(' and ')} join${R.crew.length > 1 ? '' : 's'} the crew` : ''}${(R.codex || []).length ? ' · new in the journal' : ''}.`);
-      AUDIO.play('chapter');
-      STORY.ch++; STORY.started = false; STORY.at = null; storyT = 6;
-      journalHUD(); saveGame();
-    } });
-  }
+  if (!STORY.ready && C.goals.every(g => g.done())) { STORY.ready = true; saveGame(); }
+  if (STORY.ready && paceQuiet()) storyClose(C);
+}
+function storyOpen(C) {
+  STORY.started = true; STORY.ready = false; STORY.turnDay = paceDayOf();
+  STORY.at = { day: GAME.day, nights: paceNightsSeen(), tally: { ...ACT.tally } };
+  if (C.visit) { if (C.visit.ship) visitShip(C.visit.ship); castArrive(C.visit.cast || []); }
+  if (C.ship) visitShip(C.ship);
+  if (C.onOpen) C.onOpen();
+  if (C.id === 'letter' || C.ship || (C.visit && C.visit.ship)) AUDIO.play('horn');
+  playScene({ lines: C.open, title: C.title, chapter: STORY.ch, act: C.actStart });
+  journalHUD();
+}
+function storyClose(C) {
+  const R = C.reward || {};
+  STORY.turnDay = paceDayOf();
+  if (C.visitAfter) castArrive(C.visitAfter.cast || []);
+  playScene({ lines: C.close, after: () => {
+    if (R.shards) GAME.shards += R.shards;
+    const got = paceReward(R);   // materials, Lark parts, modules, gear (pace.js)
+    for (const k of R.codex || []) if (!STORY.codex.includes(k)) STORY.codex.push(k);
+    if (C.leave) castLeave(C.leave);
+    if (C.ship) shipLeaves(C.ship);
+    if (C.onClose) C.onClose();
+    STORY.done.push(C.id);
+    daysLog(`${C.actEnd ? 'The end of act ' + C.actEnd + ': ' : 'Chapter done: '}${C.title}.`, 'story');
+    const more = `${R.shards ? ` · ${SHARD} ${R.shards}` : ''}${got.length ? ` · ${got.join(', ')}` : ''}`;
+    toast(C.actEnd ? `<b>The end of act ${C.actEnd}.</b> ${esc(C.title)} is done${more}${CHAPTERS[STORY.ch + 1] ? '. The story goes on…' : '. More to come.'}`
+      : `<b>${esc(C.title)}</b>: chapter done${more}${(R.crew || []).length ? ` · ${R.crew.map(castFirst).join(' and ')} join${R.crew.length > 1 ? '' : 's'} the crew` : ''}${(R.codex || []).length ? ' · new in the journal' : ''}.`);
+    AUDIO.play('chapter');
+    STORY.ch++; STORY.started = false; STORY.ready = false; STORY.at = null; storyT = 6;
+    journalHUD(); saveGame();
+    // the next chapter's opening follows on in the same sitting, rather than a second stop a few seconds later
+    const N = CHAPTERS[STORY.ch]; if (N && !EVT.card && paceQuiet()) { storyT = 0.5; storyOpen(N); }
+  } });
 }
 // what has happened since this chapter opened: a count of something the claim keeps a tally of (ACT.tally)
 const sinceCh = k => (ACT.tally[k] || 0) - ((STORY.at && STORY.at.tally && STORY.at.tally[k]) ?? (ACT.tally[k] || 0));
@@ -409,14 +429,17 @@ function journalHUD() {
   const el = $('#journal'), C = CHAPTERS[STORY.ch];
   if (!started || !BUILD.setupDone) { el.hidden = true; return; }
   let html = '';
-  if (C && STORY.started) html = `<b>${STORY.ch ? `Chapter ${STORY.ch}` : 'Prologue'} · ${esc(C.title)}</b>` + C.goals.map(g => { const ok = g.done(), p = g.prog && g.prog(); if (ok && g.seen === false && !g.rang) { g.rang = true; AUDIO.play('goal'); } g.seen = ok; return `<span class="${ok ? 'ok' : ''}"><i>${ok ? '✓' : '◇'}</i>${esc(g.text)}${p && !ok ? ` <em>${p[0]}/${p[1]}</em>` : ''}</span>`; }).join('');
+  if (C && STORY.started) html = `<b>${STORY.ch ? `Chapter ${STORY.ch}` : 'Prologue'} · ${esc(C.title)}</b>` + C.goals.map(g => {
+    const ok = STORY.ready || g.done(), p = g.prog && g.prog(), note = !ok && g.note && g.note(), pay = !ok && g.cost && canGive(g.cost);
+    if (ok && g.seen === false && !g.rang) { g.rang = true; AUDIO.play('goal'); } g.seen = ok;
+    return `<span class="${ok ? 'ok' : pay ? 'q ready' : ''}"><i>${ok ? '✓' : pay ? '◆' : '◇'}</i>${esc(g.text)}${p && !ok ? ` <em>${Math.floor(p[0])}/${p[1]}</em>` : ''}${note ? ` <em>${esc(note)}</em>` : ''}${pay ? ' <em>(tap to pay)</em>' : ''}</span>`; }).join('');
   html += questsHUD(!!html);
   if (!html) { el.hidden = true; return; }
   if (el.innerHTML !== html) el.innerHTML = html;
   el.hidden = false;
 }
 // tapping it opens the journal: at the cast's page if someone is waiting for a word or a gift, else the story
-const journalOpen = () => UI.open('journal', { tab: questsWaiting().length || questsGiveReady() ? 'cast' : 'story' });
+const journalOpen = () => UI.open('journal', { tab: (questsWaiting().length || questsGiveReady()) && !storyPayReady() ? 'cast' : 'story' });
 $('#journal').onclick = journalOpen;
 $('#journal').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); journalOpen(); } };
 UI.jtab = 'story';
@@ -440,7 +463,17 @@ UI.journal = function (body, ref) {
     if (actOf(i) !== act) { act = actOf(i); body.append(this.h(`<p class="eyebrow jr-act">Act ${act}</p>`)); }
     const cur = i === STORY.ch;
     body.append(this.h(`<h3>${i ? `Chapter ${i}` : 'Prologue'} · ${esc(C.title)}${cur ? '' : ' ✓'}</h3><p class="small">${esc(C.line)}</p>`));
-    if (cur && STORY.started) body.append(this.h(`<ul class="traits">${C.goals.map(g => { const p = g.prog && g.prog(), ok = g.done(); return `<li>${ok ? '✓ ' : ''}${esc(g.text)}${p && !ok ? ` (${p[0]} of ${p[1]})` : ''}</li>`; }).join('')}</ul>`));
+    if (cur && STORY.started) {
+      const ul = this.h(`<ul class="traits">${C.goals.map(g => { const p = g.prog && g.prog(), ok = STORY.ready || g.done(), note = !ok && g.note && g.note(); return `<li>${ok ? '✓ ' : ''}${esc(g.text)}${p && !ok ? ` (${Math.floor(p[0])} of ${p[1]})` : ''}${note ? ` · ${esc(note)}` : ''}</li>`; }).join('')}</ul>`).firstElementChild;
+      // a goal paid for from here: the filing fee, food for Hollowcrest's people (pace.js)
+      C.goals.forEach((g, gi) => {
+        if (!g.cost || STORY.ready || g.done()) return;
+        const can = canGive(g.cost), bt = document.createElement('button'); bt.type = 'button'; bt.className = 'btn' + (can ? ' primary' : '');
+        bt.disabled = !can; bt.textContent = `Pay ${giveText(g.cost)}`; bt.onclick = () => { storyPay(gi); this.refresh(); };
+        ul.children[gi].append(' ', bt);
+      });
+      body.append(ul);
+    }
   });
   if (STORY.ch >= CHAPTERS.length) body.append(this.h(`<p class="small jr-end">The story so far ends here: Brightvein is a free town, with a heart under it, asleep. More chapters are coming. Days on the claim go on, and so do the cast’s own stories.</p>`));
 };

@@ -37,9 +37,9 @@ function planNight(n) {
     : n % 5 === 0 && !seamBoss ? NIGHT.grudge : null;   // a boss that got away comes back on the next Bright Night
   const bright = n % 5 === 0 || seamBoss || !!SN;
   // the threat grows with the night count and with what the claim has to lose
-  const w = wealthK();
-  let budget = n <= 1 ? 3 : 2 + (n - 1) * 2.2 + w * (1 + n * 0.3) + (deep ? 3 : 0);
-  if (bright) budget *= SN ? SN.budgetK : 0.5;   // the boss is most of a Bright Night
+  const w = wealthK(), T = paceThreat(n);   // from chapter 8, harder with the claim's wealth and its nights (pace.js)
+  let budget = n <= 1 ? 3 : 2 + (n - 1) * 2.2 + w * (1 + n * 0.3) + (deep ? 3 : 0) + T.add;
+  if (bright) budget *= SN ? SN.budgetK : T.brightK;   // the boss is most of a Bright Night
   const share = [['glimmer', 1]];
   if (n >= 3) share.push(['flarehound', n >= 6 ? 1 : 0.6]);
   if (n >= (deep ? 4 : 6)) share.push(['lodestar', n >= 10 ? 0.5 : 0.3]);
@@ -47,7 +47,7 @@ function planNight(n) {
   const firstOf = n === 3 ? 'flarehound' : n === (deep ? 4 : 6) ? 'lodestar' : null;   // a new kind shows itself at least once
   if (firstOf) { units.push(firstOf); budget -= WL_KINDS[firstOf].cost; }
   const tot = share.reduce((s, x) => s + x[1], 0);
-  for (let guard = 0; budget > 0.5 && units.length < 34 && guard < 200; guard++) {
+  for (let guard = 0; budget > 0.5 && units.length < T.cap && guard < 200; guard++) {
     let r = R() * tot, k = share[0][0]; for (const [kk, wt] of share) { r -= wt; if (r <= 0) { k = kk; break; } }
     if (WL_KINDS[k].cost > budget + 0.6) k = 'glimmer';
     units.push(k); budget -= WL_KINDS[k].cost;
@@ -77,7 +77,7 @@ function planNight(n) {
   let boss = null;
   if (bright) {
     const kind = G ? G.kind : SN ? SN.kind : (seamBoss || deep || n >= 10) ? 'brightmaw' : 'lodestar', B = SN ? { ...BOSSES[SN.kind], ...SN } : BOSSES[kind];
-    const maxHp = G ? G.maxHp : Math.round(B.hp(n) * (SN ? SN.hpK : 1));
+    const maxHp = G ? G.maxHp : Math.round(B.hp(n) * (SN ? SN.hpK : T.bossK));   // the story's own nights set their boss's strength
     boss = { kind, name: G ? G.name : B.name, sub: B.sub, scale: B.scale, width: B.width, climb: B.climb, maxHp, hp: G ? Math.min(maxHp, Math.round(maxHp * (G.frac + 0.1))) : maxHp, from: SN ? SN.from : seamBoss && !G ? 'seam' : null, grudge: !!G };
     const wv = waves[Math.min(1, waves.length - 1)];
     wv.units.unshift({ kind, at: boss.from, boss });
@@ -105,11 +105,12 @@ function planNight(n) {
   if (wx === 'fog') line += ' In the fog the towers won’t see them until they’re close.';
   if (wx === 'storm') line += ' Lightning will strike the claim.';
   if (deep && !boss) line += ' Some will come up the mine shaft.';
-  return { n, deep, bright, boss, waves, counts, title, line, seamBoss, shown: false };
+  return { n, deep, bright, boss, waves, counts, title, line, seamBoss, shown: false, hpK: T.hpK };
 }
 
 // ----------------------------------------------------------------- dusk: name the night
 function nightDusk() {
+  beaconDusk();   // the sun beacon, if it's kept lit every night (pace.js)
   if (!NIGHT.plan || NIGHT.plan.n !== GAME.nights + 1) nightLookout(true);
   showBanner(NIGHT.plan);
   AUDIO.play('bell');
@@ -133,7 +134,7 @@ function nightBegin() {
   if (!P.shown) showBanner(P);
   if (P.seamBoss) NIGHT.seamWoke = true;
   if (P.boss && P.boss.grudge) NIGHT.grudge = null;
-  WL.night = { n, title: P.title, bright: P.bright, deep: P.deep, waves: P.waves.map(w => ({ ...w, units: w.units.slice(), next: w.t0, warned: false })),
+  WL.night = { n, title: P.title, bright: P.bright, deep: P.deep, hpK: P.hpK || 1, waves: P.waves.map(w => ({ ...w, units: w.units.slice(), next: w.t0, warned: false })),
     spawned: 0, downed: 0, drained: 0, lamps: 0, relit: 0, walls: 0, breaches: 0, wallHit: [], spent: 0, kinds: {}, dmg: {}, hurt: [], drops: [], mats: {}, dropShards: 0,
     boss: null, bossName: P.boss && P.boss.name, bossKind: P.boss && P.boss.kind, bossKilled: false, bossEscaped: false, shards0: GAME.shards, strikes: 0 };
 }
@@ -146,7 +147,7 @@ function nightWaves(N, dt) {
       const u = w.units.shift(); w.next += w.gap;
       const at = u.at === 'seam' ? 'seam' : w.center + (Math.random() - 0.5) * 2 * w.spread;
       if (u.boss) { const f = spawnWildlight(u.kind, at, { boss: true, hp: u.boss.hp, maxHp: u.boss.maxHp, scale: u.boss.scale, width: u.boss.width, climb: u.boss.climb, name: u.boss.name }); f.bossDef = u.boss; f.pulseCd = 6; f.chargeCd = 0; N.boss = f; bossBar(f, true); toast(`<b>${esc(u.boss.name)}</b> is climbing ${u.at === 'seam' ? 'the mine shaft' : `the ${w.side} cliffs`}!`, 'night'); }
-      else spawnWildlight(u.kind, at);
+      else { const f = spawnWildlight(u.kind, at); if (N.hpK > 1) { f.hp *= N.hpK; f.maxHp = f.hp; } }   // tougher as the claim grows (paceThreat)
       w.started = true;
     }
   });

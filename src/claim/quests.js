@@ -198,14 +198,15 @@ function questAccept(id, quiet = false) {
   playScene({ lines: q.ask, heading: `${q.who}’s story · ${q.title}`, after: start });
   return true;
 }
-function questStepDone(id) {
+function questStepDone(id, now = false) {
   const Q = QST[id], q = QUESTS[id], S = q.steps[Q.step];
   Q.step++; Q.at = { ...ACT.tally };
   AUDIO.play('goal');
   if (Q.step < q.steps.length) { toast(`<b>${esc(q.who)}’s story:</b> ${esc(S.short || S.text)} ✓`); journalHUD(); return; }
   Q.state = 'closing';   // the last scene plays, then the reward (a claim saved in between gets it when it loads)
   const sc = { lines: q.close, heading: `${q.who}’s story · ${q.title}`, after: () => questFinish(id) };
-  if (STORY.shown || EVT.card) STORY.queue.push(sc); else playScene(sc);
+  // its scene waits until nothing is on the claim (pace.js), unless it came of something handed over just now
+  if (STORY.shown || EVT.card || (!now && !paceCalm())) STORY.queue.push(sc); else playScene(sc);
 }
 function questFinish(id) {
   const Q = QST[id], q = QUESTS[id]; if (!Q || Q.state === 'done') return;
@@ -221,7 +222,7 @@ function questGive(id) {
   const Q = QST[id]; if (!Q || Q.state !== 'on') return false;
   const S = QUESTS[id].steps[Q.step]; if (!S || !S.give || !canGive(S.give)) return false;
   for (const [k, n] of Object.entries(S.give)) { if (k === 'shards') GAME.shards -= n; else if (k === 'food') GAME.food -= n; else GAME.mats[k] -= n; }
-  questStepDone(id); UI.refresh(); saveGame();
+  questStepDone(id, true); UI.refresh(); saveGame();
   return true;
 }
 // every so often: has anyone's current step come true?

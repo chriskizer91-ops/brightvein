@@ -448,7 +448,7 @@ UI.weather = function (body) {
   body.append(this.h(`<h2>Weather and nights</h2><p class="sub">Day ${GAME.day} · ${esc(PHASE_NAMES(GAME.t))}</p>`));
   body.append(this.h(`<div class="wx-row">${wxSvg(WEATHER.today)}<div><b>Today: ${esc(T.name)}</b><p>${esc(T.text)}</p></div></div>`));
   body.append(this.h(`<div class="wx-row">${wxSvg(WEATHER.next)}<div><b>Tomorrow: ${esc(X.name)}</b><p>${esc(X.text)}</p></div></div>`));
-  const n = GAME.nights + (WL.night ? 0 : 1), bright = Math.ceil(n / 5) * 5;
+  const n = GAME.nights + (WL.night ? 0 : 1), bright = paceNextBright();   // the fifth nights and the story's own (pace.js)
   const lines = [`${WL.night ? 'Tonight is' : 'Tonight will be'} night ${n}${WL.night && WL.night.title ? ': ' + esc(WL.night.title) : ''}.`];
   lines.push(bright === n ? '<b>Tonight is a Bright Night.</b> A boss climbs with the last wave.' : `The next Bright Night is night ${bright}, in ${bright - n} night${bright - n > 1 ? 's' : ''}.`);
   if (NIGHT.grudge) lines.push(`${esc(NIGHT.grudge.name)} got away. It will be back.`);

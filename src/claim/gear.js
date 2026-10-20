@@ -148,7 +148,9 @@ function itemLines(it) {
 }
 
 // ----------------------------------------------------------------- the economy, every frame
-const RATES = { mine1: 0.2, mine2: 0.34, charge: 0.3, food: 0.11, eat: 0.0055, recruit: 1 / 75, nightDrain: 0.05 };
+// yardLv: a yard's output by its level; thin: what a level-3 yard's burning lens charges in thin light; cut: each lens
+// cutter's share added to every tray (a balance pass in act two flattened the top of the curve: docs/story.md)
+const RATES = { mine1: 0.2, mine2: 0.34, charge: 0.3, food: 0.11, eat: 0.0055, recruit: 1 / 75, nightDrain: 0.05, yardLv: [0, 1, 1.2, 1.35], thin: 0.25, cut: 0.16 };
 function economy(dt) {
   const sun = TOD.sunlight, night = TOD.night;
   const sum = bid => workersOf(bid).reduce((s, v) => s + v.eff(), 0);
@@ -159,12 +161,12 @@ function economy(dt) {
   GAME.shards += dug.shards * dt;
   // charging in the yards
   let cut = 0; for (const b of byType('shop')) cut += sum(b.id) * (b.level >= 2 ? 1.3 : 1);
-  const cutBonus = (1 + 0.22 * cut) * (1 + modType('shop', 'cut') / 100);   // modules: the Diamond Grinding Wheel
+  const cutBonus = (1 + RATES.cut * cut) * (1 + modType('shop', 'cut') / 100);   // modules: the Diamond Grinding Wheel
   let charged = 0;
   for (const b of Object.values(TOWN.b)) {
     if (b.type !== 'yard' || b.level < 1) continue;
-    const tend = sum(b.id), mult = b.level >= 3 ? 1.5 : b.level >= 2 ? 1.25 : 1;
-    const light = yardLight(b, (b.level >= 3 ? Math.max(sun, 0.35 * (1 - night)) : sun) * wxSun(b));   // cloud and rain slow it (weather.js); a Cloud Lens wins some back
+    const tend = sum(b.id), mult = RATES.yardLv[b.level] || 1;
+    const light = yardLight(b, (b.level >= 3 ? Math.max(sun, RATES.thin * (1 - night)) : sun) * wxSun(b));   // cloud and rain slow it (weather.js); a Cloud Lens wins some back
     let want = tend * RATES.charge * mult * light * dt * (castPerk('tock') ? 1.2 : 1) * yardBoost(b);   // modules: mirrors, gimbals, bees
     want = Math.min(want, GAME.ore);
     GAME.ore -= want; charged += want * cutBonus;
@@ -199,6 +201,7 @@ function recruitArrives() {
   const M = TOWN.b.mast, at = M.worldPos(0, 14.25, 0.6);
   const v = addVillager(d, at);
   v.where = 'mast'; v.plan = [{ type: 'climb', to: M.worldPos(0, 0, 2.2), then: () => v.where = 'surface' }];
+  autoAssign();   // straight to the trade they'd rather do, if there's room (the job starts once they're down the mast)
   const best = Object.entries(d.stats).sort((a, b) => b[1] - a[1])[0][0];
   toast(`A courier sets down <b>${d.name}</b>, strong in ${STAT_NAMES[best]}.`);
   AUDIO.play('horn');

@@ -286,16 +286,19 @@ function birthdayFor() {
   return ok.length ? pickOne(ok) : null;
 }
 
-// ---- rolling the day's event: about half of all mornings, from day 3, at a random hour before mid-afternoon
+// ---- rolling the day's event: about a third of all mornings, from day 3, at a random hour before mid-afternoon. Never
+// on a day with a Bright Night coming, and it gives way if a chapter opens or closes that day (pace.js), so the story,
+// the night and a card don't all land at once.
 function eventsNewDay() {
   EVT.today = null;
   if (GAME.day < 3 || !BUILD.setupDone) return;
   const foretold = EVT.next && EVT.next.day === GAME.day ? EVT.next.id : null;
   EVT.next = null;
-  const id = foretold && evCan(EVENTS.find(e => e.id === foretold)) ? foretold : Math.random() < 0.55 ? evPick() : null;
+  const bright = paceBright(paceNightsSeen() + 1);
+  const id = bright ? null : foretold && evCan(EVENTS.find(e => e.id === foretold)) ? foretold : Math.random() < PACE.eventDays ? evPick() : null;
   if (id) EVT.today = { id, at: 0.1 + Math.random() * 0.3 };
   // Clem's cards: tomorrow's, read the morning before
-  if (cardsOn()) { const n = Math.random() < 0.55 ? evPick([id]) : null; EVT.next = n ? { day: GAME.day + 1, id: n } : { day: GAME.day + 1, id: null }; }
+  if (cardsOn()) { const n = Math.random() < PACE.eventDays && !paceBright(paceNightsSeen() + 2) ? evPick([id]) : null; EVT.next = n ? { day: GAME.day + 1, id: n } : { day: GAME.day + 1, id: null }; }
 }
 function evCan(e) { return !!e && STORY.ch >= (e.min || 0) && STORY.ch <= (e.max ?? 99) && (!e.when || e.when()); }
 function evPick(avoid = []) {
@@ -316,7 +319,8 @@ function evQuiet() {
 function eventsFrame() {
   const T = EVT.today; if (!T || T.fired) return;
   if (GAME.t > 0.58) { EVT.today = null; return; }   // the day got away: it never happened
-  if (GAME.t >= T.at && evQuiet()) { T.fired = true; eventFire(T.id); }
+  if (paceStoryDay()) { EVT.today = null; return; }   // a chapter turns today: the story has the day (pace.js)
+  if (GAME.t >= T.at && evQuiet()) { T.fired = true; EVT.firedAt = claimNow(); eventFire(T.id); }
 }
 
 // ---- the card

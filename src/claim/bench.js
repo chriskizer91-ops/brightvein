@@ -158,7 +158,8 @@ function finishJob(J) {
     for (const [k, n] of Object.entries(J.yield)) GAME.mats[k] = (GAME.mats[k] || 0) + n;
     for (const c of J.cells) GAME.cells[c] = (GAME.cells[c] || 0) + 1;
     msg = `Odile breaks down ${J.items.length === 1 ? 'the ' + esc(J.items[0].name) : J.items.length + ' pieces'}: <b>${esc(matLine(J.yield)) || 'nothing worth keeping'}</b>${J.cells.length ? `, and ${J.cells.length} cell${J.cells.length > 1 ? 's' : ''} back in the box` : ''}.`;
-  } else if (!it && J.kind !== 'craft') { ok = false; msg = 'The piece went missing from the bench.'; }
+  } else if (J.kind === 'commission') msg = commissionFinish(J, p);   // a Masterwork made to order (pace.js)
+  else if (!it && J.kind !== 'craft') { ok = false; msg = 'The piece went missing from the bench.'; }
   else if (J.kind === 'overhaul') {
     if (Math.random() < J.fail) { ok = false; const back = Math.floor(J.cost.shards / 2); GAME.shards += back; msg = `The +${J.to} didn’t take on the <b>${esc(it.name)}</b>. ${matLine(J.cost.materials) ? 'The ' + esc(matLine(J.cost.materials)) + ' is spent; ' : ''}${back} shards come back. It’s still +${J.to - 1}.`; }
     else { it.overhaul = J.to; msg = `The <b style="color:${rarityOf(it).color}">${esc(it.name)}</b> is now <b>+${J.to}</b>.`; if (x.where === 'fitted') fitChanged(buildingById(x.id)); }
@@ -404,6 +405,7 @@ function benchCraftPane(pane) {
   }
   if (!GAME.blueprints.length) l.append(this.h(`<p class="small">No blueprints yet. Some drops teach the blueprint of what they are, and the miners turn them up in the spoil.</p>`));
   pane.append(l);
+  paceCommissionPane(this, pane);   // act two: a Masterwork made to order (pace.js)
 }
 // a line for the workshop's own panel: the bench, and what it's doing
 UI.benchLink = function (body, b) {

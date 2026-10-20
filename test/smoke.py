@@ -350,18 +350,63 @@ with sync_playwright() as p:
     check("a minute of play doesn't pile up sounds", r['state'] == 'running' and r['voices'] < 72 and r['persist'] < 200, json.dumps(r))
     # act two: a claim that has finished act one goes on into act two (the Chandlery's closing scene, then a pause, then
     # chapter 9's opening under an "Act two" heading, and its goals in the journal)
+    # (the story speaks by day, with the dawn report read: pace.js)
     r = pg.evaluate('''(() => { const B = __bv, out = {};
       for (let i = 0; i < 60 && B.STORY.shown; i++) B.talkNext(); B.eventClose();
-      B.STORY.ch = 8; B.STORY.started = true; B.STORY.at = { day: B.GAME.day, nights: B.GAME.nights, tally: { ...B.ACT.tally } };
+      const dawn = document.getElementById('dawn'); if (dawn) dawn.hidden = true; B.EVT.firedAt = null;
+      if (B.GAME.t > 0.55 || B.GAME.t < 0.05 || B.WL.night) B.skipTo(0.3);
+      B.STORY.ch = 8; B.STORY.started = true; B.STORY.ready = false; B.STORY.at = { day: B.GAME.day, nights: B.GAME.nights, tally: { ...B.ACT.tally } };
       B.FLEET.data.ships.brig.owned = true; B.FLEET.data.raids.citadel.won = Math.max(1, B.FLEET.data.raids.citadel.won);
       B.storyTick(10); out.closing = !!B.STORY.shown;
-      for (let i = 0; i < 60 && B.STORY.shown; i++) B.talkNext();
-      B.storyTick(10); out.title = B.STORY.shown ? document.getElementById('talk-title').textContent : null;
-      out.speakers = []; for (let i = 0; i < 60 && B.STORY.shown; i++) { out.speakers.push(document.getElementById('talk-name').textContent); B.talkNext(); }
+      const titles = [], speakers = [];
+      for (let k = 0; k < 2; k++) {   // the Chandlery's close, and act two's opening straight after it (or on the next tick)
+        for (let i = 0; i < 200 && B.STORY.shown; i++) { const t = document.getElementById('talk-title').textContent; if (t && !titles.includes(t)) titles.push(t); speakers.push(document.getElementById('talk-name').textContent); B.talkNext(); }
+        B.storyTick(10);
+      }
+      out.title = titles.find(t => /Act two/.test(t)) || titles.join(' | '); out.speakers = [...new Set(speakers)].join(', ');
       out.ch = B.STORY.ch; out.started = B.STORY.started; B.journalHUD(); out.journal = document.getElementById('journal').textContent;
-      out.speakers = [...new Set(out.speakers)].join(', ');
       return out; })()''')
     check('act two begins after the Chandlery', r['closing'] and r['ch'] == 9 and r['started'] and 'Act two' in (r['title'] or '') and 'Silver Sails' in r['journal'] and 'Marchbank' in r['speakers'], json.dumps(r))
+    # pacing (pace.js): a chapter's goal counts from its start (chapter 9's charter roll is gathered by the clerks after it
+    # opens, however many people the claim has) and its fee is paid from the journal; a night goal is done at dawn, not
+    # at dusk, and the story holds its scenes through the night; act one's raid places open in their chapters; no day
+    # event lands on a day a chapter turns
+    r = pg.evaluate('''(() => { const B = __bv, G = B.GAME, out = {}, C9 = B.CHAPTERS[9];
+      const talk = () => { for (let i = 0; i < 300 && B.STORY.shown; i++) B.talkNext(); }, dawnOff = () => { const d = document.getElementById('dawn'); if (d) d.hidden = true; };
+      out.roll0 = C9.goals[0].prog(); out.people = G.villagers.length; out.rollDone0 = C9.goals[0].done();
+      const clerks = G.villagers.filter(v => !v.d.exp && !v.d.study && v.where !== 'ship').sort((a, b) => B.statOf(b, 'R') - B.statOf(a, 'R')).slice(0, 2);
+      for (const v of clerks) B.assignJob(v, 'keep');
+      B.skipTo(0.45); out.roll1 = C9.goals[0].prog();
+      G.shards += 700; const s0 = G.shards; out.payReady = B.storyPayReady(); out.paid = B.storyPay(2); out.fee = Math.round(s0 - G.shards); out.feeDone = C9.goals[2].done();
+      // chapter 10, Charter Night: see the night out
+      talk(); B.EVT.firedAt = null; for (const f of B.WL.list) if (!f.dead && !f.air) f.die(false);
+      B.STORY.ch = 10; B.STORY.started = false; B.STORY.ready = false; B.storyTick(10); talk();
+      const C = B.CHAPTERS[10], night = C.goals[2];
+      out.opened10 = B.STORY.ch === 10 && B.STORY.started;
+      B.skipTo(0.75); B.STORY.ready = true; B.storyTick(10);
+      out.dusk = { nightOn: !!B.WL.night, goal: night.done(), scene: !!B.STORY.shown, ch: B.STORY.ch };
+      B.skipTo(0.975); dawnOff(); for (const f of B.WL.list) if (!f.dead && !f.air) f.die(false);   // a boss going back down the cliff would hold the story too
+      G.food = Math.max(G.food, 300); B.MOOD.v = 90; B.STORY.ready = false; B.storyTick(10);
+      out.dawn = { goal: night.done(), closing: !!B.STORY.shown && B.STORY.ch === 10 }; talk();
+      out.ch = B.STORY.ch;
+      // the raid places
+      const R = B.FLEET.data.raids, won = Object.fromEntries(Object.keys(R).map(k => [k, R[k].won])); for (const k of Object.keys(R)) R[k].won = 0;   // as a claim that hasn't raided yet
+      const site = (id, ch) => { const was = B.STORY.ch; B.STORY.ch = ch; const L = B.yardSites().find(x => x.s.id === id); B.STORY.ch = was; return L ? (L.opens ? 'opens ' + L.opens : L.locked ? 'locked' : 'open') : 'hidden'; };
+      out.sites = { camp1: site('camp', 1), camp2: site('camp', 2), redspire3: site('outpost', 3), chandlery7: site('citadel', 7), plumbline10: site('survey', 10) };
+      const was = B.STORY.ch; B.STORY.ch = 1; B.UI.open('dock', { tab: 'raids' }); out.row = ([...document.querySelectorAll('#panel-body .li.raid')].find(e => /prospect camp/.test(e.textContent)) || {}).textContent; B.UI.close(); B.STORY.ch = was;
+      for (const k of Object.keys(R)) R[k].won = won[k];
+      // a day event on a day a chapter turns gives way; on an ordinary day it comes up
+      B.skipTo(0.2); talk(); B.eventClose(); dawnOff(); B.EVT.firedAt = null;
+      B.STORY.started = true; B.STORY.ready = false; B.STORY.turnDay = G.day; B.EVT.today = { id: 'mail', at: 0.1 }; B.actFrame(0.1);
+      out.chapterDay = { today: B.EVT.today, card: !!B.EVT.card };
+      B.STORY.turnDay = -1; B.EVT.today = { id: 'mail', at: 0.1 }; B.actFrame(0.1); out.plainDay = !!B.EVT.card; B.eventChoose(0); B.eventClose();
+      B.STORY.ch = 9; B.STORY.started = true; B.STORY.ready = false;   // back in chapter 9 for the checks after this
+      return out; })()''')
+    check("a chapter's goal counts from its start: the charter roll begins at 0, whatever the claim's size", r['roll0'][0] == 0 and not r['rollDone0'] and r['roll1'][0] > 0, json.dumps({k: r[k] for k in ('roll0', 'people', 'roll1')}))
+    check('the filing fee is paid from the journal', r['payReady'] and r['paid'] and r['fee'] == 600 and r['feeDone'], json.dumps({k: r[k] for k in ('payReady', 'paid', 'fee', 'feeDone')}))
+    check('a night goal is done at dawn, not dusk, and the story waits for the morning', r['opened10'] and r['dusk']['nightOn'] and not r['dusk']['goal'] and not r['dusk']['scene'] and r['dusk']['ch'] == 10 and r['dawn']['goal'] and r['dawn']['closing'] and r['ch'] == 11, json.dumps({k: r[k] for k in ('opened10', 'dusk', 'dawn', 'ch')}))
+    check('the raid places open in their chapters', r['sites'] == {'camp1': 'opens 2', 'camp2': 'open', 'redspire3': 'opens 4', 'chandlery7': 'opens 8', 'plumbline10': 'hidden'} and 'Opens in chapter 2' in (r['row'] or ''), json.dumps({k: r[k] for k in ('sites', 'row')}))
+    check("no day event on a day a chapter turns", r['chapterDay']['today'] is None and not r['chapterDay']['card'] and r['plainDay'], json.dumps({k: r[k] for k in ('chapterDay', 'plainDay')}))
     # a day event: its card comes up (time waits), a choice does what it says, and it goes in the journal's days
     r = pg.evaluate('''(() => { const B = __bv, out = {}; B.eventClose();
       B.GAME.shards += 500; const s0 = B.GAME.shards, n0 = B.GAME.stash.length;

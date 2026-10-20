@@ -9,8 +9,11 @@
 // Also here: ACT, the tallies the story and the cast's stories count from (nights, bosses, trips, bolts, events), and
 // the two ticks that keep the days going: lifeTick (game time, from main.js) and actFrame (every frame, from storyTick).
 const ACT_TWO = 9;
-const ACT = { tally: { nights: 0, lodestar: 0, bosses: 0, brightmaws: 0, events: 0, bolts: 0, trip0: 0, trip1: 0, trip2: 0, trip3: 0 },
-  charter: false, wardenDown: false, lastNight: 0, lastStorm: -99, convoy: null, offerDay: null, dayCharge: 0, day: 0, lastRecruit: 0, checkT: 0, rods: new WeakMap() };
+// oathNight: chapter 12's own Bright Night; offerDue: a new day, and someone in the cast may want a word once the
+// morning comes; beacon: the sun beacon fed for a night, and whether it's kept lit every night (pace.js)
+const ACT = { tally: { nights: 0, lodestar: 0, bosses: 0, brightmaws: 0, events: 0, bolts: 0, trip0: 0, trip1: 0, trip2: 0, trip3: 0, roll: 0 },
+  charter: false, wardenDown: false, lastNight: 0, lastStorm: -99, convoy: null, offerDay: null, dayCharge: 0, day: 0, lastRecruit: 0, checkT: 0, rods: new WeakMap(),
+  oathNight: null, offerDue: false, beacon: null };
 
 // ---- act two's new faces (their looks and picture prompts are in folk.js, FOLK_OTHERS)
 WHO.marchbank = { name: FOLK_OTHERS['provost-marchbank'].name, portrait: 'provost-marchbank', look: FOLK_OTHERS['provost-marchbank'].look };
@@ -59,7 +62,9 @@ Object.assign(GOAL, {
   food: n => ({ text: `Have ${n} food in the stores`, done: () => GAME.food >= n, prog: () => [Math.min(n, Math.floor(GAME.food)), n] }),
   shardsT: (n, text) => ({ text, done: () => GAME.shards >= n, prog: () => [Math.min(n, Math.floor(GAME.shards)), n] }),
   trip: (z, text) => ({ text, done: () => sinceCh('trip' + z) >= 1, prog: null }),
-  boss: text => ({ text, done: () => sinceCh('bosses') >= 1, prog: null }),
+  boss: text => ({ text, done: () => sinceCh('bosses') >= 1, prog: null, note: paceBrightNote }),
+  // names gathered by the clerks since the chapter opened (lifeTick): the charter roll
+  roll: (n, text) => ({ text, done: () => sinceCh('roll') >= n, prog: () => [Math.min(n, Math.floor(sinceCh('roll'))), n] }),
   bolts: (n, text) => ({ text, done: () => sinceCh('bolts') >= n, prog: () => [Math.min(n, sinceCh('bolts')), n] }),
   mineCrew: (n, text) => ({ text, done: () => mineCrew() >= n, prog: () => [Math.min(n, mineCrew()), n] }),
   warden: text => ({ text, done: () => ACT.wardenDown, prog: null }),
@@ -80,14 +85,15 @@ CHAPTERS.push(
       ['absalom', 'There is one thing no bank can buy: a charter. Brightvein, filed under the Ironspire Compact as a free town. Then the land is ours by law, not just by lance.'],
       ['absalom', 'It needs a Parlour to meet in, enough people to count as a town, and a filing fee. The fee is large. Lawyers are expensive. I have met several.'],
     ],
-    goals: [GOAL.peopleT(24, 'Have 24 people on the claim: enough to count as a town'), GOAL.room('R', 'Furnish a Parlour in the Keep to meet in (Keep › an empty room)'), GOAL.shardsT(600, 'Have 600 shards for the filing fee')],
+    goals: [GOAL.roll(24, 'Gather 24 names for the charter roll: clerks at work in the Keep'), GOAL.room('R', 'Furnish a Parlour in the Keep to meet in (Keep › an empty room)'),
+      GOAL.pay({ shards: 600 }, 'Pay the 600-shard filing fee (tap the journal)', null, 'Paid the charter’s filing fee: 600 shards.')],
     close: [
       ['absalom', 'The charter. Drafted, stamped, and stamped again for luck. Now the whole claim has to vote on it.'],
       ['ledger', 'A vote. How charming. Do let me know how it turns out. I shall be counting. — L. M., for the Gilded Exchange'],
       ['hesper', 'He’s going to be trouble.'],
       ['sol', 'He’s already trouble. He’s just polite about it.'],
     ],
-    reward: { shards: 150, codex: ['exchange', 'charter'] } },
+    reward: { shards: 100, mats: { glass: 3 }, module: { building: 'hall', rarity: 'calibrated' }, from: 'the charter office', codex: ['exchange', 'charter'] } },
   { id: 'charter', title: 'Charter Night', line: 'The claim votes on its charter, and the Moon Faire comes back to see it done.', festival: true,
     visit: { ship: 'faire', cast: ['jester', 'ranger', 'herbal'] },
     open: [
@@ -110,7 +116,7 @@ CHAPTERS.push(
     ],
     leave: ['jester', 'ranger', 'herbal'],
     onClose() { ACT.charter = true; moodKeep('charter', 5, 'Brightvein is a free town'); },
-    reward: { shards: 200, codex: ['vote'] } },
+    reward: { shards: 120, mats: { heartstone: 2 }, gear: { slot: 'charm', rarity: 'signed' }, from: 'the Moon Faire, for Charter Night', codex: ['vote'] } },
   { id: 'hollowcrest', title: 'Hollowcrest', line: 'A rival claim opens across the gorge, with the Exchange’s money behind it.',
     open: [
       ['pip', 'Smoke to the east! Somebody’s dug in on Hollowcrest, the flat-top across the gorge.'],
@@ -131,7 +137,7 @@ CHAPTERS.push(
       ['juno', 'Neighbours. Fine. But my lamps will still be brighter.'],
       ['halcyon', 'These marks on the deepest map. The Thinwatch drew marks like these. They are not after your sunstone. They are after what is under it.'],
     ],
-    reward: { shards: 220, codex: ['hollowcrest', 'survey'] } },
+    reward: { shards: 120, mats: { glass: 4 }, lark: { rarity: 'calibrated' }, from: 'the Plumbline’s stores', codex: ['hollowcrest', 'survey'] } },
   { id: 'oath', title: 'The Thinwatch’s Oath', line: 'Seraphine tells the claim what the Thinwatch really kept watch over.',
     open: [
       ['halcyon', 'I owe you the truth. The Thinwatch did not only hunt Brightmaws. We kept watch over what they come from.'],
@@ -145,6 +151,9 @@ CHAPTERS.push(
       ['halcyon', 'Our chapter-house stood in the old ruins below the moors. Our book was kept there. If it is still there, it will say how we stopped them before.'],
       ['odile', 'And that hum I hear at night is one note, over and over. Give me a room to work in, and I’ll find it.'],
     ],
+    // the heart reaches up: a Bright Night of the chapter's own, the first night after it opens (and every other night
+    // until its boss is down: storyNight), rather than waiting for the fifth-night cycle
+    onOpen() { ACT.oathNight = paceNightsSeen() + 1; if (!WL.night) { NIGHT.plan = null; NIGHT.markers = []; } },
     goals: [GOAL.trip(2, 'Bring the Thinwatch’s book home from the old ruins (send someone into the wilds)'), GOAL.boss('Bring down a Bright Night’s boss, and see the heart reach up'), GOAL.room('E', 'Furnish a Drafting Loft in the Keep, for Odile to work out the note')],
     close: [
       ['halcyon', 'The book. Water-stained, but whole. Here is the oath: dig no deeper than the light allows, and take nothing from the heart.'],
@@ -154,7 +163,7 @@ CHAPTERS.push(
       ['hesper', 'Tallow, warning us. The world’s gone strange.'],
       ['corwin', 'Stranger every day.'],
     ],
-    reward: { shards: 260, codex: ['heartlight', 'oath'] } },
+    reward: { shards: 150, mats: { heartstone: 3 }, gear: { slot: 'hand', rarity: 'signed' }, from: 'the Thinwatch’s chapter-house', codex: ['heartlight', 'oath'] } },
   { id: 'storms', title: 'Storm Season', line: 'The Aether storm season climbs the Ironspire, and Hollowcrest is in its path.', season: true,
     open: [
       ['pip', 'The sky’s gone purple all the way to the coast. That’s not a storm. That’s the season.'],
@@ -166,12 +175,17 @@ CHAPTERS.push(
     ],
     onOpen() {
       if (WEATHER.today !== 'storm') { WEATHER.next = 'storm'; weatherHUD(true); }
-      // the first of Hollowcrest's people come up the bridge
-      const n = Math.min(2, Math.max(0, totalBeds() - bedsUsed())), D0 = LAYOUT.dock;
-      for (let i = 0; i < n; i++) { const d = makePerson(mulberry((Math.random() * 1e9) | 0)); const v = addVillager(d, new THREE.Vector3(D0.x - 8 + Math.random() * 2, 0, D0.z + 6 + Math.random() * 2)); v.replan = true; }
-      if (n) { autoAssign(); setTimeout(() => toast(`${n === 1 ? 'One' : 'Two'} of Hollowcrest’s people come up the bridge, soaked through.`), 1500); }
+      // Hollowcrest's people wait at the Sky Dock for the claim to take them in: the third goal, paid from the journal
     },
-    goals: [GOAL.build('rod', 2, 'Build two Lightning Rods'), GOAL.bolts(6, 'Catch six bolts of lightning with the rods'), GOAL.peopleT(30, 'Take in Hollowcrest’s people: 30 on the claim')],
+    goals: [GOAL.build('rod', 2, 'Build two Lightning Rods'), GOAL.bolts(6, 'Catch six bolts of lightning with the rods'),
+      GOAL.pay({ food: 60 }, 'Take in four of Hollowcrest’s people, waiting at the Sky Dock: soup and blankets (60 food, tap the journal)', () => ({
+        lines: [
+          ['juno', 'Four of mine. Two miners, a cook, and a lad who says he can fix anything. He can’t.'],
+          ['marigold', 'Soup first. Then blankets. Then we’ll see about anything.'],
+          ...(totalBeds() - bedsUsed() < 4 ? [['hesper', 'The Keep’s full to the rafters. Bedrolls by the hall fire, then, until a bunk comes free.']] : []),
+          ['juno', 'Thank you. I won’t forget it. I’ll try to, but I won’t.'],
+        ],
+        after: () => paceRefugees(4) }))],
     close: [
       ['juno', 'Your rods caught more lightning than my whole claim ever dug. I’m not saying that out loud again.'],
       ['juno', 'One more thing. The Exchange’s dredge came up the gorge in the storm, low, with no lights. The Grindstone. A ship with a drill on her bow the size of a lens tower.'],
@@ -179,7 +193,7 @@ CHAPTERS.push(
       ['hesper', 'When?'],
       ['juno', 'The next clear night. They’ll want the stars to steer by.'],
     ],
-    reward: { shards: 260, codex: ['storms', 'grindstone'] } },
+    reward: { shards: 150, mats: { glass: 4, heartstone: 2 }, module: { id: 'cloud-lens', rarity: 'signed' }, from: 'Juno, for Hollowcrest’s people', codex: ['storms', 'grindstone'] } },
   { id: 'longnight', title: 'The Long Bright Night', line: 'The Grindstone drills for the heart, and every Wildlight in the Ironspire wakes.', longNight: true, actEnd: 'two',
     open: [
       ['pip', 'The cliff’s shaking! Something’s drilling into the rock under the south face!'],
@@ -204,7 +218,7 @@ CHAPTERS.push(
       ['absalom', 'Stamped.'],
     ],
     onClose() { moodAdd('longnight', 15, 3, 'The Long Bright Night is over'); },
-    reward: { shards: 600, codex: ['warden', 'freetown'] } },
+    reward: { shards: 400, mats: { heartstone: 4, glass: 4 }, lark: { rarity: 'signed' }, gear: { rarity: 'signed' }, from: 'the Grindstone’s wreck', codex: ['warden', 'freetown'] } },
 );
 
 // ---- the Long Bright Night: while chapter 14 is open, every night is a Bright Night with the Warden as its boss,
@@ -213,7 +227,13 @@ CHAPTERS.push(
 const WARDEN = { name: 'The Warden of the Heart', sub: 'the seam’s first light, woken by the Grindstone · it charges the wall and drinks every lamp' };
 function storyNight(n) {
   const C = CHAPTERS[STORY.ch];
-  if (!C || !C.longNight || !STORY.started || ACT.wardenDown) return null;
+  if (!C || !STORY.started) return null;
+  // chapter 12: the heart reaches up. The first night after the chapter opens is a Bright Night with a Brightmaw, and
+  // every other night after it until a boss is down (one that gets away comes back hurt, as a grudge does)
+  if (C.id === 'oath' && ACT.oathNight && n >= ACT.oathNight && (n - ACT.oathNight) % 2 === 0 && sinceCh('bosses') < 1)
+    return { title: 'The heart reaches up', kind: 'brightmaw', name: BOSSES.brightmaw.name, sub: BOSSES.brightmaw.sub, hpK: paceThreat(n).bossK, from: null, budgetK: 0.6,
+      line: 'Seraphine was right. Something huge is climbing toward the lights tonight, looking for whoever is digging. Bring it down, and see what it is.' };
+  if (!C.longNight || ACT.wardenDown) return null;
   const sunk = raided('dredge');
   return { title: 'The Long Bright Night', kind: 'brightmaw', name: WARDEN.name, sub: WARDEN.sub, hpK: sunk ? 1.5 : 2.2, scale: 3.7, width: 3.1, from: 'seam', budgetK: 0.9,
     line: sunk ? 'The Grindstone is sunk, but the heart is awake. The Warden is climbing the mine shaft, and every Wildlight in the Ironspire is climbing with it. Hold the mine, and ring the note.'
@@ -224,6 +244,7 @@ function storyNight(n) {
 function wlHarmK(f) {
   let k = castGift('halcyon', 1.2, 1.33);
   if (f && f.name === WARDEN.name && mineCrew() >= 6) k *= 1.5;
+  if (beaconLit() && f && !f.air) k *= 1.25;   // the sun beacon, fed with ore for the night (pace.js)
   return k;
 }
 // the storm season: storms three times as likely while chapter 13 is open
@@ -245,11 +266,15 @@ function lifeTick(dt) {
   const R = NIGHT.last; if (R && R.n > ACT.lastNight) { ACT.lastNight = R.n; afterNight(R); }
   for (const v of GAME.villagers) { const T = v.d.lastTrip; if (T && !T.seen) { T.seen = true; tripHome(v, T); } }
   for (const b of byType('rod')) { const c = b.caught || 0, was = ACT.rods.has(b) ? ACT.rods.get(b) : c; if (c > was) ACT.tally.bolts += c - was; ACT.rods.set(b, c); }
+  // chapter 9: the clerks go round the claim and the camps below with the charter roll
+  if (CHAPTERS[STORY.ch] && CHAPTERS[STORY.ch].id === 'silversails' && STORY.started) ACT.tally.roll = (ACT.tally.roll || 0) + workersOf('keep').reduce((s, v) => s + v.eff(), 0) * PACE.roll * dt;
   eventsTick();
-  if ((ACT.checkT -= dt) <= 0) { ACT.checkT = 1; questsCheck(); }
+  // someone in the cast wants a word: they ask in the morning, not in the small hours
+  if (ACT.offerDue && GAME.t >= 0.1 && GAME.t < 0.55 && paceCalm()) { ACT.offerDue = false; questsDay(); }
+  if ((ACT.checkT -= dt) <= 0) { ACT.checkT = 1; questsCheck(); paceTick(); }
 }
 function newDay() {
-  eventsNewDay(); questsDay();
+  eventsNewDay(); ACT.offerDue = true;
   if (ACT.convoy != null && GAME.day >= ACT.convoy) {
     ACT.convoy = GAME.day + 4; GAME.shards += 40; moodAdd('convoy', 2, 1, 'News from the coast');
     toast(`<b>The Brass Road convoy is in</b> from the coast: ${SHARD} 40 and the news.`); daysLog('The Brass Road convoy came in from the coast.', 'cast');

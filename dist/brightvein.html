@@ -912,8 +912,8 @@ body { font-family: var(--f-body); color: var(--cream); -webkit-tap-highlight-co
 #app #b-build .pico { display: block; }
 #app .bottombar #b-pause { border-radius: 10px 0 0 10px; }
 #app .bottombar #b-speed { flex: none; min-width: 34px; padding: 0 5px; margin-left: -4px; border-radius: 0 10px 10px 0; border-left-color: rgba(241,228,198,.18); font-size: 13px; font-variant-numeric: tabular-nums; }
-#app .bottombar .seg { min-width: 0; }
-#app .bottombar .seg button { padding: 8px 5px; font-size: clamp(12px, 3.3vw, 13px); }
+#app .bottombar .seg { min-width: 0; flex: 1 1 auto; }
+#app .bottombar .seg button { flex: 1 1 auto; min-width: 0; padding: 8px 3px; font-size: clamp(12px, 3.3vw, 13px); overflow: hidden; text-overflow: clip; white-space: nowrap; }
 
 }
 @media (max-width: 380px) {#app .bottombar { gap: 3px; padding-left: max(6px, env(safe-area-inset-left, 0px)); padding-right: max(6px, env(safe-area-inset-right, 0px)); }
@@ -921,7 +921,7 @@ body { font-family: var(--f-body); color: var(--cream); -webkit-tap-highlight-co
  }
 @media (max-width: 350px) {#app .bottombar .btn.icon, #app .bottombar #b-people, #app .bottombar #b-build { width: 36px; }
 #app .bottombar #b-speed { min-width: 32px; padding: 0 4px; }
-#app .bottombar .seg button { padding: 8px 4px; font-size: 12px; }
+#app .bottombar .seg button { padding: 8px 2px; font-size: 12px; }
 
 }
 #app #dawn { max-height: calc(100% - env(safe-area-inset-top, 0px) - 80px); overflow: auto; overscroll-behavior: contain; touch-action: pan-y; border-radius: 16px; }

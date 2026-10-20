@@ -701,7 +701,7 @@ function digCellPanel(body, ref) {
     const el = document.createElement('button'); el.type = 'button'; el.className = 'li dk'; el.style.gridTemplateColumns = '40px 1fr auto';
     if (no || poor) { el.disabled = true; el.classList.add('off'); }   // dimmed, but the reason stays readable (style.css)
     el.append(digKindIcon(kind));
-    el.append(this.h(`<span><span class="nm">${esc(K.name)}</span><span class="jb">${no ? `<span class="why">${esc(no)}</span>` : esc(K.short)}${N ? ' · joins the one next door' : ''}${!no && poor ? ` <span class="why">Needs ${esc(shortOf({ shards: cost }))}.</span>` : ''}</span></span><span class="fit">${SHARD} ${cost}</span>`));
+    el.append(this.h(`<span><span class="nm">${esc(K.name)}</span><span class="jb">${no ? `<span class="why">${esc(no)}</span>` : esc(K.short)}${N ? ' · joins the one next door' : ''}${!no && poor ? ` · <span class="why">Needs ${esc(shortOf({ shards: cost }))}.</span>` : ''}</span></span><span class="fit">${SHARD} ${cost}</span>`));
     el.onclick = () => { if (no || poor) return; const d = digOrder(r, c, kind); if (d) { DIG.sel = d; UI.open('dig', d); } };
     list.append(el);
   }

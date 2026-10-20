@@ -14,7 +14,7 @@ const HINT = {
   night: { title: 'Your first night', where: 'top',
     text: 'After dark, Wildlight climb the cliffs toward your light. Lens towers and the watch on the wall fight them off. The lamps burn shards, so keep a few in the stores. Arrows at the edge of the screen show where they’re climbing.' },
   bright: { title: 'Bright Night', where: 'boss', line: true,
-    text: 'Crew the lens towers and bring the big one down.' },
+    text: 'Bring the big one down.' },   // one line, even on a phone
   dig: { title: 'The dig', where: 'top',
     text: 'Every square in the cliff can be dug out as a room: Ore Faces for ore, Pump Rooms against floods, Timber Stores against cave-ins. Dig next to a room you have. Two of a kind side by side join into a bigger one.' },
   bench: { title: 'Odile’s bench', where: 'side',

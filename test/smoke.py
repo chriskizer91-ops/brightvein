@@ -231,6 +231,16 @@ with sync_playwright() as p:
     check("the Captain's log keeps the voyage on the claim's day, and today's three harbour orders", r['log'] and r['log']['d'] == r['log']['day'] and r['orders'], json.dumps(r))
     check('chain shot bought in the Shipyard, and loaded at sea', r['bought'] and r['paid'] == 150 and r['loaded'], json.dumps(r))
     check('the crew patch her at sea only so far: the rest waits for the dock', r['started'] and r['patch']['after'] > 20 and r['patch']['after'] <= r['patch']['cap'] + 1 and r['patch']['cap'] < 100, json.dumps(r['patch']))
+    # one sound and one Settings panel: the skies make their sound in the claim's own audio context, the claim's sliders
+    # and Sound switch reach them, and the skies' own rows are in the claim's settings (and work from there)
+    r = pg.evaluate('''(() => { const B = __bv, S = B.SKY, A = BV_AUDIO.AUDIO, out = {};
+      out.oneCtx = !!A.ctx && S.audio.ctx === A.ctx;
+      const was = A.vols.music; A.vol('music', 0.3); out.music = Math.round(S.settings.data.music * 100); A.vol('music', was);
+      document.getElementById('b-menu').click(); const rows = [...document.querySelectorAll('#sky-rows .row')]; out.rows = rows.map(r => r.dataset.id);
+      const shake = rows.find(r => r.dataset.id === 'shake'), before = S.settings.data.shake; shake.querySelector('.tog').click(); out.shake = [before, S.settings.data.shake]; shake.querySelector('.tog').click();
+      document.getElementById('menu-close').click();
+      return out; })()''')
+    check("one sound and one Settings panel: the skies share the claim's audio, sliders and settings", r['oneCtx'] and r['music'] == 30 and {'aim', 'flip', 'shake', 'tips'} <= set(r['rows']) and r['shake'][0] != r['shake'][1], json.dumps(r))
 
     # the Shipyard (the airship game's stage 4 port, Brightvein's prices): a ship bought with shards and materials, an
     # upgrade that raises her numbers, crew from the claim who make the guns reload faster (in the Shipyard's numbers and

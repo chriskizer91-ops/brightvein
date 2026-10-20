@@ -115,7 +115,7 @@ About one day in three, from day 3, something happens by day (never on a day a c
 One number for the whole claim, 0 to 100, with a face, by the people count at the top (tap it for why; on a phone the face takes the place of the people icon, to keep the bar to one row). It drifts, about five points a game hour, toward what the claim gives its people:
 
 - up: full larders, room in the Keep, sunshine, the sun beacon, greenhouses, furnished rooms in the Keep, the cast on the claim, the charter, festivals and good events, a boss brought down, a night when nothing got near the lights;
-- down: no food (a lot), food running out, a full Keep, dark lamps, lamps snuffed at night, the hurt, fever, storms and rain, a breach in the wall, a hard night, a boss that got away, quarrels.
+- down: no food (a lot), food running out, a full Keep, dark lamps, lamps snuffed at night, the hurt, fever, storms and rain, a breach in the wall, a hard night, a boss that got away, quarrels; in act two, the Exchange's ship waiting off the rim and then its crews circling it, and bedrolls by the fire in a crowded Keep.
 
 | Mood | Name | What it does |
 |---|---|---|
@@ -124,6 +124,26 @@ One number for the whole claim, 0 to 100, with a face, by the people count at th
 | 40 to 59 | Content | Usual pace |
 | 20 to 39 | Grumbling | Everyone works a tenth slower; settlers are slower to come |
 | 0 to 19 | Miserable | Everyone works a fifth slower; nobody new wants to come |
+
+## Shards, and what they're for
+
+The sunning yards charge raw ore into shards: a yard at level 2 charges a fifth more, at level 3 a third more and in thin
+light too. Each lens cutter adds to every tray, a little less the more cutters there are. The miners can dig more ore
+than the yards can charge, and the spare ore feeds the sun beacon.
+
+From chapter 8 the nights grow with what the claim has to lose (its shards, its ore and what it has built) and with how
+many nights it has stood: more Wildlight, tougher ones, a stronger boss on a Bright Night, and a rich claim's Wildlight
+drink deeper from the yards and the stores. A claim that leaves its lens towers unmanned loses a lot on a Bright Night.
+The first nights are as gentle as ever.
+
+Things to spend on in act two, besides the bigger ships and their refits:
+
+- **The sun beacon** (the Keep at level 3, from its panel): feed it raw ore and some shards (120 ore and 40 shards, and 10
+  ore and 4 shards more for every night the claim has stood) and it burns all night: every Wildlight on the plateau takes
+  a quarter more harm, and the claim sleeps easier (mood +3). Light it for tonight, or keep it lit every night the
+  stores allow.
+- **A Masterwork made to order** (Odile's bench, the Blueprints tab, from chapter 9): 2,500 shards, 3 Heartstone and 4 Cut
+  Glass, and half a day at the bench. A guild workshop on the coast casts one you don't have yet, and Odile fits it.
 
 ## The skies: the claim's fleet and its raids
 

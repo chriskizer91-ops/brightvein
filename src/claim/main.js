@@ -298,9 +298,18 @@ $('#b-pause').onclick = () => { GAME.paused = !GAME.paused; $('#b-pause').classL
 // the settings panel, its buttons and the speed limits are in settings.js
 addEventListener('keydown', e => {
   if (SKY && SKY.on) return;
-  if (e.target.closest && e.target.closest('input,textarea')) return;
-  if (e.key === 'Escape') { if (!$('#menu').hidden) closeMenu(); else if (!$('#intro').hidden && started) introClose(); else if (BUILD.on && BUILD.pending) cancelPending(); else if (BUILD.on) exitBuild(); else UI.close(); }
-  if (e.key === ' ' && e.target === document.body && started) { e.preventDefault(); $('#b-pause').click(); }
+  if (e.defaultPrevented || (e.target.closest && e.target.closest('input,textarea'))) return;
+  // Esc: skips a scene, puts away the dawn report, closes the settings, the first look, a building being placed, build
+  // mode, then the panel. A day's card waits for its choice.
+  if (e.key === 'Escape') {
+    const dawn = document.getElementById('dawn');
+    if (STORY.shown) endScene();
+    else if (EVT.card) return;
+    else if (!$('#menu').hidden) closeMenu();
+    else if (dawn && !dawn.hidden) dawnHide();
+    else if (!$('#intro').hidden && started) introClose(); else if (BUILD.on && BUILD.pending) cancelPending(); else if (BUILD.on) exitBuild(); else { UI.close(); FOLLOW.v = null; }
+  }
+  if (e.key === ' ' && (e.target === document.body || e.target.id === 'panel') && started && !STORY.shown) { e.preventDefault(); $('#b-pause').click(); }
 });
 
 // ----------------------------------------------------------------- saving

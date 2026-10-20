@@ -127,7 +127,7 @@ function starterStash() {
 }
 // ---- how items read in the UI
 const icon = (kind, o = {}) => iconCanvas(kind, o, D.RARITY, D.ASPECTS);
-function itemIcon(it, size = 64) { const c = icon(it.kind, { aspect: it.aspect, rarity: it.rarity, size }); return c; }
+function itemIcon(it, size = 64) { const c = icon(it.kind, { aspect: it.aspect, rarity: it.rarity, size }); c.dataset.k = [it.kind, it.aspect, it.rarity].join('.'); return c; }   // data-k: what it shows (uiMorph in ui.js)
 function itemLines(it) {
   const out = [], { relic, base } = itemBase(it), s = itemStats(it), w = itemWeapon(it), mult = rarityOf(it).statMult;
   if (isModuleItem(it)) { out.push(moduleEffect(it)); return out; }

@@ -214,7 +214,7 @@ UI.benchSel = { tab: 'overhaul', uid: null, trait: null, sock: null, pick: new S
 const starStr = n => '★'.repeat(n) + '<i>' + '★'.repeat(5 - n) + '</i>';
 function cellIcon(id, size = 36) {
   const src = ART.items && ART.items['cell-' + id]; if (src) { const im = new Image(); im.src = src; im.alt = ''; im.className = 'cicon ipic'; im.width = im.height = size; return im; }   // a painted one (art request 04)
-  const C = D.CELLS[id]; const c = iconCanvas('cellGem', { aspect: 'cell-' + id, rarity: 'tuned', size: 64 }, D.RARITY, { ['cell-' + id]: { color: C.color } }); c.style.width = c.style.height = size + 'px'; c.className = 'cicon'; return c; }
+  const C = D.CELLS[id]; const c = iconCanvas('cellGem', { aspect: 'cell-' + id, rarity: 'tuned', size: 64 }, D.RARITY, { ['cell-' + id]: { color: C.color } }); c.style.width = c.style.height = size + 'px'; c.className = 'cicon'; c.dataset.k = 'cell-' + id; return c; }
 const cellText = (id, it) => { const C = D.CELLS[id], show = e => Object.entries(e).map(([k, v]) => k === 'extra' ? Object.entries(v).map(([a, n]) => `+${n}% damage as ${D.ASPECTS[a].name}`).join(', ') : k === 'resist' ? Object.entries(v).map(([a, n]) => `resist ${D.ASPECTS[a].name} ${n}%`).join(', ') : k === 'vsWild' ? `+${v}% damage to Wildlight` : k === 'stealth' ? 'Wildlight often miss the wearer' : k === 'guard' ? `+${v}% guard` : k === 'nerve' ? `+${v} nerve` : k === 'S' ? `+${v} Sowing` : '').join(', ');
   return it ? show(isWeaponItem(it) ? C.hand : C.other) : `In a weapon: ${show(C.hand)}. In anything else: ${show(C.other)}.`; };
 UI.bench = function (body, ref) {

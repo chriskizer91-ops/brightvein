@@ -5,13 +5,16 @@
 // called from it (hintsTick, every frame from main.js), so the files they're about don't need to know about them.
 const HINTS = { seen: {}, cur: null, q: [], t: 0, wait: {} };
 try { const s = JSON.parse(localStorage.getItem('bv-hints')); if (s && typeof s === 'object') HINTS.seen = s; } catch (e) { }
+// where: 'build' (at the top on a phone, on the left on a wide screen, clear of where a new building drops), 'top',
+// 'boss' (one line, under the boss bar: line), 'side' (beside a wide screen's panel; on a narrower one a strip inside the
+// panel, above its title), 'event' (over the day's card)
 const HINT = {
-  layout: { title: 'Lay out your claim', where: 'build',
+  layout: { title: 'Placing buildings', where: 'build',
     text: 'Tap a card below to drop a building in, then drag it where you like: green means it fits. Sunning yards like open ground near the Keep; turrets do best near the rim, where the Wildlight climb.' },
   night: { title: 'Your first night', where: 'top',
     text: 'After dark, Wildlight climb the cliffs toward your light. Lens towers and the watch on the wall fight them off. The lamps burn shards, so keep a few in the stores. Arrows at the edge of the screen show where they’re climbing.' },
-  bright: { title: 'A Bright Night', where: 'boss',
-    text: 'Something big climbs with them tonight, with a health bar of its own. Put your strongest on the watch and keep the lens towers crewed. Bring it down for something good.' },
+  bright: { title: 'Bright Night', where: 'boss', line: true,
+    text: 'Crew the lens towers and bring the big one down.' },
   dig: { title: 'The dig', where: 'top',
     text: 'Every square in the cliff can be dug out as a room: Ore Faces for ore, Pump Rooms against floods, Timber Stores against cave-ins. Dig next to a room you have. Two of a kind side by side join into a bigger one.' },
   bench: { title: 'Odile’s bench', where: 'side',
@@ -39,17 +42,27 @@ function hintShow(id) {
     $('#app').append(el);
   }
   el.querySelector('.hc-t').textContent = H.title; el.querySelector('.hc-x').textContent = H.text;
+  el.classList.toggle('line', !!H.line);   // one line: the title, the words and a close button (style.css)
+  el.querySelector('.hc-ok').textContent = H.line ? '×' : 'Got it'; el.querySelector('.hc-ok').setAttribute('aria-label', 'Got it');
   el.dataset.where = H.where; el.hidden = false; el.style.bottom = ''; el.classList.remove('out'); void el.offsetWidth; el.classList.add('in');
   hintPlace(el);
   $('#app').style.setProperty('--hint-h', el.offsetHeight + 'px');   // a day event’s card makes room for it on a phone (style.css)
   HINTS.cur = { id, t: 0 };
   AUDIO.play('chime');
 }
-// the layout tip sits just above the build tray, however tall the tray's heading makes it on this screen
+// where the card goes on this screen. The layout tip: on a wide screen on the left, just above the build tray, however
+// tall the tray's heading makes it (on a phone it's at the top, style.css). A tip about a panel: beside it on a wide
+// screen; on a narrower one it's a strip inside the panel above its title, so it never covers the title or the ×.
 function hintPlace(el) {
-  if (!el || el.dataset.where !== 'build') return;
+  if (!el) return;
+  const W = el.dataset.where, panel = $('#panel'), inside = W === 'side' && innerWidth < 900 && !panel.hidden;
+  if (inside && el.parentElement !== panel) { panel.prepend(el); panel.scrollTop = 0; }
+  else if (!inside && el.parentElement !== $('#app')) $('#app').append(el);
+  el.classList.toggle('inpanel', inside);
+  if (W !== 'build') return;
   const tray = $('#buildbar');
-  if (tray && !tray.hidden) el.style.bottom = Math.round(innerHeight - tray.getBoundingClientRect().top + 10) + 'px';
+  if (tray && !tray.hidden && innerWidth >= 900) el.style.bottom = Math.round(innerHeight - tray.getBoundingClientRect().top + 10) + 'px';
+  else el.style.bottom = '';
 }
 function hintClose() {
   const el = $('#hintcard'); HINTS.cur = null;

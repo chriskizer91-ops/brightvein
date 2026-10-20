@@ -576,7 +576,7 @@ const firstName = n => String(n).split(' ')[0];
 const andList = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0] || '';
 function nightReport(N) {
   const R = { n: N.n, title: N.title, downed: N.downed, spawned: N.spawned, kinds: N.kinds, drained: Math.round(N.drained), spent: Math.round(N.spent), stores: Math.floor(GAME.shards),
-    lamps: N.lamps, relit: N.relit, breaches: N.breaches, wallHit: N.wallHit.length, hurt: N.hurt.slice(), drops: N.drops.map(it => ({ name: it.name, color: rarityOf(it).color, rarity: it.rarity })),
+    lamps: N.lamps, relit: N.relit, breaches: N.breaches, wallHit: N.wallHit.length, hurt: N.hurt.slice(), drops: N.drops.map(it => ({ name: it.name, color: rarityOf(it).color, rarity: it.rarity, uid: it.uid })),
     mats: { ...N.mats }, dropShards: Math.round(N.dropShards), boss: N.bossName || null, bossKind: N.bossKind || null, bossKilled: N.bossKilled, bossEscaped: N.bossEscaped, bright: N.bright };
   const dmgNow = WALL.segs.filter(s => s.hp < 1).length, openNow = WALL.segs.filter(s => s.broken).length;
   R.wallNow = dmgNow; R.wallOpen = openNow; R.watch = workersOf('wall').length;
@@ -625,13 +625,14 @@ function showDawn(R, big) {
   }
   const kinds = ['glimmer', 'flarehound', 'lodestar', 'brightmaw'].filter(k => R.kinds[k] && R.kinds[k].downed).map(k => `${R.kinds[k].downed} ${plural(k, R.kinds[k].downed)}`);
   const lines = [];
-  lines.push(`<li><i class="dk wl"></i><span><b>Downed</b> ${R.downed ? andList(kinds) : 'none'}${R.spawned ? ` (of ${R.spawned})` : ''}${R.dropShards ? `, for ${SHARD} ${R.dropShards}` : ''}.</span></li>`);
+  lines.push(`<li><i class="dk wl"></i><span><b>Downed</b> ${R.downed ? andList(kinds) : 'none'}${R.spawned ? ` (of ${R.spawned})` : ''}${R.dropShards ? `, for <span class="nw">${SHARD} ${R.dropShards}</span>` : ''}.</span></li>`);
   lines.push(`<li><i class="dk sh"></i><span><b>Shards</b> ${R.drained ? `${R.drained} drunk by the Wildlight` : 'none lost to the Wildlight'}${R.spent ? `, ${R.spent} spent on shots` : ''}. ${R.stores} in the stores.</span></li>`);
   if (R.lamps) lines.push(`<li><i class="dk lp"></i><span><b>Lamps</b> ${R.lamps} snuffed${R.relit ? `, ${R.relit} relit by the watch` : ''}. All burning again now.</span></li>`);
   if (R.wallHit) lines.push(`<li><i class="dk wa"></i><span><b>Wall</b> ${R.wallHit} section${R.wallHit > 1 ? 's' : ''} hit${R.breaches ? `, ${R.breaches} broken through` : ''}. ${R.wallNow ? (R.watch ? 'The watch will mend it today.' : 'Nobody is on the watch to mend it.') : 'Sound again.'}</span></li>`);
   if (R.hurt.length) lines.push(`<li><i class="dk hu"></i><span><b>Hurt</b> ${esc(andList(R.hurt.map(firstName)))}, who limped home to the Keep. They’ll be back on their feet today.</span></li>`);
   const mats = Object.entries(R.mats).filter(([, n]) => n).map(([k, n]) => `${n} ${esc(D.MATERIALS[k] ? D.MATERIALS[k].name : k)}`);
-  if (R.drops.length || mats.length) lines.push(`<li><i class="dk fd"></i><span><b>Found</b> ${[...R.drops.map(d => `<em style="color:${d.color}">${esc(d.name)}</em>`), ...mats].join(', ')}.</span></li>`);
+  // a piece found is a button: it opens the piece (ui.js)
+  if (R.drops.length || mats.length) lines.push(`<li><i class="dk fd"></i><span><b>Found</b> ${[...R.drops.map(d => d.uid ? `<button type="button" class="itag" data-uid="${esc(d.uid)}" style="color:${d.color}">${esc(d.name)}</button>` : `<em style="color:${d.color}">${esc(d.name)}</em>`), ...mats].join(', ')}.</span></li>`);
   const stat = (v, l, bad) => `<div class="${bad && v ? 'bad' : ''}"><b>${v}</b><span>${l}</span></div>`;
   card.innerHTML = `<div class="dawn-card" role="dialog" aria-label="How the night went">
     <p class="eyebrow">Dawn · Night ${R.n}${R.title ? ' · ' + esc(R.title) : ''}</p>
@@ -640,9 +641,11 @@ function showDawn(R, big) {
     <ul class="dawn-lines">${lines.join('')}</ul>
     <button type="button" class="btn primary">On with the day</button></div>`;
   card.hidden = false;
-  card.onclick = () => { card.hidden = true; };
+  card.onclick = null;
+  card.querySelector('.dawn-card > .btn').onclick = dawnHide;   // only its button puts it away (or Esc, main.js): a tap on the words doesn't
   AUDIO.play('open');
 }
+function dawnHide() { const d = document.getElementById('dawn'); if (d) d.hidden = true; }
 
 // ----------------------------------------------------------------- the HUD: banner, boss bar, waves, where they climb
 function hudEl(id, html, cls = id) {
@@ -689,7 +692,7 @@ function nightsDraw(rdt) {
   const N = WL.night;
   if (!N || VIEW.mode === 'keep' || (SKY && SKY.on)) { if (!chip.hidden) chip.hidden = true; return; }
   const alive = WL.list.filter(f => !f.dead && !f.air && !f.leaving).length, started = N.waves.filter(w => w.warned).length, left = N.waves.reduce((s, w) => s + w.units.length, 0);
-  const html = `${N.bright ? '<b class="bn">Bright Night</b> · ' : ''}${N.waves.length > 1 ? `Wave ${Math.max(1, started)} of ${N.waves.length}` : `Night ${N.n}`} · ${alive ? `${alive} on the claim` : left ? 'more to come' : 'all quiet'}`;
+  const html = `${N.bright ? '<b class="bn">Bright Night · </b>' : ''}${N.waves.length > 1 ? `Wave ${Math.max(1, started)} of ${N.waves.length}` : `Night ${N.n}`} · ${alive ? `${alive} on the claim` : left ? 'more to come' : 'all quiet'}`;
   if (chip.innerHTML !== html) chip.innerHTML = html;
   chip.hidden = false;
 }

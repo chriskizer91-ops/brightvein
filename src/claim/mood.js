@@ -66,7 +66,7 @@ function moodHUD(dt) {
   const b = moodBand(), v = Math.round(MOOD.v), T = Math.round(moodTarget()), key = `${v}|${b.name}|${Math.sign(T - v)}`;
   if (key === MOOD.shown) return; MOOD.shown = key;
   el.querySelector('svg').innerHTML = moodFace(b);
-  const ic = $('#r-pop .mood-ic'); if (ic) { ic.innerHTML = moodFace(b); $('#r-pop').title = `People and beds. The face is the claim’s mood: ${v}, ${b.name}. Tap for what’s moving it.`; }
+  const ic = $('#r-pop .mood-ic'); if (ic) { ic.innerHTML = moodFace(b); $('#r-pop').title = `People and beds. The face is the claim’s mood: ${v}, ${b.name}. Tap for the crew.`; }
   el.querySelector('b').textContent = v;
   el.querySelector('span').textContent = b.name;
   el.classList.toggle('low', b.at < 40); el.classList.toggle('up', T > v + 2); el.classList.toggle('down', T < v - 2);
@@ -74,9 +74,10 @@ function moodHUD(dt) {
   el.setAttribute('aria-label', `Mood ${v}, ${b.name}`);
 }
 { const el = $('#r-mood'); if (el) { el.onclick = () => UI.open('journal', { tab: 'days' }); el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); } }; } }
-// on narrow screens the face sits in the people pill instead (style.css), and tapping it opens the same page
+// on narrow screens the face sits in the people pill instead (style.css). Tapping the pill opens the crew, as the
+// people count says; the crew's page shows the mood and opens what's moving it (UI.roster in ui.js).
 { const pop = $('#r-pop'); if (pop) { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 20 20'); s.setAttribute('class', 'ic mood-ic'); s.setAttribute('aria-hidden', 'true'); pop.prepend(s);
-  pop.addEventListener('click', () => { if (matchMedia('(max-width: 560px)').matches) UI.open('journal', { tab: 'days' }); }); } }
+  pop.addEventListener('click', () => { if (matchMedia('(max-width: 560px)').matches) { UI.tab = 'crew'; UI.open('roster'); } }); } }
 
 // ---- in the journal: the mood, what it does, and what's moving it
 function moodJournal(ui, body) {

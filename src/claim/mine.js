@@ -752,6 +752,6 @@ function digFrameUpdate(rdt, gdt) {
   for (const f of DIG.floats) { if (!f.id) f.id = ++_floatId; f.t += rdt; }
   DIG.floats = DIG.floats.filter(f => f.t < 1.6);
   digLookUpdate(rdt, gdt);
-  // the room panel ticks along while it's open (and not while someone is reading or tapping it)
-  if (UI.cur && UI.cur.kind === 'dig' && !document.activeElement?.closest?.('#panel')) { DIG.panelT = (DIG.panelT || 0) + rdt; if (DIG.panelT > 1.5) { DIG.panelT = 0; UI.refresh(); } }
+  // the room panel ticks along while it's open, brought up to date in place (UI.render in ui.js)
+  if (UI.cur && UI.cur.kind === 'dig') { DIG.panelT = (DIG.panelT || 0) + rdt; if (DIG.panelT > 1.5) { DIG.panelT = 0; UI.refresh(); } }
 }

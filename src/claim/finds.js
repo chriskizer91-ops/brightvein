@@ -170,7 +170,8 @@ function withItem(v, it, fn) {
 const wornBy = it => GAME.villagers.find(v => GEAR_SLOTS.some(s => v.d.gear[s] === it)) || null;
 
 // ----------------------------------------------------------------- the item panel
-UI.item = function (body, { it, back }) {
+// buy: the courier's piece, read before it's paid for ({ price, go }: fittings.js)
+UI.item = function (body, { it, back, buy }) {
   const R = rarityOf(it), { relic, base } = itemBase(it), x = findItem(it.uid), mod = isModuleItem(it);
   const top = document.createElement('div'); top.className = 'ihead big'; top.style.setProperty('--rc', R.color); top.append(itemPicture(it, 128));
   top.append(this.h(`<div><p class="eyebrow" style="color:${R.color}">${esc(R.name)} ${esc(D.SLOTS[it.slot]?.name || '')}</p><h2 style="color:${R.color}">${it.overhaul ? `<span class="ohn">+${it.overhaul}</span> ` : ''}${esc(it.name)}</h2>
@@ -215,11 +216,18 @@ UI.item = function (body, { it, back }) {
   const acts = document.createElement('div'); acts.className = 'stats-row item-acts';
   const btn = (label, cls, fn, off) => { const b = this.h(`<button type="button" class="btn ${cls}" ${off ? 'disabled' : ''}>${label}</button>`); b.querySelector('button').onclick = fn; acts.append(b); };
   const self = () => UI.open('item', { it, back });
-  if (x && x.where === 'worn') btn(`Take it off ${esc(x.v.d.name.split(' ')[0])}`, '', () => { unequip(x.v, it.slot); AUDIO.play('tap'); self(); });
-  if (x && x.where === 'fitted') btn('Take it out', '', () => { unfitModule(buildingById(x.id), x.i); self(); });
-  if (!onBench(it)) btn('Take it to Odile', '', () => UI.open('bench', { tab: canAttune(it) ? 'attune' : canOverhaul(it) ? 'overhaul' : canRetune(it) ? 'retune' : sockets(it) ? 'cells' : 'overhaul', uid: it.uid }));
-  if (x && x.where === 'stash' && canSalvage(it) && !onBench(it)) btn(`Salvage · +${esc(matLine(salvageYield(it)))}`, '', () => { if (benchSalvage([it])) (back || (() => UI.open('roster')))(); });
-  if (acts.children.length) body.append(acts);
+  if (buy) {   // the courier's: buy it, then it's yours to read again with the usual choices
+    const can = GAME.shards >= buy.price;
+    btn(`Buy · <span class="cost">${SHARD} ${buy.price}</span>`, 'primary', () => { if (buy.go()) self(); else UI.refresh(); }, !can);
+    body.append(acts);
+    if (!can) body.append(this.h(`<p class="small why">Needs ${esc(shortOf({ shards: buy.price }))}.</p>`));
+  } else {
+    if (x && x.where === 'worn') btn(`Take it off ${esc(x.v.d.name.split(' ')[0])}`, '', () => { unequip(x.v, it.slot); AUDIO.play('tap'); self(); });
+    if (x && x.where === 'fitted') btn('Take it out', '', () => { unfitModule(buildingById(x.id), x.i); self(); });
+    if (x && !onBench(it)) btn('Take it to Odile', '', () => UI.open('bench', { tab: canAttune(it) ? 'attune' : canOverhaul(it) ? 'overhaul' : canRetune(it) ? 'retune' : sockets(it) ? 'cells' : 'overhaul', uid: it.uid }));
+    if (x && x.where === 'stash' && canSalvage(it) && !onBench(it)) btn(`Break down · +${esc(matLine(salvageYield(it)))}`, '', () => { if (benchSalvage([it])) (back || (() => UI.open('roster')))(); });
+    if (acts.children.length) body.append(acts);
+  }
   if (it.logbook) body.append(this.h(`<p class="lore">${esc(it.logbook)}</p>`));
   if (relic && relic.lore) body.append(this.h(`<p class="lore">${esc(relic.lore)}</p>`));
   else if (base && base.text) body.append(this.h(`<p class="lore">${esc(base.text)}</p>`));
@@ -246,7 +254,7 @@ UI.compareBlock = function (body, it) {
   body.append(numbersCompare(this, A.filter(r => show(r.key)), B.filter(r => show(r.key)), 'Now', 'With this'));
   const x = findItem(it.uid);
   if (x && (x.where === 'stash' || x.where === 'worn') && !onBench(it)) {
-    const r = this.h(`<div class="stats-row"><button type="button" class="btn primary">Give it to ${esc(v.d.name.split(' ')[0])}</button></div>`);
+    const r = this.h(`<div class="stats-row"><button type="button" class="btn primary">Equip on ${esc(v.d.name.split(' ')[0])}</button></div>`);
     r.querySelector('button').onclick = () => { if (x.where === 'worn') unequip(x.v, slot); if (equip(v, it)) { AUDIO.play('tap'); toast(`<b>${esc(v.d.name.split(' ')[0])}</b> takes the <b style="color:${rarityOf(it).color}">${esc(it.name)}</b>.`); } UI.refresh(); };
     body.append(r);
   }
@@ -323,7 +331,7 @@ UI.suggestBlock = function (card, v) {
   box.append(this.h(`<h3>Best for this job${b === WALLB ? ': the watch' : `: ${esc(b.def.job.title.toLowerCase())}`}</h3>`));
   if (!S.length) box.append(this.h(`<p class="small">${esc(v.d.name.split(' ')[0])} already has the best the stash can offer for this work.</p>`));
   for (const x of S) {
-    const r = this.itemRow(x.it, 'Wear it', () => { equip(v, x.it); AUDIO.play('tap'); toast(`<b>${esc(v.d.name.split(' ')[0])}</b> takes the <b style="color:${rarityOf(x.it).color}">${esc(x.it.name)}</b>.`); UI.refresh(); });
+    const r = this.itemRow(x.it, 'Equip', () => { equip(v, x.it); AUDIO.play('tap'); toast(`<b>${esc(v.d.name.split(' ')[0])}</b> takes the <b style="color:${rarityOf(x.it).color}">${esc(x.it.name)}</b>.`); UI.refresh(); });
     r.querySelector('.jb').textContent = x.text; box.append(r);
   }
   card.append(box);

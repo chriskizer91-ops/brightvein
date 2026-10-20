@@ -367,7 +367,7 @@ const TALK = { lines: null, i: 0, typing: 0, full: '', after: null };
 function playScene(sc) {
   STORY.shown = sc; TALK.lines = sc.lines.filter(([k]) => WHO[k]); TALK.i = 0; TALK.after = sc.after || null;
   if (!TALK.lines.length) { STORY.shown = null; if (TALK.after) { const a = TALK.after; TALK.after = null; a(); } return; }
-  GAME.talk = true; UI.close();
+  GAME.talk = true; UI.park();   // the panel comes back when the scene is over (ui.js)
   const dm = document.getElementById('dawnmini'); if (dm) dm.hidden = true;   // the dawn line would sit over the title
   const head = sc.heading || (sc.title ? `${sc.chapter ? `Chapter ${sc.chapter}` : 'Prologue'} · ${sc.title}` : '');
   const T = $('#talk-title'); T.textContent = head; T.hidden = !head;
@@ -398,6 +398,7 @@ function endScene() {
   const after = TALK.after; STORY.shown = null; TALK.after = null;
   if (after) after();
   journalHUD();
+  UI.unpark();   // the panel that was open before the scene (unless the scene led on to something else)
 }
 $('#talk').addEventListener('click', e => { if (e.target.id === 'talk-skip') { endScene(); return; } talkNext(); });
 addEventListener('keydown', e => { if (STORY.shown && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); talkNext(); } });

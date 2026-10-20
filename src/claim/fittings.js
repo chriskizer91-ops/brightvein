@@ -385,6 +385,7 @@ function larkProps() {
   if (S.parts) { S.hullG.remove(S.parts); S.parts.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); S.parts = null; }   // (the merged copies; the shapes they came from are shared)
   const L = (GAME.sockets.lark || []).filter(Boolean); if (!L.length) return;
   const P = propGeo(), g = new THREE.Group(); S.hullG.add(g); S.parts = g;
+  if (S.partsK) g.scale.setScalar(S.partsK);   // (on her fleet-built hull, placed for the old 15 m one: lark.js)
   const PEN = PG.pennant || (PG.pennant = larkPennantGeo());
   const meshes = [];
   L.forEach((it, n) => {
@@ -415,7 +416,9 @@ function larkProps() {
     }
     // its pennant, from the top yard: the middle first, then each end
     const pen = new THREE.Mesh(PEN, larkAccent(rarityOf(it).color, 0.25));
-    pen.position.set(0.5, 7.55, [0, -1.7, 1.7][n % 3]); pen.castShadow = true; g.add(pen); meshes.push(pen);
+    if (S.penAt) { const k = S.partsK || 1; pen.position.set(S.penAt[0] / k, S.penAt[1] / k - (n % 3 ? 0.5 : 0), [0, -0.9, 0.9][n % 3]); }
+    else pen.position.set(0.5, 7.55, [0, -1.7, 1.7][n % 3]);
+    pen.castShadow = true; g.add(pen); meshes.push(pen);
   });
   // one draw per material for all of it
   const merged = mergeMeshes(g, meshes);

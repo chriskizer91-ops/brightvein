@@ -180,6 +180,9 @@ function shadowsDraw() {
   for (const v of GAME.villagers) { const s = v.shadow; if (!s.visible || n >= 200) continue; _sm.makeTranslation(v.pos.x, v.pos.y + 0.03, v.pos.z); SHADOWS.setMatrixAt(n++, _sm); }
   SHADOWS.count = n; SHADOWS.instanceMatrix.needsUpdate = true;
 }
+// out of doors people are drawn a fifth bigger than life, as HD-2D draws its people beside its buildings, so they read
+// from the camera's usual height (indoors, in the Keep's rooms, they're drawn true to size)
+const PEOPLE_K = 1.22;
 class Villager {
   constructor(d) {
     this.d = d;
@@ -187,7 +190,7 @@ class Villager {
     this.tex = new THREE.CanvasTexture(this.canvas); this.tex.colorSpace = THREE.SRGBColorSpace;
     this.tex.magFilter = THREE.NearestFilter; this.tex.minFilter = THREE.LinearMipmapLinearFilter;
     this.mat = new THREE.SpriteMaterial({ map: this.tex, alphaTest: 0.5, fog: true, toneMapped: false });
-    this.sprite = new THREE.Sprite(this.mat); this.sprite.center.set(0.5, 0.03); this.sprite.scale.set(1.5, 2.0, 1);
+    this.sprite = new THREE.Sprite(this.mat); this.sprite.center.set(0.5, 0.03); this.sprite.scale.set(1.5 * PEOPLE_K, 2.0 * PEOPLE_K, 1);
     this.sprite.userData.villager = this; scene.add(this.sprite);
     this.isprite = new THREE.Sprite(this.mat); this.isprite.center.set(0.5, 0.03); this.isprite.scale.set(1.5, 2.0, 1); this.isprite.visible = false; this.isprite.userData.villager = this; KSCENE.add(this.isprite);
     this.shadow = new THREE.Mesh(shadowGeo, shadowMat); this.shadow.renderOrder = 1;   // not in the scene: drawn with everyone else’s (shadowsDraw)
@@ -257,7 +260,7 @@ class Villager {
     const st = this.plan[0];
     if (st) runStep(this, st, dt);
     // follow the ship when aboard
-    if (this.where === 'ship' && this.deck) { const S = TOWN.ship.ship; _tmp.set(this.deck[0], 0.1, this.deck[1]); S.localToWorld(_tmp); this.pos.copy(_tmp); }
+    if (this.where === 'ship' && this.deck) { const S = TOWN.ship.ship; const dk = TOWN.ship.deckK || 1; _tmp.set(this.deck[0] * dk, 0.1, this.deck[1] * dk); S.localToWorld(_tmp); this.pos.copy(_tmp); }
     this.sprite.position.copy(this.pos);
     this.shadow.position.set(this.pos.x, this.pos.y + 0.03, this.pos.z);
     this.frame(dt);

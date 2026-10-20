@@ -513,6 +513,7 @@ function shipAI(dt, time) {
   if (SHIP.state === 'docked') {
     ship.position.copy(S.home); ship.position.y += Math.sin(time * 0.8) * 0.15; ship.rotation.set(Math.sin(time * 0.6) * 0.02, Math.PI / 2, Math.sin(time * 0.7) * 0.015);
     S.prop.rotation.x += dt * 1.5;
+    larkFrame(dt, 0);
     if (crew.length && ((night && WL.night) || jumpersActive())) { SHIP.state = 'lift'; SHIP.t = 0; SHIP.from = ship.position.clone(); SHIP.ang = Math.atan2(S.home.z - C.z, S.home.x - C.x); toast('<b>The Lark</b> casts off to patrol the rim.'); }
   } else if (SHIP.state === 'lift' || SHIP.state === 'return') {
     SHIP.t += dt / 5;
@@ -520,16 +521,18 @@ function shipAI(dt, time) {
     const circle = new THREE.Vector3(C.x + Math.cos(SHIP.ang) * R, C.y, C.z + Math.sin(SHIP.ang) * R);
     const a = SHIP.state === 'lift' ? SHIP.from : circle, b = SHIP.state === 'lift' ? circle : S.home;
     ship.position.lerpVectors(a, b, k); ship.position.y += Math.sin(k * Math.PI) * 3;
-    const tang = SHIP.state === 'lift' ? -SHIP.ang : Math.PI / 2;
-    ship.rotation.y = lerp(ship.rotation.y, SHIP.state === 'lift' ? -SHIP.ang - Math.PI / 2 + Math.PI : Math.PI / 2, dt * 1.5);
-    void tang;
+    // heading where she's going: out along the rim's circle as she lifts, home to the mast (bow north) as she returns
+    const want = SHIP.state === 'lift' ? -SHIP.ang - Math.PI / 2 : Math.PI / 2, dy = Math.atan2(Math.sin(want - ship.rotation.y), Math.cos(want - ship.rotation.y));
+    ship.rotation.y += dy * Math.min(1, dt * 1.5);
     S.prop.rotation.x += dt * 14;
+    larkFrame(dt, clamp(dy, -0.5, 0.5));
     if (SHIP.t >= 1) SHIP.state = SHIP.state === 'lift' ? 'patrol' : 'docked';
   } else if (SHIP.state === 'patrol') {
     SHIP.ang += dt * 0.16;
     ship.position.set(C.x + Math.cos(SHIP.ang) * R, C.y + Math.sin(time * 0.7) * 0.6, C.z + Math.sin(SHIP.ang) * R);
-    ship.rotation.set(0, -SHIP.ang, -0.06);
+    ship.rotation.set(0, -SHIP.ang - Math.PI / 2, 0);   // bow along the circle, leaning into the turn (larkFrame)
     S.prop.rotation.x += dt * 14;
+    larkFrame(dt, 0.35);
     SHIP.cool -= dt;
     if (SHIP.cool <= 0 && GAME.shards >= 1) {
       let best = null, bd = 34;

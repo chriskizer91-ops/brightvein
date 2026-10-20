@@ -28,6 +28,57 @@ function makeMaterials() {
   MAT.rope = std({ color: 0xb59a70, roughness: 1 }, 0.1);
   MAT.pumpkin = std({ color: 0xd98a3a, roughness: 0.7 }, 0.2);
   MAT.ore = std({ color: 0x8a7a6c, roughness: 0.9, flatShading: true, emissive: 0x7a3a10, emissiveIntensity: 0.25 }, 0.2);
+  // the painted surfaces in relief: mortar lines, slate courses, planks and grain catch the low sun (reliefMap)
+  const relief = (m, key, k, fine) => { m.normalMap = reliefMap(key, fine); m.normalScale.set(k, k); };
+  relief(MAT.stone, 'limestone', 1.0); relief(MAT.dressed, 'dressed', 0.5, true); relief(MAT.plaster, 'plaster', 0.4, true);
+  relief(MAT.oak, 'oak', 0.45, true); relief(MAT.oakDark, 'oak', 0.45, true); relief(MAT.boards, 'boards', 0.9);
+  relief(MAT.slate, 'slate', 1.0); relief(MAT.copper, 'copper', 0.4, true); relief(MAT.rock, 'rock', 0.8); relief(MAT.iron, 'iron', 0.35, true);
+  // and where walls meet the ground, a little darker, as weather and footsteps leave them (groundGrime)
+  for (const m of [MAT.stone, MAT.dressed, MAT.plaster, MAT.oak, MAT.oakDark, MAT.boards, MAT.rock]) groundGrime(m);
+}
+// A normal map made from a painted texture as it loads (no file of its own): its light and dark read as height, the
+// big tones taken out first so only the shapes (joints, courses, cracks) stand up; `fine` for a smaller, softer grain.
+const RELIEF = {};
+function reliefMap(key, fine = false) {
+  if (RELIEF[key]) return RELIEF[key];
+  const im = IMG[key]; if (!im) return null;
+  const w = im.width, h = im.height, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d'); g.drawImage(im, 0, 0);
+  const src = g.getImageData(0, 0, w, h).data, L = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) L[i] = (src[i * 4] * 0.3 + src[i * 4 + 1] * 0.59 + src[i * 4 + 2] * 0.11) / 255;
+  // a wrapped box blur (the texture tiles)
+  const blur = (A, r) => {
+    const T = new Float32Array(w * h), O = new Float32Array(w * h), n = r * 2 + 1;
+    for (let y = 0; y < h; y++) { let s = 0; for (let k = -r; k <= r; k++) s += A[y * w + ((k + w) % w)]; for (let x = 0; x < w; x++) { T[y * w + x] = s / n; s += A[y * w + (x + r + 1) % w] - A[y * w + (x - r + w) % w]; } }
+    for (let x = 0; x < w; x++) { let s = 0; for (let k = -r; k <= r; k++) s += T[((k + h) % h) * w + x]; for (let y = 0; y < h; y++) { O[y * w + x] = s / n; s += T[((y + r + 1) % h) * w + x] - T[((y - r + h) % h) * w + x]; } }
+    return O;
+  };
+  const big = blur(L, Math.round(w / 24)), H = blur(L, fine ? 0 : 1);
+  for (let i = 0; i < w * h; i++) H[i] -= big[i];
+  const out = g.createImageData(w, h), D = out.data, k = (fine ? 3.5 : 5.5) * w / 512;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, dx = H[y * w + (x + 1) % w] - H[y * w + (x - 1 + w) % w], dy = H[((y + 1) % h) * w + x] - H[((y - 1 + h) % h) * w + x];
+    let nx = -dx * k, ny = dy * k, nz = 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+    D[i * 4] = (nx * 0.5 + 0.5) * 255; D[i * 4 + 1] = (ny * 0.5 + 0.5) * 255; D[i * 4 + 2] = (nz * 0.5 + 0.5) * 255; D[i * 4 + 3] = 255;
+  }
+  g.putImageData(out, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  return RELIEF[key] = t;
+}
+// darker toward the foot of a wall: up to a fifth at the ground, gone by a metre up (only near the plateau's top: the
+// dig below and the masts above are left alone)
+function groundGrime(m) {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vGrimeY;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGrimeY = (modelMatrix * vec4(transformed, 1.0)).y;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vGrimeY;')
+      .replace('#include <map_fragment>', '#include <map_fragment>\n  diffuseColor.rgb *= 1.0 - 0.2 * (1.0 - smoothstep(0.0, 1.0, vGrimeY)) * step(-0.3, vGrimeY) * step(vGrimeY, 1.0) * vec3(1.0, 1.04, 1.1);');
+  };
+  const key = m.customProgramCacheKey ? m.customProgramCacheKey.bind(m) : () => '';
+  m.customProgramCacheKey = () => key() + '|grime';
 }
 
 // box-projected UVs in metres, so every texture keeps its real-world scale

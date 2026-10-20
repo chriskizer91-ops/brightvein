@@ -533,8 +533,8 @@ const SKY_KEYS = [
   [0.55, '#4a80c0', '#f0dcc0', '#ffe2b8', 3.3, '#c0d0f0', '#6a5640', 0.42, '#e0d4c4', 1.0, '#fff4e4', '#9a98ac'],
   [0.63, '#3b4f86', '#ff9e6a', '#ff8a4a', 2.0, '#8a90c0', '#5a4038', 0.3, '#e09a7a', 1.02, '#ffb88a', '#7a6a8a'],
   [0.69, '#1c2244', '#6a4a6e', '#ff6a4a', 0.0, '#3a4270', '#2a2030', 0.3, '#3a3450', 1.05, '#8a6a8a', '#2a2a46'],
-  [0.78, '#0b1028', '#26304e', '#9ab0ff', 0.55, '#2a3868', '#262a3c', 0.24, '#1c2238', 1.1, '#4a5a80', '#141a30'],
-  [0.92, '#0c122c', '#2a3352', '#9ab0ff', 0.5, '#2a3868', '#262a3c', 0.24, '#1e2440', 1.1, '#4a5a80', '#141a30'],
+  [0.78, '#0b1028', '#26304e', '#8aa6ff', 0.5, '#24346a', '#1c2032', 0.22, '#1c2238', 1.05, '#4a5a80', '#141a30'],   // moonlight: cool, and low enough that the lamps' pools stand out
+  [0.92, '#0c122c', '#2a3352', '#8aa6ff', 0.46, '#24346a', '#1c2032', 0.22, '#1e2440', 1.05, '#4a5a80', '#141a30'],
   [1.00, '#2a3456', '#c48a7a', '#ff9a66', 0.0, '#4a5680', '#2a2430', 0.25, '#8a7a8a', 0.95, '#f2b7a0', '#5a5a7a'],
 ];
 const _c1 = new THREE.Color(), _c2 = new THREE.Color(), _ld = new THREE.Vector3();
@@ -578,7 +578,7 @@ function applyTimeOfDay(t, time) {
   // the sky's fill: less at night and under cloud (metal and glass shine less: weather.js), and a little less in the
   // low sun of early morning and golden hour, so the shadows show
   const lowSun = (smooth(0.03, 0.06, t) * (1 - smooth(0.1, 0.16, t)) + smooth(0.5, 0.57, t) * (1 - smooth(0.64, 0.69, t))) * (1 - TOD.night);
-  const envK = lerp(1, 0.18, TOD.night) * (1 - 0.55 * wxCover()) * (1 - 0.3 * lowSun);
+  const envK = lerp(1, 0.12, TOD.night) * (1 - 0.55 * wxCover()) * (1 - 0.3 * lowSun);
   for (const m of ENV_MATS) m.envMapIntensity = m.userData.env * envK;
   scene.environmentIntensity = envK;   // and what has no reflection of its own (a moored ship, the jumpers: they come later than fixEnv) takes the hour's too, or her sails glow white all night
   if (bloom) { bloom.strength = lerp(0.42, 0.95, TOD.night); bloom.threshold = lerp(0.88, 0.62, TOD.night); }

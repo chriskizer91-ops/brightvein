@@ -13,6 +13,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 // onePieceOf: any built ship in one piece (one draw), for a ship small on the claim's screen
 import { makeSky, SKIES, SHIPS, SITES, buildShipFar, buildShipAt, WTIME as SHIP_TIME, onePieceOf } from './sky/voyage.js';
 import { makeProgress } from './sky/progress.js';
+import { applyPaint as skyPaint } from './sky/paint.js';   // the Lark in the flagship's colours (lark.js)
 import { silverArt as lookSilverArt, silverGlows as lookSilverGlows } from './ship/materials.js';   // the Exchange's ships (jumpers.js)
 
 const $ = s => document.querySelector(s);
@@ -55,7 +56,8 @@ const LENS_SHADER = {
       float d = abs(vUv.y - uFocus);
       float blur = smoothstep(uBand, uBand + 0.32, d) * uAmount * (vUv.y > uFocus ? 1.15 : 0.8);
       vec4 c = texture2D(tDiffuse, vUv);
-      if (blur < 0.02) { gl_FragColor = c; return; }
+      // the people (crowd.js leaves their alpha at 0) stay sharp wherever they stand
+      if (blur < 0.02 || c.a < 0.5) { gl_FragColor = vec4(c.rgb, 1.0); return; }
       float r = blur * 5.5 * uRes.y / 900.0;
       vec2 px = r / uRes;
       vec4 acc = c; float n = 1.0;
@@ -63,7 +65,7 @@ const LENS_SHADER = {
         float a = float(i) * 2.39996 + 0.5, rr = sqrt((float(i) + 0.5) / 12.0);
         acc += texture2D(tDiffuse, vUv + vec2(cos(a), sin(a)) * px * rr); n += 1.0;
       }
-      gl_FragColor = acc / n;
+      gl_FragColor = vec4(acc.rgb / n, 1.0);
     }`,
 };
 const GRADE_SHADER = {
@@ -77,6 +79,11 @@ const GRADE_SHADER = {
       c.rgb = mix(c.rgb, c.rgb * mix(vec3(0.94, 0.9, 1.04), light, smoothstep(0.25, 0.9, l)), 0.5);
       c.rgb += shade * (1.0 - smoothstep(0.0, 0.35, l)) * 0.35;
       c.rgb = mix(vec3(l), c.rgb, 1.06 - uNight * 0.12 - uDesat);
+      // moonlight: by night what isn't lit by a lamp, a window or the Wildlight goes cool and dark, so the warm pools
+      // of light stand out on a blue lawn (warm and bright is left as it is)
+      float warm = clamp((c.r - c.b) * 3.0, 0.0, 1.0) * smoothstep(0.2, 0.48, l);
+      vec3 moon = vec3(l) * vec3(0.52, 0.78, 1.0) * 0.78 + vec3(0.0, 0.01, 0.025);
+      c.rgb = mix(c.rgb, moon, uNight * 0.72 * (1.0 - warm));
       vec2 q = vUv - 0.5; q.x *= 0.85;
       c.rgb *= 1.0 - uVignette * smoothstep(0.32, 0.78, length(q));
       gl_FragColor = c;
@@ -86,13 +93,19 @@ const GRADE_SHADER = {
 // then the grade's colour moves (the plum shadows, the cream lights, a touch more colour), made on the screen's values
 // as the pass makes them. The vignette is drawn by the page over the canvas (#lookfx in style.css), which costs the
 // picture nothing.
+// The night's moonlight rides in on the exposure (three gives this function no other number): the whole part is the
+// night in sixteenths times 4, the rest the real exposure (lookExposure in main.js sets it just for the drawing).
 const LOOK_TONE = 'vec3 CustomToneMapping( vec3 color ) { return color; }';
 if (THREE.ShaderChunk.tonemapping_pars_fragment.includes(LOOK_TONE)) THREE.ShaderChunk.tonemapping_pars_fragment = THREE.ShaderChunk.tonemapping_pars_fragment.replace(LOOK_TONE, `vec3 CustomToneMapping( vec3 color ) {
+    float lk = floor( toneMappingExposure / 4.0 ), night = lk / 16.0, ex = toneMappingExposure - lk * 4.0;
+    color *= ex / toneMappingExposure;
     vec3 d = pow( max( ACESFilmicToneMapping( color ), 0.0 ), vec3( 1.0 / 2.2 ) );
     float l = dot( d, vec3( 0.299, 0.587, 0.114 ) );
     d = mix( d, d * mix( vec3( 0.94, 0.9, 1.04 ), vec3( 1.0, 0.95, 0.84 ), smoothstep( 0.25, 0.9, l ) ), 0.5 );
     d += vec3( 0.075, 0.03, 0.09 ) * ( 1.0 - smoothstep( 0.0, 0.35, l ) ) * 0.35;
     d = mix( vec3( l ), d, 1.06 );
+    float warm = clamp( ( d.r - d.b ) * 3.0, 0.0, 1.0 ) * smoothstep( 0.2, 0.48, l );
+    d = mix( d, vec3( l ) * vec3( 0.52, 0.78, 1.0 ) * 0.78 + vec3( 0.0, 0.01, 0.025 ), night * 0.72 * ( 1.0 - warm ) );
     return pow( max( d, 0.0 ), vec3( 2.2 ) );
   }`);
 const lookTone = () => QUALITY.level === 'light' ? THREE.CustomToneMapping : THREE.ACESFilmicToneMapping;

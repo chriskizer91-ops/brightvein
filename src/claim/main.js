@@ -8,7 +8,7 @@ controls.zoomToCursor = true;
 const VIEW = { mode: 'town', tween: null };   // the Keep view has its own pan and zoom, face on (KCAM, keep.js)
 function viewLimits(mode) {
   if (mode === 'build') { controls.minDistance = 30; controls.maxDistance = 170; controls.minPolarAngle = 0.12; controls.maxPolarAngle = 1.1; controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; return; }
-  if (mode === 'town') { controls.minDistance = 12; controls.maxDistance = 150; controls.minPolarAngle = 0.25; controls.maxPolarAngle = 1.32; controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; }
+  if (mode === 'town') { controls.minDistance = 6; controls.maxDistance = 150; controls.minPolarAngle = 0.25; controls.maxPolarAngle = 1.32; controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity; }
   else { controls.minDistance = 14; controls.maxDistance = 110; controls.minPolarAngle = 1.2; controls.maxPolarAngle = 1.75; controls.minAzimuthAngle = -0.75; controls.maxAzimuthAngle = 0.75; }
 }
 function setView(mode) {
@@ -24,7 +24,9 @@ function setView(mode) {
   VIEW.tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt: to.t, tp: to.p, mode };
 }
 function focusOn(p) { if (VIEW.mode === 'mine') { if (p.y < -1) { digFocus(p); return; } setView('town'); } const off = camera.position.clone().sub(controls.target); const dist = Math.min(off.length(), 40); off.setLength(dist); VIEW.tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt: new THREE.Vector3(p.x, Math.min(0, p.y), p.z), tp: new THREE.Vector3(p.x, Math.min(0, p.y), p.z).add(off), mode: VIEW.mode }; }
+const CAMFREE = { on: false };   // (tests: a camera set by hand is left where it is)
 function updateCamera(dt) {
+  if (CAMFREE.on) { controls.update(); return; }
   if (VIEW.mode === 'keep') { keepCamUpdate(dt); return; }
   if (VIEW.mode === 'mine' && !VIEW.tween && !BUILD.on) { digCamUpdate(dt); return; }
   const T = VIEW.tween;
@@ -407,7 +409,9 @@ function frame() {
     }
   } catch (e) { safeFault('drawing', e); }
   if (!inK && !TITLE.on) shakeCamera(rdt);
+  const ex = lookExposure();
   try { composer ? composer.render() : renderer.render(S, C); } catch (e) { safeFault('drawing', e); }
+  renderer.toneMappingExposure = ex;
   if (!inK) unshakeCamera();
 }
 // Light's finish: the page's vignette over the claim, and the grade folded into the tone mapping (core.js). The skies
@@ -417,6 +421,13 @@ function lookFinish() {
   const sky = !!(SKY && SKY.on), light = QUALITY.level === 'light' && !sky;
   renderer.toneMapping = sky ? THREE.ACESFilmicToneMapping : lookTone();
   if (light !== lookOn) { lookOn = light; $('#app').classList.toggle('look-light', light); }
+}
+// on Light, the night for the tone mapping's moonlight, carried on the exposure while the claim is drawn (core.js);
+// gives back the exposure as it was
+function lookExposure() {
+  const ex = renderer.toneMappingExposure;
+  if (renderer.toneMapping === THREE.CustomToneMapping) renderer.toneMappingExposure = clamp(ex, 0, 3.99) + 4 * Math.round(clamp(TOD.night, 0, 1) * 16);
+  return ex;
 }
 // running slowly (under about 22 frames a second for half a minute) on Balanced or High: once, suggest Light
 const SLOW = { t: 0, n: 0, said: (() => { try { return !!localStorage.getItem('bv-slow-tip'); } catch (e) { return true; } })() };
@@ -615,7 +626,7 @@ function drawOnly() { shadowsDraw(); crowdDraw(); townMerge(); const inK = VIEW.
 function drawCalls() { const c = composer; composer = null; renderer.info.autoReset = true; renderer.render(scene, camera); const i = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, lights: 0 }; scene.traverse(o => { if (o.isPointLight) i.lights++; }); composer = c; return i; }
 window.__bv = { DIG, CAGE, ROOMK, digQuick, digSetHead, digTick, recruit: recruitArrives, digOrder, digUpgrade, digCancel, digWhyNot, digDiggable, digIncident, digMerge, digSave, digFrame, DIGCAM, roomAt, digAt, digAutoCrew, DLOOK, GLOW, pickDig,
   JUMP, Jumper, STORY, CHAPTERS, talkNext, castArrive, get SKY() { return SKY; }, get FLEET() { return FLEET; }, DOCK, openSky, dockMoor, dockView, MAT, ENV_MATS, scene, startStudy, endStudy, buildInterior, catchUp, KEEPV, kcam, updateStudies,
-  KCAM, KLIFE, KGLOW, KSCENE, keepTick, frame, keepLookUpdate, keepCamUpdate, frameKeep, pickKeep, keepAssign, kpath, keepDrawCalls, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin,
+  CAMFREE, CROWD, LIFE, larkProps, LARK, KCAM, KLIFE, KGLOW, KSCENE, keepTick, frame, keepLookUpdate, keepCamUpdate, frameKeep, pickKeep, keepAssign, kpath, keepDrawCalls, pointTime, STUDY, roomStudents, mastered, BUILD, enterBuild, exitBuild, trayPick, confirmPending, cancelPending, setTile, canPlace, addBuilding, removeBuilding, GRID, FOOT, footCenter, sendExpedition, recallExpedition, expOut, LOOT, D, equip, gearOf, fightOf, statOf, loadSave, DECOR, startDrag, groundAt, BEAMS, FLARES, saveGame, VIEW, FOLLOW, SEL, simulate, drawCalls, buildNav, workersOf, assignJob, stationFor, astar, GAME, TOWN, camera, controls, setView, TOD, WL, startNight, SHIP, UI, renderer, upgrade, WALLB, applyTimeOfDay, spawnWildlight, begin,
   NIGHT, WEATHER, WEATHERS, WL_KINDS, WALL, KEEP_LIMITS, BUY, DEFS, byType, autoAssign, findSpot, layoutChanged, planNight, forceWeather, lightningStrike, wallHit, nightReport, showDawn, skipTo, phaseChange, camShake, OUTLINE, cliffAt,
   showBanner, bossBar, nightLookout, BOLT, wallSetLevel, wallMatrices, snuffLamp, FX, BOSSES };
 // the bench and the fittings, for tests (bench.js, fittings.js, finds.js)

@@ -585,10 +585,46 @@ function pineGeometry() {
       col.push(sh * 0.92, sh, sh * 0.86);
     }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    g.computeVertexNormals();
-    parts.push(g.toNonIndexed());
+    const ng = g.toNonIndexed(); ng.computeVertexNormals();
+    softNormals(ng, (x, y, z) => _sn.set(x, 0.55 + (y - y0) * 0.15, z), 0.7);   // shaded as a soft, round tier rather than facets
+    parts.push(ng);
   }
   const out = mergeGeometries(parts); out.deleteAttribute('uv'); return out;
+}
+// bend a shape's normals toward a direction of its own (out from a crown's middle, out and up from a tier), so the
+// light falls on a tree as on a painted one: soft and round, not facet by facet
+const _sn = new THREE.Vector3(), _sf = new THREE.Vector3();
+function softNormals(g, dirAt, k) {
+  const p = g.attributes.position, n = g.attributes.normal;
+  for (let i = 0; i < p.count; i++) {
+    const d = dirAt(p.getX(i), p.getY(i), p.getZ(i)).normalize();
+    _sf.set(n.getX(i), n.getY(i), n.getZ(i)).multiplyScalar(1 - k).addScaledVector(d, k).normalize();
+    n.setXYZ(i, _sf.x, _sf.y, _sf.z);
+  }
+  n.needsUpdate = true;
+}
+// a painted leafiness over the trees: clumps of leaves or needles, lit and shaded, from a noise in the tree's own
+// space (it sways with the tree), and a warm glow through the leaves where the sun is behind them
+function foliage(mat, scale, key) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vLeaf;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nvLeaf = (position + instanceMatrix[3].xyz * 0.37) * ' + scale.toFixed(2) + ';\n#else\nvLeaf = position * ' + scale.toFixed(2) + ';\n#endif');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+      varying vec3 vLeaf;
+      float lh(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+      float ln(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mix(lh(i), lh(i + vec3(1,0,0)), f.x), mix(lh(i + vec3(0,1,0)), lh(i + vec3(1,1,0)), f.x), f.y),
+                   mix(mix(lh(i + vec3(0,0,1)), lh(i + vec3(1,0,1)), f.x), mix(lh(i + vec3(0,1,1)), lh(i + vec3(1,1,1)), f.x), f.y), f.z); }`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+      float leafA = ln(vLeaf), leafB = ln(vLeaf * 2.3 + 7.1);
+      float leaf = smoothstep(0.25, 0.75, leafA * 0.65 + leafB * 0.35);
+      diffuseColor.rgb *= 0.74 + 0.5 * leaf;`);
+  };
+  const k0 = mat.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : () => '';
+  mat.customProgramCacheKey = () => k0() + '|leaf' + key;
+  return mat;
 }
 function crownGeometry() {
   const blobs = [[0, 3.5, 0, 1.55], [0.95, 3.0, 0.35, 1.15], [-0.85, 3.1, -0.45, 1.2], [0.25, 4.35, -0.2, 1.1], [-0.4, 3.7, 0.9, 1.0], [0.7, 3.9, -0.8, 0.95], [-1.0, 2.6, 0.5, 0.8], [0.4, 2.5, -0.9, 0.85]];
@@ -602,7 +638,9 @@ function crownGeometry() {
     }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     g.computeVertexNormals();
-    return g.index ? g.toNonIndexed() : g;
+    const ng = g.index ? g.toNonIndexed() : g;
+    softNormals(ng, (x, y, z) => _sn.set(x - bx * 0.5, (y - 3.4) * 1.1, z - bz * 0.5), 0.75);   // one soft round crown
+    return ng;
   });
   const out = mergeGeometries(parts); out.deleteAttribute('uv'); return out;
 }
@@ -631,11 +669,11 @@ function buildDecor() {
   const pines = pts.filter(p => p.pine), broads = pts.filter(p => !p.pine);
   const mkI = (geo, mat, list, colFn) => { const m = new THREE.InstancedMesh(geo, mat, Math.max(1, list.length)); list.forEach((p, i) => { _wm.compose(_wp.set(p.x, 0, p.z), _wq.setFromEuler(_we.set(0, p.r, 0)), _ws.set(p.s, p.s * (0.9 + (p.s % 0.2)), p.s)); m.setMatrixAt(i, _wm); if (colFn) m.setColorAt(i, colFn(p)); }); m.count = list.length; m.castShadow = true; m.receiveShadow = true; scene.add(m); return m; };
   const barkMat = trackEnv(new THREE.MeshStandardMaterial({ map: tex('oak'), color: 0x6a5040, roughness: 1 }), 0.1);
-  const needleMat = windSway(trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.92, emissive: 0x0c1820, emissiveIntensity: 0 }), 0.1), 0.022, 1.2, 'pine');
+  const needleMat = foliage(windSway(trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.92, emissive: 0x0c1820, emissiveIntensity: 0 }), 0.1), 0.022, 1.2, 'pine'), 3.4, 'pine');
   worldMats.needles = needleMat;
-  const leafMat = windSway(trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.88 }), 0.1), 0.03, 1.8, 'leaf');
+  const leafMat = foliage(windSway(trackEnv(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.88 }), 0.1), 0.03, 1.8, 'leaf'), 2.6, 'leaf');
   const pc = new THREE.Color();
-  mkI(trunkG, barkMat, pines); mkI(pineG, needleMat, pines, p => pc.setHSL(0.37 + (p.r % 0.05), 0.42, 0.085 + (p.s % 0.05)).clone());
+  mkI(trunkG, barkMat, pines); mkI(pineG, needleMat, pines, p => pc.setHSL(0.37 + (p.r % 0.05), 0.4, 0.1 + (p.s % 0.05)).clone());
   mkI(trunk2, barkMat, broads); mkI(blobG, leafMat, broads, p => pc.setHSL(0.2 + (p.r % 0.08), 0.5, 0.13 + (p.s % 0.07)).clone());
   // --- rocks along the rim
   const rockG = projUV(new THREE.DodecahedronGeometry(1, 0), 1.5);

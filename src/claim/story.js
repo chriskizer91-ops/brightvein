@@ -383,13 +383,14 @@ function speakerPortrait(key, size = 120) {
   if (W.hero && ART.cast && ART.cast[W.hero]) { const w = framed(size), im = new Image(); im.src = ART.cast[W.hero]; w.append(im); return w; }
   return framed(size);
 }
-const TALK = { lines: null, i: 0, typing: 0, full: '', after: null };
+const TALK = { lines: null, i: 0, typing: 0, full: '', after: null, dawn: false };
 // sc: { lines: [[who, text]], title, chapter, act (the first chapter of an act), heading (a title of its own), after }
 function playScene(sc) {
   STORY.shown = sc; TALK.lines = sc.lines.filter(([k]) => WHO[k]); TALK.i = 0; TALK.after = sc.after || null;
   if (!TALK.lines.length) { STORY.shown = null; if (TALK.after) { const a = TALK.after; TALK.after = null; a(); } return; }
   GAME.talk = true; UI.park();   // the panel comes back when the scene is over (ui.js)
   const dm = document.getElementById('dawnmini'); if (dm) dm.hidden = true;   // the dawn line would sit over the title
+  const dawn = document.getElementById('dawn'); if (dawn && !dawn.hidden) { dawn.hidden = true; TALK.dawn = true; }   // the dawn report steps aside, and comes back after
   const head = sc.heading || (sc.title ? `${sc.chapter ? `Chapter ${sc.chapter}` : 'Prologue'} · ${sc.title}` : '');
   const T = $('#talk-title'); T.textContent = head; T.hidden = !head;
   if (sc.act && head) { const s = document.createElement('small'); s.textContent = `Act ${sc.act}`; T.prepend(s); }
@@ -419,6 +420,8 @@ function endScene() {
   const after = TALK.after; STORY.shown = null; TALK.after = null;
   if (after) after();
   journalHUD();
+  // the dawn report that was being read when the scene began (unless the scene led on to another, or to a day's card)
+  if (TALK.dawn && !STORY.shown && !GAME.talk) { TALK.dawn = false; const d = document.getElementById('dawn'); if (d && !EVT.card) d.hidden = false; }
   UI.unpark();   // the panel that was open before the scene (unless the scene led on to something else)
 }
 $('#talk').addEventListener('click', e => { if (e.target.id === 'talk-skip') { endScene(); return; } talkNext(); });

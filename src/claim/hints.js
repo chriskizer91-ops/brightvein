@@ -1,5 +1,5 @@
 // ===================================================================== HINTS: a few gentle tips, the first time each thing matters
-// Laying out the claim, the first night, the first Bright Night, the dig, the bench, the Sky Dock and the first day
+// Laying out the claim, moving about it, the first night, the first Bright Night, the dig, the bench, the Sky Dock and the first day
 // event. Each shows once on this device (remembered under 'bv-hints'), sits out of the way, never stops the game, and
 // can be dismissed; they can be turned off (and shown again) in Settings. They watch the game rather than being
 // called from it (hintsTick, every frame from main.js), so the files they're about don't need to know about them.
@@ -10,7 +10,9 @@ try { const s = JSON.parse(localStorage.getItem('bv-hints')); if (s && typeof s 
 // panel, above its title), 'event' (over the day's card)
 const HINT = {
   layout: { title: 'Placing buildings', where: 'build',
-    text: 'Tap a card below to drop a building in, then drag it where you like: green means it fits. Sunning yards like open ground near the Keep; turrets do best near the rim, where the Wildlight climb.' },
+    text: 'Tap a card below to drop a building in, then drag it where you like: green means it fits. Yards and workshops work the same wherever they stand (near the Keep, there’s less walking); turrets do best near the rim, where the Wildlight climb.' },
+  controls: { title: 'Moving about', where: 'top',   // once the claim is in your hands (begin in main.js shows the line again the next few times)
+    get text() { return matchMedia('(pointer:coarse)').matches ? 'Drag to move, pinch to zoom, two fingers to turn. Tap anyone or anything to see what they do.' : 'Drag to move, scroll to zoom, right-drag to turn. Click anyone or anything to see what they do. Space pauses.'; } },
   night: { title: 'Your first night', where: 'top',
     text: 'After dark, Wildlight climb the cliffs toward your light. Lens towers and the watch on the wall fight them off. The lamps burn shards, so keep a few in the stores. Arrows at the edge of the screen show where they’re climbing.' },
   bright: { title: 'Bright Night', where: 'boss', line: true,
@@ -72,6 +74,7 @@ function hintClose() {
 // what each tip waits for, and when it's no longer the moment for it
 const hintNow = {
   layout: () => BUILD.on && !BUILD.setupDone && $('#intro').hidden,
+  controls: () => BUILD.setupDone && !BUILD.on && VIEW.mode === 'town' && !VIEW.tween,
   night: () => !!WL.night && WL.night.n === 1 && !WL.night.bright && TOD.phase === 'night' && hidden('nightbanner'),
   bright: () => !!WL.night && WL.night.bright && hidden('nightbanner'),
   dig: () => VIEW.mode === 'mine' && !VIEW.tween && !BUILD.on,
